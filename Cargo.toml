@@ -1,0 +1,11 @@
+[package]
+name = "trait_tests"
+version = "0.1.0"
+authors = ["Giles Cope <gilescope@gmail.com>"]
+
+[lib]
+proc-macro = false
+crate-type = ["dylib"]
+
+
+[dependencies]
