@@ -8,7 +8,7 @@ readme="README.md"
 keywords=["testing", "test", "traits"]
 categories=["development-tools::testing"]
 maintanance= { status="experimental" }
-license="LICENSE"
+license="MIT license"
 
 [lib]
 proc-macro = false
