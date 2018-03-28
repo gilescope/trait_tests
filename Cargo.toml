@@ -3,11 +3,11 @@ name = "trait_tests"
 description="A compiler plugin to allow tests to be defined agaist traits."
 version = "0.1.0"
 authors = ["Giles Cope <gilescope@gmail.com>"]
-repositorty = "https://github.com/gilescope/trait_tests"
+repository = "https://github.com/gilescope/trait_tests"
 readme="README.md"
 keywords=["testing", "test", "traits"]
 categories=["development-tools::testing"]
-maintanance= { status="experimental" }
+maintenance= { status="experimental" }
 license="MIT"
 
 [lib]

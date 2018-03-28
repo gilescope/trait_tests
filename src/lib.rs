@@ -5,7 +5,7 @@ extern crate syntax;
 extern crate rustc_plugin;
 
 use syntax::abi::Abi;
-use syntax::ast::{self, Ident, Generics, Item, TraitItemKind, TraitRef, TraitItem, Path,
+use syntax::ast::{self, Ident, Generics, Item, TraitItemKind, AngleBracketed, TraitRef, TraitItem, Path,
                   WhereClause, PathParameters, Ty, AngleBracketedParameterData,
                   PathSegment, ExprKind,Expr, ItemKind, StmtKind, Stmt, TyKind, MethodSig,
                   Unsafety, Constness, FunctionRetTy, FnDecl };
@@ -40,10 +40,48 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                 // we need to generate a test that calls the test_all() function defined on the trait.
                 //We look like: impl SetTestsisize for MySet<isize> {}
 
+                //let ty = impl_type.clone();
+                let mut unangled : Option<Ty> = None;
+
+                match **impl_type {
+                    Ty{
+                        id: ast::DUMMY_NODE_ID,
+                        node : TyKind::Path(None,
+                                            Path{
+                                                segments: ref a, ..}
+                        ),
+                        ..} => {
+
+                        match a[0] {
+                            PathSegment{
+                                parameters: Some(
+                                    ref angle
+
+                                ),
+                                ..
+                            } => {
+
+                                if let AngleBracketed(AngleBracketedParameterData{types: ref unangled, .. }) = **angle
+                                {
+                                    println!("matched {:#?}", &unangled)
+                                }
+                            }
+                            _ => {}
+                        }
+
+
+//                        println!("matched {:#?}", a)
+                    },
+                    _ => {}
+                }
+
+
                 let s : String = format!("{:?}",impl_type);
-                let mut type_param = None;
+                //let mut type_param = None;
+               // let mut unangled = None;
                 let type_impl_name : &str = if let Some(idx) = s.find('<') { // TODO dodgy
-                    type_param = Some(&s[idx .. s.len() - 1]);
+                    //let type_param = Some(&s[idx .. s.len() - 1]);
+                //    unangled = Some(&(type_param.unwrap()[1 .. type_param.unwrap().len()-1]));//TODO dodgy
                     &s[5..idx]
                 } else {
                     &s[5..s.len() - 1]
@@ -52,7 +90,28 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                 let trait_name = format!("{:?}", trait_ref); // TODO dodgy
                 let trait_name_lower = trait_name[5..trait_name.len()-1].to_lowercase();
 
-                let unangled = &(type_param.unwrap()[1 .. type_param.unwrap().len()-1]);//TODO dodgy
+                let angles = if let Some(angle_ty) = unangled {
+//                    let mut type_param_path = vec![ ];
+//                    type_param_path.push(PathSegment{ span, parameters: None, identifier: Ident::from_str(x) });
+
+                    Some(P(PathParameters::AngleBracketed(AngleBracketedParameterData {
+                        span,
+                        lifetimes: vec![],
+                        bindings: vec![],
+                        types: vec![P(
+
+                        angle_ty.clone()
+//                            Ty {
+//                            id: ast::DUMMY_NODE_ID,
+//                            node: TyKind::Path(None, Path { segments: type_param_path, span }),//tODO!!
+//                            span
+//                        }
+
+                        )]
+                    })))
+                } else {
+                    None
+                };
 
                 let test_all_call = Stmt {
                     id: ast::DUMMY_NODE_ID,
@@ -68,16 +127,7 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                             ExprKind::Path(None, ::syntax::ast::Path {
                                 span,
                                 segments: vec![
-                                    PathSegment { span, parameters: Some(P(PathParameters::AngleBracketed(AngleBracketedParameterData{
-                                        span,
-                                        lifetimes: vec![],
-                                        bindings: vec![],
-                                        types: vec![P(Ty{
-                                            id: ast::DUMMY_NODE_ID,
-                                            node : TyKind::Path(None,Path{segments: vec![ PathSegment{ span, parameters: None, identifier: Ident::from_str(unangled) } ], span}),//tODO!!
-                                            span})]
-
-                                    }))), identifier: Ident::from_str(type_impl_name) },//TODO dodgy
+                                    PathSegment { span, parameters: angles, identifier: Ident::from_str(type_impl_name) },//TODO dodgy
                                     PathSegment { span, parameters: None, identifier: Ident::from_str("test_all") },
                                 ]
                             }
