@@ -1,6 +1,7 @@
 #![feature(custom_attribute)]
 #![feature(plugin)]
 #![plugin(trait_tests)]
+#[allow(dead_code)]
 
 #[cfg(test)]
 mod example_tests {
