@@ -41,7 +41,6 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                 //
                 // impl SetTestsisize for MySet<isize> {}
                 //                                ^---- unangled is set to this type.
-                println!("matched {:#?}", &trait_ref);
                 match trait_ref { &Path{ ref segments, .. } => {
                         let trait_name = &segments[0].identifier.name.to_string();
 
@@ -53,18 +52,18 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                             } => {
                                 match a[0] {
                                     PathSegment { parameters: ref maybe_angle, identifier: ref type_impl_ident, .. } => {
-                                        let mut unangled: Option<Ty> = None;
+                                        let mut _unangled: Option<Ty> = None;
 
                                         if let &Some(ref angle) = maybe_angle {
                                             if let PathParameters::AngleBracketed(
-                                                AngleBracketedParameterData { types: ref unangled, .. }) = **angle {
+                                                AngleBracketedParameterData { types: ref _unangled, .. }) = **angle {
                                                 //sets unangled to the impl type's generic parameter.
                                             }
                                         }
 
                                         let type_impl_name = &type_impl_ident.name.to_string().clone();
 
-                                        let angles = if let Some(angle_ty) = unangled {
+                                        let angles = if let Some(angle_ty) = _unangled {
                                             Some(P(PathParameters::AngleBracketed(AngleBracketedParameterData {
                                                 span,
                                                 lifetimes: vec![],
@@ -123,8 +122,7 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                             },
                             _ => {}
                         }
-                    },
-                    _ => {}
+                    }
                 }
             },
             ItemKind::Trait(a, b, ref c, ref d, ref trait_items) => {

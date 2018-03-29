@@ -18,16 +18,24 @@ mod example_tests {
         }
     }
 
+    #[derive(Eq,PartialEq)]
     enum Dialect {
         American
     }
 
-    struct EnglisHelloImpl<Dialect> {
-        dialect: Dialect
+    struct EnglisHelloImpl<T> {
+        dialect: T
     }
 
     impl Hello<Dialect> for EnglisHelloImpl<Dialect> {
-        fn get_greeting(&self) -> &str { "Howdy" }
+        fn get_greeting(&self) -> &str {
+            if self.dialect == Dialect::American {
+                "Howdy"
+            }
+            else {
+                "Hi"
+            }
+        }
     }
 
     #[trait_tests]
