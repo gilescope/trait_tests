@@ -1,5 +1,5 @@
 #![crate_type = "dylib"]
-#![feature(plugin_registrar, rustc_private)]
+#![feature(plugin_registrar, rustc_private, quote)]
 
 extern crate syntax;
 extern crate rustc_plugin;
@@ -19,6 +19,10 @@ use syntax::util::ThinVec;
 
 use rustc_plugin::Registry;
 
+//
+// leftfield: could trait annotation create a macro that would create the individual test functions
+// when invoked with a param at the impl site?
+//
 #[plugin_registrar]
 #[doc(hidden)]
 pub fn plugin_registrar(reg: &mut Registry) {
@@ -42,7 +46,9 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                 // impl SetTestsisize for MySet<isize> {}
                 //                                ^---- unangled is set to this type.
                 match trait_ref { &Path{ ref segments, .. } => {
-                        let trait_name = &segments[0].identifier.name.to_string();
+                        let trait_segments = segments;
+                        let trait_ident = trait_segments[0].identifier.clone();
+                        let trait_name = trait_ident.name.to_string();
 
                         match **impl_type {
                             Ty {
@@ -57,46 +63,16 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                                         if let &Some(ref angle) = maybe_angle {
                                             if let PathParameters::AngleBracketed(
                                                 AngleBracketedParameterData { types: ref _unangled, .. }) = **angle {
-                                                //sets unangled to the impl type's generic parameter.
+                                                //Sideeffect! sets 'unangled' to the impl type's generic parameter.
                                             }
                                         }
 
                                         let type_impl_name = &type_impl_ident.name.to_string().clone();
 
-                                        let angles = if let Some(angle_ty) = _unangled {
-                                            Some(P(PathParameters::AngleBracketed(AngleBracketedParameterData {
-                                                span,
-                                                lifetimes: vec![],
-                                                bindings: vec![],
-                                                types: vec![P(angle_ty.clone())]
-                                            })))
-                                        } else {
-                                            None
-                                        };
+                                        let trate_ref_clone = trait_ref.clone();
+                                        let impl_type_clone = impl_type.clone();
 
-                                        let test_all_call = Stmt {
-                                            id: ast::DUMMY_NODE_ID,
-                                            node: StmtKind::Expr(P(Expr{
-                                                span,
-                                                attrs: ThinVec::new(),
-                                                id: ast::DUMMY_NODE_ID,
-                                                node: ExprKind::Call(P(Expr {
-                                                    span,
-                                                    attrs: ThinVec::new(),
-                                                    id: ast::DUMMY_NODE_ID,
-                                                    node:
-                                                    ExprKind::Path(None, ::syntax::ast::Path {
-                                                        span,
-                                                        segments: vec![
-                                                            PathSegment { span, parameters: angles, identifier: type_impl_ident.clone() },
-                                                            PathSegment { span, parameters: None, identifier: Ident::from_str("test_all") },
-                                                        ]
-                                                    }
-                                                    )
-                                                }), vec![])
-                                            })),
-                                            span,
-                                        };
+                                        let test_all_call = quote_stmt!(&mut *cx, <$impl_type_clone as $trate_ref_clone>::test_all();).unwrap();
 
                                         let body = cx.block(span, vec![test_all_call]);
 

@@ -1,6 +1,7 @@
 #![feature(custom_attribute)]
 #![feature(plugin)]
 #![plugin(trait_tests)]
+#[allow(dead_code)]
 
 #[cfg(test)]
 mod example_tests {
@@ -10,7 +11,7 @@ mod example_tests {
     }
 
     #[trait_tests]
-    trait HelloTests<Dialect, String> : Hello<Dialect, String> + Sized {
+    trait HelloTests : Hello<Dialect, String> + Sized {
         fn new() -> Self;
 
         fn test() {
@@ -32,7 +33,7 @@ mod example_tests {
     }
 
     #[trait_tests]
-    impl HelloTests<Dialect, String> for EnglisHelloImpl<Dialect, String>
+    impl HelloTests for EnglisHelloImpl<Dialect, String>
     {
         fn new() -> Self { EnglisHelloImpl { dialect: Dialect::American, tag: String::new() } }
     }

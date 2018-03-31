@@ -26,4 +26,5 @@ mod example_tests {
 
     #[trait_tests]
     impl HelloTests for SpanishHelloImpl { fn new() -> Self { SpanishHelloImpl{} } }
+
 }

@@ -1,16 +1,17 @@
 #![feature(custom_attribute)]
 #![feature(plugin)]
 #![plugin(trait_tests)]
+#[allow(dead_code)]
 
 #[cfg(test)]
 mod example_tests {
 
-    trait Hello<Dialect> {
+    trait Hello<T> {
         fn get_greeting(&self) -> &str;
     }
 
     #[trait_tests]
-    trait HelloTests<Dialect> : Hello<Dialect> + Sized {
+    trait HelloTests : Hello<String> + Sized {
         fn new() -> Self;
 
         fn test() {
@@ -27,17 +28,12 @@ mod example_tests {
         dialect: T
     }
 
-    impl Hello<Dialect> for EnglisHelloImpl<Dialect> {
+    impl <T> Hello<T> for EnglisHelloImpl<T> {
         fn get_greeting(&self) -> &str {
-            if self.dialect == Dialect::American {
-                "Howdy"
-            }
-            else {
-                "Hi"
-            }
+            "Howdy"
         }
     }
 
     #[trait_tests]
-    impl HelloTests<Dialect> for EnglisHelloImpl<Dialect> { fn new() -> Self { EnglisHelloImpl { dialect: Dialect::American } } }
+    impl HelloTests for EnglisHelloImpl<String> { fn new() -> Self { EnglisHelloImpl { dialect: String::new() } } }
 }

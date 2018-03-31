@@ -11,7 +11,7 @@ mod example_tests {
     }
 
     #[trait_tests]
-    trait HelloTests<Dialect> : Hello<Dialect> + Sized {
+    trait HelloTests : Hello<Dialect<isize>> + Sized {
         fn new() -> Self;
 
         fn test() {
@@ -33,7 +33,7 @@ mod example_tests {
     }
 
     #[trait_tests]
-    impl HelloTests<Dialect<isize>> for EnglisHelloImpl<Dialect<isize>>
+    impl HelloTests for EnglisHelloImpl<Dialect<isize>>
     {
         fn new() -> Self {
             EnglisHelloImpl {
