@@ -38,12 +38,12 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
     let item = annot_item.expect_item();
     {
         match item.node {
-            ItemKind::Impl(_, _, _, _, Some(TraitRef { path: ref trait_ref, .. } ), ref impl_type, _) => {
+            ItemKind::Impl(_, _, _, _, Some(TraitRef { path: ref trait_ref, .. } ), ref impl_type, ref _methods) => {
                 // ![trait_tests] has been put on an implementation,
                 // we need to generate a test that calls the test_all() function defined on the trait.
                 // We look like:
-                //
-                // impl SetTestsisize for MySet<isize> {}
+                //                         add in new method if not defined ----\
+                // impl SetTestsisize for MySet<isize> { fn new() -> Self { Self::new() } }
                 //                                ^---- unangled is set to this type.
                 match trait_ref { &Path{ ref segments, .. } => {
                         let trait_segments = segments;
@@ -57,7 +57,7 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                                 ..
                             } => {
                                 match a[0] {
-                                    PathSegment { parameters: ref maybe_angle, identifier: ref type_impl_ident, .. } => {
+                                    PathSegment { parameters: ref maybe_angle, identifier: ref _type_impl_ident, .. } => {
                                         let mut _unangled: Option<Ty> = None;
 
                                         if let &Some(ref angle) = maybe_angle {
@@ -67,7 +67,17 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                                             }
                                         }
 
-                                        let type_impl_name = &type_impl_ident.name.to_string().clone();
+                                        //let type_impl_name = &type_impl_ident.name.to_string().clone();
+                                        //TODO find safer way to do this...
+                                        let type_impl_name = &(format!("{:?}", &impl_type)
+                                            .replace("<","_")
+                                            .replace(">","")
+                                            .replace("(", "")
+                                            .replace(")","")
+                                            .replace(" ", "_")
+                                            .replace(",", "_")
+                                            .replace("__", "_")
+                                            [4..]);
 
                                         let trate_ref_clone = trait_ref.clone();
                                         let impl_type_clone = impl_type.clone();
@@ -92,7 +102,13 @@ fn expand_meta_trait_test(cx: &mut ExtCtxt,
                                         // Attach the attributes to the outer function
                                         let test_fn = Annotatable::Item(P(ast::Item {attrs, ..(*test).clone()}));
 
-                                        return  vec![Annotatable::Item(P(Item{attrs: Vec::new(), ..(*item).clone() })), test_fn];
+                                        let _new_fn = quote_item!(&mut *cx, fn new() -> Self { Self::new() }).unwrap();
+                                        //TODO add fn new() -> Self { Self::new() } in
+
+                                        //methods.push(*new_fn);
+                                        let item_clone = (*item).clone();//todo need to add trait item
+
+                                        return  vec![Annotatable::Item(P(Item{attrs: Vec::new(), ..item_clone })), test_fn];
                                     }
                                 }
                             },
