@@ -46,7 +46,7 @@ fn inject_test_method(_impl_def: DeriveInput) -> TokenStream {
         results.append_all(process_case(_impl_def.ident, attr.tts));
     }
 
-    println!("{:#?}", &results);
+    //println!("{:#?}", &results);
     results.into()
 }
 

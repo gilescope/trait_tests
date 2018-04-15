@@ -16,9 +16,8 @@ crate-type = ["proc-macro"]
 
 
 [dependencies]
-syn="*"
-quote="*"
-#proc-macro2="*"
+syn="0.13"
+quote="0.5"
 
 [features]
 default=["syn/full"]
