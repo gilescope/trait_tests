@@ -1,21 +1,20 @@
-#![feature(custom_attribute)]
-#![feature(plugin)]
-#![plugin(trait_tests)]
+#![feature(proc_macro)]
+extern crate trait_tests;
+
 #[allow(dead_code)]
 
 #[cfg(test)]
 mod example_tests {
+    use trait_tests::*;
 
     trait Hello<T> {
         fn get_greeting(&self) -> &str;
     }
 
     #[trait_tests]
-    trait HelloTests : Hello<String> + Sized {
-        fn new() -> Self;
-
+    trait HelloTests : Hello<String> + Sized + Default {
         fn test() {
-            assert!(Self::new().get_greeting().len() < 200);
+            assert!(Self::default().get_greeting().len() < 200);
         }
     }
 
@@ -24,6 +23,8 @@ mod example_tests {
         American
     }
 
+    #[derive(TraitTests)]
+    #[trait_test(HelloTests,String)]
     struct EnglisHelloImpl<T> {
         dialect: T
     }
@@ -34,6 +35,5 @@ mod example_tests {
         }
     }
 
-    #[trait_tests]
-    impl HelloTests for EnglisHelloImpl<String> { fn new() -> Self { EnglisHelloImpl { dialect: String::new() } } }
+    impl Default for EnglisHelloImpl<String> { fn default() -> Self { EnglisHelloImpl { dialect: String::new() } } }
 }

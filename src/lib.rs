@@ -1,209 +1,163 @@
-#![crate_type = "dylib"]
-#![feature(plugin_registrar, rustc_private, quote)]
+#![feature(proc_macro, )]//proc_macro_lib
+#![crate_type = "proc-macro"]
 
-extern crate syntax;
-extern crate rustc_plugin;
-
-use syntax::abi::Abi;
-use syntax::ast::{self, Ident, Generics, Item, TraitItemKind, TraitRef, TraitItem, Path,
-                  WhereClause, PathParameters, Ty, AngleBracketedParameterData,
-                  PathSegment, ExprKind,Expr, ItemKind, StmtKind, Stmt, TyKind, MethodSig,
-                  Unsafety, Constness, FunctionRetTy, FnDecl };
-use syntax::codemap::{ self, Spanned};
-use syntax::ext::base::{ExtCtxt, MultiModifier, Annotatable};
-use syntax::ext::build::AstBuilder;
-use syntax::ptr::P;
-use syntax::symbol::Symbol;
-use syntax::tokenstream::{TokenStream};
-use syntax::util::ThinVec;
-
-use rustc_plugin::Registry;
+extern crate proc_macro;
+extern crate syn;
+#[macro_use] extern crate quote;
 
 //
-// leftfield: could trait annotation create a macro that would create the individual test functions
-// when invoked with a param at the impl site?
+// Example https://github.com/actix/actix-derive/blob/master/src/lib.rs
 //
-#[plugin_registrar]
-#[doc(hidden)]
-pub fn plugin_registrar(reg: &mut Registry) {
-    reg.register_syntax_extension(Symbol::intern("trait_tests"),
-                                  MultiModifier(Box::new(expand_meta_trait_test)));
+
+use proc_macro::{TokenStream};
+use quote::__rt::TokenTree;
+use syn::{TraitItem, TraitItemMethod,DeriveInput,  MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
+
+#[proc_macro_attribute]
+pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let output;
+    if let Ok(trait_def) = syn::parse(input.clone()) {
+        let mut ast: syn::ItemTrait = trait_def;
+        ast = inject_test_all_method(ast);
+        output= quote!(#ast);
+    } else {
+        panic!("Expected this attribute to be on a trait.");
+    }
+    output.into()
 }
 
-fn expand_meta_trait_test(cx: &mut ExtCtxt,
-                          span: codemap::Span,
-                          _: &ast::MetaItem,
-                          annot_item: Annotatable) -> Vec<Annotatable> {
-    let item_kind;
-    let item = annot_item.expect_item();
-    {
-        match item.node {
-            ItemKind::Impl(_, _, _, _, Some(TraitRef { path: ref trait_ref, .. } ), ref impl_type, ref _methods) => {
-                // ![trait_tests] has been put on an implementation,
-                // we need to generate a test that calls the test_all() function defined on the trait.
-                // We look like:
-                //                         add in new method if not defined ----\
-                // impl SetTestsisize for MySet<isize> { fn new() -> Self { Self::new() } }
-                //                                ^---- unangled is set to this type.
-                match trait_ref { &Path{ ref segments, .. } => {
-                        let trait_segments = segments;
-                        let trait_ident = trait_segments[0].identifier.clone();
-                        let trait_name = trait_ident.name.to_string();
+#[proc_macro_derive(TraitTests, attributes(trait_test))]
+pub fn trait_tests2(input: TokenStream) -> TokenStream {
+    // Parse the string representation
+    let ast: DeriveInput  = syn::parse(input).unwrap();
 
-                        match **impl_type {
-                            Ty {
-                                id: ast::DUMMY_NODE_ID,
-                                node: TyKind::Path(None, Path{ segments: ref a, .. }),
-                                ..
-                            } => {
-                                match a[0] {
-                                    PathSegment { parameters: ref maybe_angle, identifier: ref _type_impl_ident, .. } => {
-                                        let mut _unangled: Option<Ty> = None;
+    // Build the impl
+    let gen = inject_test_method(ast);
 
-                                        if let &Some(ref angle) = maybe_angle {
-                                            if let PathParameters::AngleBracketed(
-                                                AngleBracketedParameterData { types: ref _unangled, .. }) = **angle {
-                                                //Sideeffect! sets 'unangled' to the impl type's generic parameter.
-                                            }
-                                        }
+    // Return the generated impl
+    gen.into()
+}
 
-                                        //let type_impl_name = &type_impl_ident.name.to_string().clone();
-                                        //TODO find safer way to do this...
-                                        let type_impl_name = &(format!("{:?}", &impl_type)
-                                            .replace("<","_")
-                                            .replace(">","")
-                                            .replace("(", "")
-                                            .replace(")","")
-                                            .replace(" ", "_")
-                                            .replace(",", "_")
-                                            .replace("__", "_")
-                                            [4..]);
+fn inject_test_method(_impl_def: DeriveInput) -> TokenStream {
+    let mut results = quote::Tokens::new();
 
-                                        let trate_ref_clone = trait_ref.clone();
-                                        let impl_type_clone = impl_type.clone();
+    for attr in _impl_def.attrs {
+        results.append_all(process_case(_impl_def.ident, attr.tts));
+    }
 
-                                        let test_all_call = quote_stmt!(&mut *cx, <$impl_type_clone as $trate_ref_clone>::test_all();).unwrap();
+    println!("{:#?}", &results);
+    results.into()
+}
 
-                                        let body = cx.block(span, vec![test_all_call]);
+fn process_case(struct_ident: Ident, tts: quote::__rt::TokenStream) -> quote::Tokens {
+    let mut it = tts.into_iter();
+    let group = it.next();
 
-                                        let test_method_name = String::from("trait_test_")
-                                            + &type_impl_name.to_lowercase() +
-                                            "_" + &trait_name.to_lowercase();
+    if let Some(TokenTree::Group(g @ quote::__rt::Group{..})) = group {
+        let (trait_name, impltypes_y) = parse_case(g);
+        let test_fn_name = generate_unique_test_name(&struct_ident, &trait_name, &impltypes_y);
 
-                                        let test = cx.item_fn(span, Ident::from_str(&test_method_name),
-                                                              vec![], cx.ty(span, TyKind::Tup(vec![])), body);
+        let has_generics_params = !impltypes_y.is_empty();
+        let mut impltypes_punctuated = quote::Tokens::new();
+        impltypes_punctuated.append_separated(impltypes_y, quote!(,));
 
-                                        // Copy attributes from original function
-                                        let mut attrs = item.attrs.clone();
+        let new_fn : quote::Tokens = if !has_generics_params {
+            quote!(
+            #[test]
+            fn #test_fn_name() {
+                <#struct_ident as #trait_name>::test_all();
+            }
 
-                                        // Add #[test] attribute
-                                        attrs.push(cx.attribute(span, cx.meta_word(span, Symbol::intern("test"))));
+            impl #trait_name for #struct_ident {})
+        } else {
+            quote!(
+            #[test]
+            fn #test_fn_name() {
+                <#struct_ident<#impltypes_punctuated> as #trait_name>::test_all();
+            }
 
-                                        // Attach the attributes to the outer function
-                                        let test_fn = Annotatable::Item(P(ast::Item {attrs, ..(*test).clone()}));
+            impl #trait_name for #struct_ident<#impltypes_punctuated> {})
+        };
+        new_fn
+    } else { panic!("unexpected input") }
+}
 
-                                        let _new_fn = quote_item!(&mut *cx, fn new() -> Self { Self::new() }).unwrap();
-                                        //TODO add fn new() -> Self { Self::new() } in
+fn generate_unique_test_name(struct_ident: &Ident, trait_name: &quote::__rt::Term, params: &Vec<quote::Tokens>) -> Ident {
+    let mut root = String::from(struct_ident.to_string());
+    root.push('_');
+    root.push_str(&trait_name.clone().to_string());
+    for param in params {
+        root.push('_');
+        root.push_str(&param.clone().to_string());
+    }
+    let test_fn_name = syn::Ident::from(
+        root.to_lowercase().replace("<", "_")
+            .replace(">", "")
+            .replace("\"", "")
+            .replace(" ", "_")
+            .replace("__", "_")
+            .replace("__", "_")
+    );
+    test_fn_name
+}
 
-                                        //methods.push(*new_fn);
-                                        let item_clone = (*item).clone();//todo need to add trait item
-
-                                        return  vec![Annotatable::Item(P(Item{attrs: Vec::new(), ..item_clone })), test_fn];
-                                    }
-                                }
-                            },
-                            _ => {}
-                        }
-                    }
+fn parse_case(g: quote::__rt::Group) -> (quote::__rt::Term, Vec<quote::Tokens>)
+{
+    let mut trait_name = None;
+    let mut params : Vec<quote::Tokens> = vec![];
+    let mut buffer : Vec<TokenTree> = vec![];
+    for t in g.stream() {
+        match t {
+            TokenTree::Term(t) => {
+                if trait_name.is_none() {
+                    trait_name = Some(t.clone());
+                } else {
+                    buffer.push(TokenTree::Term(t));
                 }
             },
-            ItemKind::Trait(a, b, ref c, ref d, ref trait_items) => {
-                // ![trait_tests] has been put on a trait, we need to generate a test_all() function.
-                let mut test_names = vec![];
-
-                for method in trait_items {
-                    match method {
-                        &TraitItem {
-                            generics:Generics{ params: ref v, ..},
-                            node:TraitItemKind::Method(
-                                MethodSig{ decl: ref fn_decl, .. }, Some(_)),
-                            ..
-                        } if v.is_empty() => {
-                            match **fn_decl {
-                                FnDecl{inputs: ref args, ..} if args.is_empty() => {
-                                    let fn_call = Stmt {
-                                        id: ast::DUMMY_NODE_ID,
-                                        node: StmtKind::Semi(P(Expr {
-                                            id: ast::DUMMY_NODE_ID,
-                                            node: ExprKind::Call(P(Expr {
-                                                span,
-                                                attrs: ThinVec::new(),
-                                                id: ast::DUMMY_NODE_ID,
-                                                node:
-                                                ExprKind::Path(None, ::syntax::ast::Path {
-                                                    span,
-                                                    segments: vec![
-                                                        PathSegment { span, parameters: None, identifier: Ident::from_str("Self") },
-                                                        PathSegment { span, parameters: None, identifier: method.ident.clone() },
-                                                    ]
-                                                })
-                                            }), vec![]),
-                                            span,
-                                            attrs: ThinVec::new()
-                                        })),
-                                        span,
-                                    };
-                                    test_names.push(fn_call);
-                                },
-                                _ => {}
-                            }
-                        },
-                        _ => {}
-                    }
-                }
-
-                let body = cx.block(span, test_names);
-
-                let func = ::syntax::ast::TraitItemKind::Method(MethodSig {
-                        abi: Abi::Rust,
-                        constness: Spanned {
-                            node: Constness::NotConst,
-                            span
-                        },
-                        decl: P(FnDecl {
-                            inputs: vec![],
-                            output: FunctionRetTy::Default(
-                                span
-                            ),
-                            variadic: false
-                        }),
-
-                        unsafety: Unsafety::Normal
-                    }, Some(body) );
-
-                let prop = ast::TraitItem {
-                    attrs: Vec::new(),
-                    ident: Ident::from_str("test_all"),
-                    tokens: Some(TokenStream::empty()),
-                    id:ast::DUMMY_NODE_ID,
-                    span,
-                    generics: Generics{span, where_clause:WhereClause{
-                        id:ast::DUMMY_NODE_ID,
-                        span,
-                        predicates:vec![]}, params:vec![]},
-                    node: func
-                };
-
-                let mut items = trait_items.clone();
-                items.push(prop);
-                item_kind = ItemKind::Trait(a, b, c.clone(), d.clone(), items);
-                return vec![Annotatable::Item(P(Item{ node: item_kind, ..(*item).clone() }))]
-            }
-            _ => {
-                cx.span_err(
-                    span, "#[trait_tests] only supported on traits and associated impls");
-            }
+            TokenTree::Op(op) if op.op() == ',' => {
+                let mut parampp = quote::Tokens::new();
+                parampp.append_all(buffer.clone());
+                params.push(parampp);
+                buffer.clear();
+            },
+            other @ _ => { buffer.push(other); }
         }
     }
-    vec![Annotatable::Item(P(Item{  ..(*item).clone() }))]
+
+    if params.len() > 0 {
+        //That first param is created by the name of the trait test.
+        params.remove(0);
+    }
+    if !buffer.is_empty() {
+        let mut parampp = quote::Tokens::new();
+        parampp.append_all(buffer);
+        params.push(parampp);
+    }
+    (trait_name.unwrap(), params)
+}
+
+fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
+    let mut items = trait_def.items.clone();
+    let mut test_calls : Vec<Ident>= Vec::new();
+    for item in items.iter() {
+        if let &TraitItem::Method(TraitItemMethod{
+                                      sig:MethodSig{
+                                          ident:a,
+                                          decl:FnDecl{output:ReturnType::Default, ..},
+                                          ..},
+                                      ..}) = item {
+            test_calls.push(a);
+        }
+    }
+
+    let test_all_fn = syn::parse(quote!(
+        fn test_all() {
+            #(Self::#test_calls());*
+        }
+    ).into()).unwrap();
+
+    items.push(test_all_fn);
+    syn::ItemTrait{ items, ..trait_def }
 }

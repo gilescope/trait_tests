@@ -1,32 +1,28 @@
-#![feature(custom_attribute)]
-#![feature(plugin)]
-#![plugin(trait_tests)]
-#[allow(dead_code)]
+#![allow(dead_code)]
+#![feature(proc_macro)]
+
+extern crate trait_tests;
 
 #[cfg(test)]
 mod example_tests {
+    use trait_tests::*;
 
     trait Hello<T> {
         fn get_greeting(&self) -> &str;
     }
 
     #[trait_tests]
-    trait HelloTests : Hello<String> + Sized
-    //+ Default  (Default will not work if there are multiple test definitions.)
+    trait HelloTests : Hello<String> + Sized + Default
     {
-        fn new() -> Self;
-
         fn test() {
-            assert!(Self::new().get_greeting().len() < 200);
+            assert!(Self::default().get_greeting().len() < 200);
         }
     }
 
     #[trait_tests]
-    trait HelloTests2 : Hello<usize> + Sized {
-        fn new() -> Self;
-
+    trait HelloTests2 : Hello<usize> + Sized + Default {
         fn test() {
-            assert!(Self::new().get_greeting().len() < 200);
+            assert!(Self::default().get_greeting().len() < 200);
         }
     }
 
@@ -35,6 +31,9 @@ mod example_tests {
         American
     }
 
+    #[derive(TraitTests)]
+    #[trait_test(HelloTests, String)]
+    #[trait_test(HelloTests2, usize)]
     struct EnglisHelloImpl<T> {
         dialect: T
     }
@@ -45,16 +44,13 @@ mod example_tests {
         }
     }
 
-    ///
-    /// This test is showing that while we can implement two interfaces and autogenerate two test methods,
-    /// we need to ensure the call to run the tests needs to call through the trait.
-    ///
-    /// I.e. HelloTests2::test_all() rather than Self::test_all() as the latter would be ambiguous.
-    ///
+    //
+    // This test is showing that while we can implement two interfaces and autogenerate two test methods,
+    // we need to ensure the call to run the tests needs to call through the trait.
+    //
+    // I.e. HelloTests2::test_all() rather than Self::test_all() as the latter would be ambiguous.
+    //
 
-    #[trait_tests]
-    impl HelloTests for EnglisHelloImpl<String> { fn new() -> Self { EnglisHelloImpl { dialect: String::new() } } }
-
-    #[trait_tests]
-    impl HelloTests2 for EnglisHelloImpl<usize> { fn new() -> Self { EnglisHelloImpl { dialect: 3usize } } }
+    impl Default for EnglisHelloImpl<String> { fn default () -> Self { EnglisHelloImpl { dialect: String::new() } } }
+    impl Default for EnglisHelloImpl<usize> { fn default () -> Self { EnglisHelloImpl { dialect: 0usize } } }
 }
