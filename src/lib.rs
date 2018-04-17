@@ -24,6 +24,7 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     } else {
         panic!("Expected this attribute to be on a trait.");
     }
+    //println!("trait_def: {:#?}", &output);
     output.into()
 }
 
@@ -36,6 +37,7 @@ pub fn trait_tests2(input: TokenStream) -> TokenStream {
     let gen = inject_test_method(ast);
 
     // Return the generated impl
+    //println!("trait_derive: {:#?}", &gen);
     gen.into()
 }
 
@@ -46,7 +48,6 @@ fn inject_test_method(_impl_def: DeriveInput) -> TokenStream {
         results.append_all(process_case(_impl_def.ident, attr.tts));
     }
 
-    //println!("{:#?}", &results);
     results.into()
 }
 
@@ -145,10 +146,12 @@ fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
         if let &TraitItem::Method(TraitItemMethod{
                                       sig:MethodSig{
                                           ident:a,
-                                          decl:FnDecl{output:ReturnType::Default, ..},
+                                          decl:FnDecl{output:ReturnType::Default, inputs:ref args, ..},
                                           ..},
                                       ..}) = item {
-            test_calls.push(a);
+            if args.len() == 0 {
+                test_calls.push(a);
+            }
         }
     }
 
