@@ -16,10 +16,9 @@ mod example_tests {
         }
     }
 
-    #[derive(TraitTests)]
-    #[trait_test(HelloTests)]
     struct SpanishHelloImpl {}
 
+    #[test_impl]
     impl Hello for SpanishHelloImpl {
         fn get_greeting(&self) -> &str { "Hola" }
     }

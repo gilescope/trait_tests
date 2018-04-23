@@ -10,24 +10,25 @@ mod example_tests {
         fn get_greeting(&self) -> &str;
     }
 
+    //TODO: autogenerate
+    type HelloTestsTypeMyAssociatedType=isize;
     #[trait_tests]
     trait HelloTests : Hello<MyAssociatedType=isize> + Sized + Default{
         fn test() {
             assert!(Self::default().get_greeting().len() < 200);
         }
 
-        fn this_should_not_be_a_test() -> &'static str { "not a test" }
+        fn this_should_not_be_a_test() -> &'static str { panic!("not a test") }
 
-        fn this_should_not_be_a_test_as_it_has_parameters(a: String) { }
+        fn this_should_not_be_a_test_as_it_has_parameters(_a: String) { panic!("not a test") }
     }
 
-    #[derive(TraitTests)]
-    #[trait_test(HelloTests)]
     struct SpanishHelloImpl {}
 
+    #[test_impl]
     impl Hello for SpanishHelloImpl {
-        fn get_greeting(&self) -> &str { "Hola" }
         type MyAssociatedType = isize;
+        fn get_greeting(&self) -> &str { "Hola" }
     }
 
     impl Default for SpanishHelloImpl { fn default() -> Self { SpanishHelloImpl{} } }

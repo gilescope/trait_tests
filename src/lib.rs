@@ -9,85 +9,172 @@ extern crate syn;
 // Example https://github.com/actix/actix-derive/blob/master/src/lib.rs
 //
 
-use proc_macro::{TokenStream};
-use quote::__rt::TokenTree;
-use syn::{TraitItem, TraitItemMethod,DeriveInput,  MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
+use proc_macro::TokenStream;
+use syn::{TraitItem,Item, Type,TypePath,TraitBound, GenericArgument, TypeParamBound, AngleBracketedGenericArguments, PathArguments, PathSegment, Path, TraitItemMethod, ItemImpl, MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
 
 #[proc_macro_attribute]
 pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
     let output;
     if let Ok(trait_def) = syn::parse(input.clone()) {
-        let mut ast: syn::ItemTrait = trait_def;
-        ast = inject_test_all_method(ast);
-        output= quote!(#ast);
+        let mut trait_def: syn::ItemTrait = trait_def;
+        trait_def = inject_test_all_method(trait_def);
+        output= quote!(#trait_def);//TODO looses span information!
+
+        let mut tokens = quote::Tokens::new();
+
+        let trait_name_str = trait_def.ident.clone();
+
+        let p : TypeParamBound = trait_def.supertraits.iter().nth(0)
+            .expect("trait should have a supertrait that you are testing.").clone();
+
+        if let TypeParamBound::Trait(TraitBound{path, ..}) = p {
+            let first_segment = path.segments.iter().nth(0).unwrap();
+            if let PathArguments::AngleBracketed(AngleBracketedGenericArguments{ref args, ..}) = first_segment.arguments {
+                for (i, generic_arg) in args.iter().enumerate() {
+                    match generic_arg {
+                        GenericArgument::Type(gtype) => {
+                            let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
+                            tokens.append_all( quote!(type #typename = #gtype;) );
+                        },
+                        //GenericArgument::Binding(gtype) =>
+                        _ => { /* ignore */ }
+                    }
+                }
+            }
+        }
+
+        //Add in type definitions...
+        tokens.append_all(output);
+        //println!("trait_def: {:#?}", &tokens);
+        return tokens.into();
     } else {
         panic!("Expected this attribute to be on a trait.");
     }
-    //println!("trait_def: {:#?}", &output);
-    output.into()
 }
 
-#[proc_macro_derive(TraitTests, attributes(trait_test))]
-pub fn trait_tests2(input: TokenStream) -> TokenStream {
-    // Parse the string representation
-    let ast: DeriveInput  = syn::parse(input).unwrap();
-
-    // Build the impl
-    let gen = inject_test_method(ast);
-
-    // Return the generated impl
-    //println!("trait_derive: {:#?}", &gen);
-    gen.into()
-}
-
-fn inject_test_method(_impl_def: DeriveInput) -> TokenStream {
+#[proc_macro_attribute]
+pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut results = quote::Tokens::new();
+    let ast: syn::Item = syn::parse(input.clone()).expect("Unexpected - needs to be on impl X for Y");
+    results.append_all(quote!(#ast));//TODO looses span information!
 
-    for attr in _impl_def.attrs {
-        results.append_all(process_case(_impl_def.ident, attr.tts));
+    if let Item::Impl(ItemImpl{trait_:Some((_opt,trait_ident,_for)), self_ty, ..}) = ast {
+        if let Type::Path(ref struct_type) = *self_ty {
+            let TypePath{path, ..} = struct_type.clone();
+            let Path{segments, ..} = path;
+            let seg1 : PathSegment = segments[0].clone();
+            let PathSegment{arguments, ..} = seg1;
+            if let PathArguments::AngleBracketed(AngleBracketedGenericArguments{args, ..}) = arguments {
+                let mut arg_uments = vec![];
+                for _arg in args.iter() {
+                    arg_uments.push(quote!(a));
+                }
+
+                results.append_all(process_case(struct_type, &trait_ident, arg_uments));
+            }
+            else {
+                results.append_all(process_case(struct_type, &trait_ident, vec![]));
+            }
+        } else {
+            panic!("needs to be on an impl...");
+        }
     }
-
+    else {
+        panic!("needs to be on impl.");
+    }
+    //println!("trait_impl: {:#?}", &results);
     results.into()
 }
 
-fn process_case(struct_ident: Ident, tts: quote::__rt::TokenStream) -> quote::Tokens {
-    let mut it = tts.into_iter();
-    let group = it.next();
+fn process_case(struct_ident: &TypePath, trait_path: &Path, impltypes_y: Vec<quote::Tokens>) -> quote::Tokens {
+    let test_fn_name = generate_unique_test_name(struct_ident, trait_path, &impltypes_y);
 
-    if let Some(TokenTree::Group(g @ quote::__rt::Group{..})) = group {
-        let (trait_name, impltypes_y) = parse_case(g);
-        let test_fn_name = generate_unique_test_name(&struct_ident, &trait_name, &impltypes_y);
+    let mut impltypes_punctuated = quote::Tokens::new();
+    let (trait_name, num_params_trait_takes) = get_type_with_filled_in_type_params_trait(trait_path);
+    let trait_name_str = quote!(#trait_name).to_string();
 
-        let has_generics_params = !impltypes_y.is_empty();
-        let mut impltypes_punctuated = quote::Tokens::new();
-        impltypes_punctuated.append_separated(impltypes_y, quote!(,));
+    let mut v = vec![];
+    for (i, _) in impltypes_y.iter().enumerate() {
+        v.push(Ident::from(format!("{}Type{}", trait_name_str, i)))
+    }
 
-        let new_fn : quote::Tokens = if !has_generics_params {
-            quote!(
-            #[test]
+    impltypes_punctuated.append_separated(v, quote!(,));
+
+    let TypePath{path, ..}= struct_ident;
+    let impl_type_name = get_type_with_filled_in_type_params_impl(path, &trait_name_str, num_params_trait_takes);
+
+    quote!( #[test]
             fn #test_fn_name() {
-                <#struct_ident as #trait_name>::test_all();
+                <#impl_type_name as #trait_name>::test_all();
             }
 
-            impl #trait_name for #struct_ident {})
-        } else {
-            quote!(
-            #[test]
-            fn #test_fn_name() {
-                <#struct_ident<#impltypes_punctuated> as #trait_name>::test_all();
-            }
-
-            impl #trait_name for #struct_ident<#impltypes_punctuated> {})
-        };
-        new_fn
-    } else { panic!("unexpected input") }
+            impl #trait_name for #impl_type_name {})
 }
 
-fn generate_unique_test_name(struct_ident: &Ident, trait_name: &quote::__rt::Term, params: &Vec<quote::Tokens>) -> Ident {
-    let mut root = String::from(struct_ident.to_string());
+fn get_type_with_filled_in_type_params_trait(trait_path: &Path) -> (PathSegment, usize) {
+    let Path { segments, .. } = trait_path;
+    if segments.len() > 1 {
+        panic!("untested");
+    } else {
+        let PathSegment { ident, arguments } = segments[0].clone();
+        let arg_num = match arguments {
+            PathArguments::AngleBracketed(AngleBracketedGenericArguments{args, ..}) => { args.len() },
+            PathArguments::None => 0,
+            _ => panic!("unimplemented")
+
+        };
+        (PathSegment {
+            ident: Ident::from(quote!(#ident).to_string() + "Tests"),
+            arguments: PathArguments::None
+        }, arg_num)
+    }
+}
+
+fn get_type_with_filled_in_type_params_impl(impl_path: &Path, trait_name: &str, num_params_trait_takes: usize) -> PathSegment {
+    let Path { segments, .. } = impl_path;
+    if segments.len() > 1 {
+        panic!("untested");
+    } else {
+        let PathSegment { ident, arguments } = segments[0].clone();
+        if let PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }) = arguments {
+            //Impl has arguments.
+            if num_params_trait_takes == args.len() {
+                let mut s = String::from("<");
+                for arg in 0..num_params_trait_takes {
+                    if arg > 0 { s.push(','); }
+                    s.push_str(&format!("{}Type{}", trait_name, arg + 1));
+                }
+                s.push('>');
+                let final_args: PathArguments = if num_params_trait_takes == 0 {
+                    PathArguments::None
+                } else {
+                    let ppf: AngleBracketedGenericArguments = syn::parse_str(&s).unwrap();
+                    PathArguments::AngleBracketed(ppf)
+                };
+                PathSegment {
+                    ident: Ident::from(quote!(#ident).to_string()),
+                    arguments: final_args
+                }
+            } else if num_params_trait_takes == 0 {
+                //leave well alone - keep the arguments as these are likely to be concrete types rather than bindings...:
+                segments[0].clone()
+            } else {
+                panic!("consider case");
+            }
+        } else {
+            PathSegment {
+                ident: Ident::from(quote!(#ident).to_string()),
+                arguments
+            }
+        }
+    }
+}
+
+fn generate_unique_test_name(struct_ident: &TypePath, trait_name: &Path, params: &Vec<quote::Tokens>) -> Ident {
+    let mut root = String::from(quote!(#struct_ident).to_string());
     root.push('_');
-    root.push_str(&trait_name.clone().to_string());
+    root.push_str(&quote!(#trait_name).to_string());
     for param in params {
         root.push('_');
         root.push_str(&param.clone().to_string());
@@ -97,46 +184,11 @@ fn generate_unique_test_name(struct_ident: &Ident, trait_name: &quote::__rt::Ter
             .replace(">", "")
             .replace("\"", "")
             .replace(" ", "_")
+            .replace(",", "_")
             .replace("__", "_")
             .replace("__", "_")
     );
     test_fn_name
-}
-
-fn parse_case(g: quote::__rt::Group) -> (quote::__rt::Term, Vec<quote::Tokens>)
-{
-    let mut trait_name = None;
-    let mut params : Vec<quote::Tokens> = vec![];
-    let mut buffer : Vec<TokenTree> = vec![];
-    for t in g.stream() {
-        match t {
-            TokenTree::Term(t) => {
-                if trait_name.is_none() {
-                    trait_name = Some(t.clone());
-                } else {
-                    buffer.push(TokenTree::Term(t));
-                }
-            },
-            TokenTree::Op(op) if op.op() == ',' => {
-                let mut parampp = quote::Tokens::new();
-                parampp.append_all(buffer.clone());
-                params.push(parampp);
-                buffer.clear();
-            },
-            other @ _ => { buffer.push(other); }
-        }
-    }
-
-    if params.len() > 0 {
-        //That first param is created by the name of the trait test.
-        params.remove(0);
-    }
-    if !buffer.is_empty() {
-        let mut parampp = quote::Tokens::new();
-        parampp.append_all(buffer);
-        params.push(parampp);
-    }
-    (trait_name.unwrap(), params)
 }
 
 fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {

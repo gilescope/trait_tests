@@ -11,6 +11,8 @@ mod example_tests {
         fn get_greeting(&self) -> &str;
     }
 
+    //type HelloTestsType1 = Dialect<isize>;
+
     #[trait_tests]
     trait HelloTests : Hello<Dialect<isize>> + Sized + Default {
         fn test() {
@@ -23,13 +25,11 @@ mod example_tests {
         len: T
     }
 
-
-    #[derive(TraitTests)]
-    #[trait_test(HelloTests,Dialect<isize>)]
     struct EnglisHelloImpl<Dialect> {
         dialect: Dialect
     }
 
+    #[test_impl]
     impl Hello<Dialect<isize>> for EnglisHelloImpl<Dialect<isize>> {
         fn get_greeting(&self) -> &str { "Howdy" }
     }

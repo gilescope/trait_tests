@@ -10,10 +10,11 @@ mod example_tests {
         fn get_greeting(&self) -> &str;
     }
 
+//    type HelloTestsType1 = Dialect;
+//    type HelloTestsType2 = String;
+
     #[trait_tests]
     trait HelloTests : Hello<Dialect, String> + Sized + Default {
-//        fn new() -> Self;
-
         fn test() {
             assert!(Self::default().get_greeting().len() < 200);
         }
@@ -23,18 +24,16 @@ mod example_tests {
         American
     }
 
-    #[derive(TraitTests)]
-    #[trait_test(HelloTests,Dialect,String)]
     struct EnglisHelloImpl<Dialect, X> {
         dialect: Dialect,
         tag: X
     }
 
+    #[test_impl]
     impl Hello<Dialect, String> for EnglisHelloImpl<Dialect, String> {
         fn get_greeting(&self) -> &str { "Howdy" }
     }
 
-    //#[trait_tests]
     impl Default for EnglisHelloImpl<Dialect, String>
     {
         fn default() -> Self { EnglisHelloImpl { dialect: Dialect::American, tag: String::new() } }

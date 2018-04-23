@@ -11,6 +11,7 @@ mod example_tests {
         fn get_greeting(&self) -> &str;
     }
 
+    //type HelloTestsType1 = String;//TODO autogen
     #[trait_tests]
     trait HelloTests : Hello<String> + Sized + Default {
         fn test() {
@@ -23,12 +24,11 @@ mod example_tests {
         American
     }
 
-    #[derive(TraitTests)]
-    #[trait_test(HelloTests,String)]
     struct EnglisHelloImpl<T> {
         dialect: T
     }
 
+    #[test_impl]
     impl <T> Hello<T> for EnglisHelloImpl<T> {
         fn get_greeting(&self) -> &str {
             "Howdy"
