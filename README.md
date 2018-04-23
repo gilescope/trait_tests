@@ -55,46 +55,46 @@ from the stacktrace which test the failure came from.)
 
 ## How: Testing your implementation
 
-To test your implementation you would include the following in the crate where you define your implementation. (Rust's impl restrictions mean it can't be defined anywhere else.)
-
-```rust
-#[derive(TraitTests)]
-#[trait_test(SetIteratorTests, i32)]
-#[trait_test(SetTests, isize)]
-struct HashSet<T> {}
-```
-
-The compiler would guides you as to what type parameters you have to put in your implementation.
-
-The compiler will also guide you in informing you of additional traits that the particular test would need to have implemented in order to function. As certain traits go together this is a nice way of ensuring your implementation is well-rounded.
+The compiler will guide you of additional traits that the tests would need implemented in order to function. As certain traits go together this can be a nice way of ensuring your implementation is well-rounded.
 
 ## Installing
 
-V0.2 onwards is a proc macro. The call is a custom derive, 
-but the test_all function on the trait so may take a little longer before it's available on stable.
+V0.3 onwards is two proc macros: `#[trait_tests]` to define the tests and `#[impl_test]` to call the tests.
 
-Here is how to call the tests:
+Here is how to define some tests on a trait:
 
 ```rust
 #![feature(proc_macro)]
 extern crate trait_tests;
 use trait_tests::*;
 
-#[derive(TraitTests)]
-#[trait_test(MyStructTests, String)]
-#[trait_test(MyStructTests, i64)]
-struct MyStruct<T> {}
+trait Hello {
+    fn get_greeting(&self) -> &str;
+}
+
+#[trait_tests]
+trait HelloTests : Hello + Sized + Default {
+    fn test_1() {
+        assert!(Self::default().get_greeting().len() < 200);
+    }
+}
 ```
 
-The custom derive just generates the following 
-code required to call the tests:
+To run the tests associated with the trait you need to:
+   1. `use` the tests so they are imported.
+   2. Add `#[test_impl]` to your impl.
+
 ```rust
-#[test] 
-fn mystruct_mystructtests_string() { 
-    <MyStruct<String> as MyStructTests>::test_all(); 
-} 
-    
-impl MyStructTests for MyStruct<String> { }
+#![feature(proc_macro)]
+extern crate trait_tests;
+use trait_tests::*;
+
+struct SpanishHelloImpl {}
+
+#[test_impl]
+impl Hello for SpanishHelloImpl {
+    fn get_greeting(&self) -> &str { "Hola" }
+}
 ```
 
 ## Open Questions
