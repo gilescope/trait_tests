@@ -2,6 +2,7 @@
 #![crate_type = "proc-macro"]
 
 extern crate proc_macro;
+extern crate proc_macro2;
 extern crate syn;
 #[macro_use] extern crate quote;
 
@@ -9,8 +10,10 @@ extern crate syn;
 // Example https://github.com/actix/actix-derive/blob/master/src/lib.rs
 //
 
-use proc_macro::TokenStream;
+use proc_macro2::Span;
+use proc_macro::{TokenStream};
 use syn::{TraitItem,Item, Type,TypePath,TraitBound, GenericArgument, TypeParamBound, AngleBracketedGenericArguments, PathArguments, PathSegment, Path, TraitItemMethod, ItemImpl, MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
+use syn::token::Comma;
 
 #[proc_macro_attribute]
 pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -35,7 +38,7 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     match generic_arg {
                         GenericArgument::Type(gtype) => {
                             let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
-                            tokens.append_all( quote!(type #typename = #gtype;) );
+                            tokens.append_all( quote!(pub type #typename = #gtype;) );
                         },
                         //GenericArgument::Binding(gtype) =>
                         _ => { /* ignore */ }
@@ -46,7 +49,7 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
         //Add in type definitions...
         tokens.append_all(output);
-        //println!("trait_def: {:#?}", &tokens);
+        println!("trait_def: {:#?}", &tokens);
         return tokens.into();
     } else {
         panic!("Expected this attribute to be on a trait.");
@@ -83,7 +86,7 @@ pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     else {
         panic!("needs to be on impl.");
     }
-    //println!("trait_impl: {:#?}", &results);
+    println!("trait_impl: {:#?}", &results);
     results.into()
 }
 
@@ -157,12 +160,38 @@ fn get_type_with_filled_in_type_params_impl(impl_path: &Path, trait_name: &str, 
                     arguments: final_args
                 }
             } else if num_params_trait_takes == 0 {
+                //Case trait has no generic params, impl has generic params.
+                //If these are non-concrete types we should substitute them.
+                //For now we consider single letter 'T', 'U' etc. as being non-concrete types.
+                let mut next_arg_num = 1;
+                let mut concrete_args = syn::punctuated::Punctuated::<GenericArgument, Comma>::new();
+                for arg in args {
+                    let arg_len = quote!(#arg).to_string().len();
+                    if arg_len < 2 {
+                        let new_arg = format!("{}Type{}", trait_name, next_arg_num);
+                        let ga : GenericArgument = syn::parse_str(&new_arg).unwrap();
+                        concrete_args.push_value(ga);
+                        next_arg_num += 1;
+                    } else {
+                        concrete_args.push_value(arg);
+                    }
+                }
+
                 //leave well alone - keep the arguments as these are likely to be concrete types rather than bindings...:
-                segments[0].clone()
+
+                PathSegment {
+                    ident: Ident::from(quote!(#ident).to_string()),
+                    arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments{
+                        colon2_token:None,
+                        lt_token:syn::token::Lt([Span::call_site()]),
+                        args: concrete_args,
+                        gt_token:syn::token::Gt([Span::call_site()])})
+                }
             } else {
                 panic!("consider case");
             }
         } else {
+            //Case no angle bracketed args on impl
             PathSegment {
                 ident: Ident::from(quote!(#ident).to_string()),
                 arguments
