@@ -1,7 +1,7 @@
 [package]
 name = "trait_tests"
 description="A compiler plugin to allow tests to be defined agaist traits."
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Giles Cope <gilescope@gmail.com>"]
 repository = "https://github.com/gilescope/trait_tests"
 readme="README.md"
