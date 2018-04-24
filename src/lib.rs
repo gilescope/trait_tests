@@ -52,7 +52,7 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
         //Add in type definitions...
         tokens.append_all(output);
-        println!("trait_def: {:#?}", &tokens);
+        //println!("trait_def: {:#?}", &tokens);
         return tokens.into();
     } else {
         panic!("Expected this attribute to be on a trait.");
@@ -89,7 +89,7 @@ pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     else {
         panic!("needs to be on impl.");
     }
-    println!("trait_impl: {:#?}", &results);
+    //println!("trait_impl: {:#?}", &results);
     results.into()
 }
 
