@@ -45,9 +45,6 @@ mod associated_type_with_param {
         fn get_greeting(&self) -> &str;
     }
 
-    //TODO: autogenerate
-    type HelloTestsTypeMyAssociatedType=isize;
-    type HelloTestsType1=isize;
     #[trait_tests]
     trait HelloTests : Hello<MyAssociatedType=isize> + Sized + Default{
         fn test() {

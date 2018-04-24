@@ -12,7 +12,7 @@ extern crate syn;
 
 use proc_macro2::Span;
 use proc_macro::{TokenStream};
-use syn::{TraitItem,Item, Type,TypePath,TraitBound, GenericArgument, TypeParamBound, AngleBracketedGenericArguments, PathArguments, PathSegment, Path, TraitItemMethod, ItemImpl, MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
+use syn::{TraitItem,Item, Type,TypePath,TraitBound, Binding, GenericArgument, TypeParamBound, AngleBracketedGenericArguments, PathArguments, PathSegment, Path, TraitItemMethod, ItemImpl, MethodSig, ItemTrait, Ident, FnDecl, ReturnType};
 use syn::token::Comma;
 
 #[proc_macro_attribute]
@@ -40,7 +40,10 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
                             let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
                             tokens.append_all( quote!(pub type #typename = #gtype;) );
                         },
-                        //GenericArgument::Binding(gtype) =>
+                        GenericArgument::Binding(Binding{ty:gtype, ident, ..}) => {
+                            let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
+                            tokens.append_all( quote!(pub type #typename = #gtype;) );
+                        },
                         _ => { /* ignore */ }
                     }
                 }
