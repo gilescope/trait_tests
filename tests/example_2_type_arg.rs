@@ -20,7 +20,7 @@ mod example_tests {
         }
     }
 
-    enum Dialect {
+    pub enum Dialect {
         American
     }
 

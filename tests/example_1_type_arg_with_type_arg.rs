@@ -20,7 +20,7 @@ mod example_tests {
         }
     }
 
-    struct Dialect<T> {
+    pub struct Dialect<T> {
         name: String,
         len: T
     }

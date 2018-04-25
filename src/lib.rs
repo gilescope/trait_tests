@@ -38,11 +38,11 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     match generic_arg {
                         GenericArgument::Type(gtype) => {
                             let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
-                            tokens.append_all( quote!(pub type #typename = #gtype;) );
+                            tokens.append_all( quote!(#[allow(dead_code)] pub type #typename = #gtype;) );
                         },
-                        GenericArgument::Binding(Binding{ty:gtype, ident, ..}) => {
+                        GenericArgument::Binding(Binding{ty:gtype, ident:_ident, ..}) => {
                             let typename = Ident::from(format!("{}Type{}", trait_name_str, i + 1));
-                            tokens.append_all( quote!(pub type #typename = #gtype;) );
+                            tokens.append_all( quote!(#[allow(dead_code)] pub type #typename = #gtype;) );
                         },
                         _ => { /* ignore */ }
                     }

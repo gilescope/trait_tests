@@ -18,7 +18,7 @@ crate-type = ["proc-macro"]
 [dependencies]
 syn="0.13"
 quote="0.5"
-proc-macro2="0.3"
+proc-macro2={ version="0.3", features = ["nightly"] }  # Nightly feature preserves span information.
 
 [features]
 default=["syn/full"]
