@@ -112,11 +112,17 @@ on some static methods to instanciate your trait. While `Default`
 can help you write some tests, ideally being able to inject state
 can be helpful. The `std::iter::FromIterator` trait can be extreamly helpful for setting up collection style traits.
 
-## Open Questions
+## Open Questions and limitations
 
   1. How do we get the test framework to enumerate 
   all the individual tests.
+  2. Trait tests are currently public rather than under cfg(test)
+  3. Relies on procmacro which is not yet standardised (though soon hopefully) so currently only available on nightly.
+
+## Examples of trait tests
     
-See https://github.com/gilescope/iunit for example test suites.
+   * Fork of eclectic including trait tests on the collections traits: https://github.com/gilescope/eclectic
+   * Fork of num-traits with trait tests: https://github.com/gilescope/num-traits
+   * See also https://github.com/gilescope/iunit for tests that run on std traits.
 
 All feedback and contributions extremely welcome!
