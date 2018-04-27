@@ -97,6 +97,21 @@ impl Hello for SpanishHelloImpl {
 }
 ```
 
+## Trait Test Authoring Guide
+
+As Rust includes static functions on their interfaces creating interface tests is easier than you might have thought. As more people write more trait tests I'm sure we will discover patterns that work well.
+
+For now, tips are:
+
+   * Try to write trait tests using as few auxillary interfaces as possible. E.g. where possible use `&` and `&mut` references rather than restricting the tests to only work with implementations that also implement `Sized`.
+
+### Factory Methods
+
+To write useful tests you are generally going to need to rely 
+on some static methods to instanciate your trait. While `Default`
+can help you write some tests, ideally being able to inject state
+can be helpful. The `std::iter::FromIterator` trait can be extreamly helpful for setting up collection style traits.
+
 ## Open Questions
 
   1. How do we get the test framework to enumerate 

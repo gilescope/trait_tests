@@ -18,6 +18,8 @@ use syn::token::Comma;
 #[proc_macro_attribute]
 pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
+
+    //TODO: Error if test trait is not pub.
     let output;
     if let Ok(trait_def) = syn::parse(input.clone()) {
         let mut trait_def: syn::ItemTrait = trait_def;
