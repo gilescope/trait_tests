@@ -124,5 +124,13 @@ can be helpful. The `std::iter::FromIterator` trait can be extreamly helpful for
    * Fork of eclectic including trait tests on the collections traits: https://github.com/gilescope/eclectic
    * Fork of num-traits with trait tests: https://github.com/gilescope/num-traits
    * See also https://github.com/gilescope/iunit for tests that run on std traits.
+   
+# Discuss!
 
 All feedback and contributions extremely welcome!
+
+Relevant discussions:
+
+   * First Suggested: https://github.com/rust-lang/rfcs/issues/616
+   * Trait tests: https://users.rust-lang.org/t/tests-for-traits/
+   * Collection Traits in Rust: https://internals.rust-lang.org/t/collection-traits-take-2/
