@@ -13,11 +13,13 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use syn::token::Comma;
-use syn::{AngleBracketedGenericArguments, Binding, FnDecl, GenericArgument, Ident, Item, ItemImpl,
-          ItemTrait, MethodSig, Path, PathArguments, PathSegment, ReturnType, TraitBound,
-          TraitItem, TraitItemMethod, Type, TypeParamBound, TypePath};
 use quote::TokenStreamExt;
+use syn::token::Comma;
+use syn::{
+    AngleBracketedGenericArguments, Binding, FnDecl, GenericArgument, Ident, Item, ItemImpl,
+    ItemTrait, MethodSig, Path, PathArguments, PathSegment, ReturnType, TraitBound, TraitItem,
+    TraitItemMethod, Type, TypeParamBound, TypePath,
+};
 
 #[proc_macro_attribute]
 pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -50,7 +52,10 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
                 for (i, generic_arg) in args.iter().enumerate() {
                     match generic_arg {
                         GenericArgument::Type(gtype) => {
-                            let typename = Ident::new(&format!("{}Type{}", trait_name_str, i + 1), Span::call_site());
+                            let typename = Ident::new(
+                                &format!("{}Type{}", trait_name_str, i + 1),
+                                Span::call_site(),
+                            );
                             tokens.append_all(
                                 quote!(#[allow(dead_code)] pub type #typename = #gtype;),
                             );
@@ -60,7 +65,10 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
                             ident: _ident,
                             ..
                         }) => {
-                            let typename = Ident::new(&format!("{}Type{}", trait_name_str, i + 1), Span::call_site());
+                            let typename = Ident::new(
+                                &format!("{}Type{}", trait_name_str, i + 1),
+                                Span::call_site(),
+                            );
                             tokens.append_all(
                                 quote!(#[allow(dead_code)] pub type #typename = #gtype;),
                             );
@@ -135,7 +143,10 @@ fn process_case(
 
     let mut v = vec![];
     for (i, _) in impltypes_y.iter().enumerate() {
-        v.push(Ident::new(&format!("{}Type{}", trait_name_str, i), Span::call_site()))
+        v.push(Ident::new(
+            &format!("{}Type{}", trait_name_str, i),
+            Span::call_site(),
+        ))
     }
 
     impltypes_punctuated.append_separated(v, quote!(,));
@@ -264,14 +275,16 @@ fn generate_unique_test_name(
         root.push_str(&param.clone().to_string());
     }
     let test_fn_name = syn::Ident::new(
-        &root.to_lowercase()
+        &root
+            .to_lowercase()
             .replace("<", "_")
             .replace(">", "")
             .replace("\"", "")
             .replace(" ", "_")
             .replace(",", "_")
             .replace("__", "_")
-            .replace("__", "_"), Span::call_site()
+            .replace("__", "_"),
+        Span::call_site(),
     );
     test_fn_name
 }
