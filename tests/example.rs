@@ -10,7 +10,7 @@ mod example_tests {
     }
 
     #[trait_tests]
-    trait HelloTests : Hello + Sized + Default{
+    trait HelloTests: Hello + Sized + Default {
         fn test() {
             assert!(Self::default().get_greeting().len() < 200);
         }
@@ -20,8 +20,14 @@ mod example_tests {
 
     #[test_impl]
     impl Hello for SpanishHelloImpl {
-        fn get_greeting(&self) -> &str { "Hola" }
+        fn get_greeting(&self) -> &str {
+            "Hola"
+        }
     }
 
-    impl Default for SpanishHelloImpl { fn default() -> Self { SpanishHelloImpl{} } }
+    impl Default for SpanishHelloImpl {
+        fn default() -> Self {
+            SpanishHelloImpl {}
+        }
+    }
 }

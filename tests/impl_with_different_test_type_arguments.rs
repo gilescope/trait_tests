@@ -13,37 +13,36 @@ mod example_tests {
 
     //type HelloTestsType1 = String;
     #[trait_tests]
-    trait HelloTests : Hello<String> + Sized + Default
-    {
+    trait HelloTests: Hello<String> + Sized + Default {
         fn test() {
             assert!(Self::default().get_greeting().len() < 200);
         }
     }
 
-//    type HelloTests2Type1 = usize;
-//    #[trait_tests]
-//    trait HelloTests2 : Hello<HelloTests2Type1> + Sized + Default {
-//        fn test() {
-//            assert!(Self::default().get_greeting().len() < 200);
-//        }
-//    }
+    //    type HelloTests2Type1 = usize;
+    //    #[trait_tests]
+    //    trait HelloTests2 : Hello<HelloTests2Type1> + Sized + Default {
+    //        fn test() {
+    //            assert!(Self::default().get_greeting().len() < 200);
+    //        }
+    //    }
 
-    #[derive(Eq,PartialEq)]
+    #[derive(Eq, PartialEq)]
     enum Dialect {
-        American
+        American,
     }
 
-//    #[derive(TraitTests)]
-//    #[trait_test(HelloTests, HelloTestsType1)]
-//    #[trait_test(HelloTests2, HelloTests2Type1)]  TODO don't have an answer for this.
+    //    #[derive(TraitTests)]
+    //    #[trait_test(HelloTests, HelloTestsType1)]
+    //    #[trait_test(HelloTests2, HelloTests2Type1)]  TODO don't have an answer for this.
     struct EnglisHelloImpl<T> {
-        dialect: T
+        dialect: T,
     }
 
     #[test_impl]
-    impl <T> Hello<T> for EnglisHelloImpl<T> {
+    impl<T> Hello<T> for EnglisHelloImpl<T> {
         fn get_greeting(&self) -> &str {
-                "Howdy"
+            "Howdy"
         }
     }
 
@@ -54,6 +53,17 @@ mod example_tests {
     // I.e. HelloTests2::test_all() rather than Self::test_all() as the latter would be ambiguous.
     //
 
-    impl Default for EnglisHelloImpl<String> { fn default () -> Self { EnglisHelloImpl { dialect: String::new() } } }
-    impl Default for EnglisHelloImpl<usize> { fn default () -> Self { EnglisHelloImpl { dialect: 0usize } } }
+    impl Default for EnglisHelloImpl<String> {
+        fn default() -> Self {
+            EnglisHelloImpl {
+                dialect: String::new(),
+            }
+        }
+    }
+
+    impl Default for EnglisHelloImpl<usize> {
+        fn default() -> Self {
+            EnglisHelloImpl { dialect: 0usize }
+        }
+    }
 }
