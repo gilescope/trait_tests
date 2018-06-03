@@ -21,6 +21,7 @@ use syn::{
     TraitItemMethod, Type, TypeParamBound, TypePath,
 };
 
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 #[proc_macro_attribute]
 pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
@@ -88,6 +89,7 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 #[proc_macro_attribute]
 pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut results = proc_macro2::TokenStream::new();
@@ -115,9 +117,9 @@ pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     arg_uments.push(quote!(a));
                 }
 
-                results.append_all(process_case(struct_type, &trait_ident, arg_uments));
+                results.append_all(process_case(struct_type, &trait_ident, &arg_uments));
             } else {
-                results.append_all(process_case(struct_type, &trait_ident, vec![]));
+                results.append_all(process_case(struct_type, &trait_ident, &[]));
             }
         } else {
             panic!("needs to be on an impl...");
@@ -132,7 +134,7 @@ pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
 fn process_case(
     struct_ident: &TypePath,
     trait_path: &Path,
-    impltypes_y: Vec<proc_macro2::TokenStream>,
+    impltypes_y: &[proc_macro2::TokenStream],
 ) -> proc_macro2::TokenStream {
     let test_fn_name = generate_unique_test_name(struct_ident, trait_path, &impltypes_y);
 
@@ -274,7 +276,7 @@ fn generate_unique_test_name(
         root.push('_');
         root.push_str(&param.clone().to_string());
     }
-    let test_fn_name = syn::Ident::new(
+    syn::Ident::new(
         &root
             .to_lowercase()
             .replace("<", "_")
@@ -285,8 +287,7 @@ fn generate_unique_test_name(
             .replace("__", "_")
             .replace("__", "_"),
         Span::call_site(),
-    );
-    test_fn_name
+    )
 }
 
 fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
