@@ -265,9 +265,9 @@ fn get_type_with_filled_in_type_params_impl(
 fn generate_unique_test_name(
     struct_ident: &TypePath,
     trait_name: &Path,
-    params: &Vec<proc_macro2::TokenStream>,
+    params: &[proc_macro2::TokenStream],
 ) -> Ident {
-    let mut root = String::from(quote!(#struct_ident).to_string());
+    let mut root =quote!(#struct_ident).to_string();
     root.push('_');
     root.push_str(&quote!(#trait_name).to_string());
     for param in params {
@@ -292,8 +292,8 @@ fn generate_unique_test_name(
 fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
     let mut items = trait_def.items.clone();
     let mut test_calls: Vec<Ident> = Vec::new();
-    for item in items.iter() {
-        if let &TraitItem::Method(TraitItemMethod {
+    for item in &items {
+        if let TraitItem::Method(TraitItemMethod {
             sig:
                 MethodSig {
                     ident: ref a,
@@ -308,7 +308,7 @@ fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
             ..
         }) = item
         {
-            if args.len() == 0 {
+            if args.is_empty() {
                 test_calls.push(a.clone());
             }
         }
