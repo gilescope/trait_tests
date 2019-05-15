@@ -11,8 +11,6 @@ license="MIT"
 
 [lib]
 proc-macro = true
-crate-type = ["proc-macro"]
-
 
 [dependencies]
 syn="0.14"
