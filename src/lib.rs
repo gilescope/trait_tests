@@ -1,6 +1,3 @@
-#![feature(proc_macro)] //proc_macro_lib
-#![crate_type = "proc-macro"]
-
 extern crate proc_macro;
 extern crate proc_macro2;
 extern crate syn;
@@ -269,7 +266,7 @@ fn generate_unique_test_name(
     trait_name: &Path,
     params: &[proc_macro2::TokenStream],
 ) -> Ident {
-    let mut root =quote!(#struct_ident).to_string();
+    let mut root = quote!(#struct_ident).to_string();
     root.push('_');
     root.push_str(&quote!(#trait_name).to_string());
     for param in params {
@@ -317,11 +314,13 @@ fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
 
     let test_all_fn = syn::parse(
         quote!(
-        fn test_all() {
-            #(Self::#test_calls());*
-        }
-    ).into(),
-    ).unwrap();
+            fn test_all() {
+                #(Self::#test_calls());*
+            }
+        )
+        .into(),
+    )
+    .unwrap();
 
     items.push(test_all_fn);
     syn::ItemTrait { items, ..trait_def }
