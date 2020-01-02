@@ -1,4 +1,3 @@
-#![feature(proc_macro)]
 extern crate trait_tests;
 
 #[cfg(test)]

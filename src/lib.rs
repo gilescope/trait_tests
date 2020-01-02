@@ -24,55 +24,52 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
 
     //TODO: Error if test trait is not pub.
-    let output;
-    if let Ok(trait_def) = syn::parse(input.clone()) {
-        let mut trait_def: syn::ItemTrait = trait_def;
-        trait_def = inject_test_all_method(trait_def);
-        output = quote!(#trait_def); //TODO looses span information!
+    let mut trait_def = match syn::parse(input) {
+        Ok(Item::Trait(def)) => def,
+        Ok(_) => panic!("This attribute must be used on a trait!"),
+        Err(_) => panic!("Failed to parse input"),
+    };
 
-        let mut tokens = proc_macro2::TokenStream::new();
+    trait_def = inject_test_all_method(trait_def);
+    let output = quote!(#trait_def); //TODO loses span information!
 
-        let trait_name_str = trait_def.ident.clone();
+    let mut tokens = proc_macro2::TokenStream::new();
 
-        let p: TypeParamBound = trait_def
-            .supertraits
-            .iter()
-            .nth(0)
-            .expect("trait should have a supertrait that you are testing.")
-            .clone();
+    let trait_name_str = trait_def.ident.clone();
 
-        if let TypeParamBound::Trait(TraitBound { path, .. }) = p {
-            let first_segment = path.segments.iter().nth(0).unwrap();
-            if let PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                ref args, ..
-            }) = first_segment.arguments
-            {
-                for (i, generic_arg) in args.iter().enumerate() {
-                    match generic_arg {
-                        GenericArgument::Type(gtype) => {
-                            let typename = Ident::new(
-                                &format!("{}Type{}", trait_name_str, i + 1),
-                                Span::call_site(),
-                            );
-                            tokens.append_all(
-                                quote!(#[allow(dead_code)] pub type #typename = #gtype;),
-                            );
-                        }
-                        GenericArgument::Binding(Binding {
-                            ty: gtype,
-                            ident: _ident,
-                            ..
-                        }) => {
-                            let typename = Ident::new(
-                                &format!("{}Type{}", trait_name_str, i + 1),
-                                Span::call_site(),
-                            );
-                            tokens.append_all(
-                                quote!(#[allow(dead_code)] pub type #typename = #gtype;),
-                            );
-                        }
-                        _ => { /* ignore */ }
+    let p: TypeParamBound = trait_def
+        .supertraits
+        .iter()
+        .nth(0)
+        .expect("trait should have a supertrait that you are testing.")
+        .clone();
+
+    if let TypeParamBound::Trait(TraitBound { path, .. }) = p {
+        let first_segment = path.segments.iter().nth(0).unwrap();
+        if let PathArguments::AngleBracketed(AngleBracketedGenericArguments { ref args, .. }) =
+            first_segment.arguments
+        {
+            for (i, generic_arg) in args.iter().enumerate() {
+                match generic_arg {
+                    GenericArgument::Type(gtype) => {
+                        let typename = Ident::new(
+                            &format!("{}Type{}", trait_name_str, i + 1),
+                            Span::call_site(),
+                        );
+                        tokens.append_all(quote!(#[allow(dead_code)] pub type #typename = #gtype;));
                     }
+                    GenericArgument::Binding(Binding {
+                        ty: gtype,
+                        ident: _ident,
+                        ..
+                    }) => {
+                        let typename = Ident::new(
+                            &format!("{}Type{}", trait_name_str, i + 1),
+                            Span::call_site(),
+                        );
+                        tokens.append_all(quote!(#[allow(dead_code)] pub type #typename = #gtype;));
+                    }
+                    _ => { /* ignore */ }
                 }
             }
         }
@@ -90,41 +87,40 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn test_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut results = proc_macro2::TokenStream::new();
-    let ast: syn::Item =
-        syn::parse(input.clone()).expect("Unexpected - needs to be on impl X for Y");
+    let ast = match syn::parse(input) {
+        Ok(Item::Impl(item)) => item,
+        Ok(_) => panic!("Unexpected - needs to be on impl X for Y"),
+        Err(_) => panic!("Failed to parse!"),
+    };
 
-    results.append_all(quote!(#ast)); //TODO looses span information!
+    results.append_all(quote!(#ast)); //TODO loses span information!
 
-    if let Item::Impl(ItemImpl {
-        trait_: Some((_opt, trait_ident, _for)),
-        self_ty,
-        ..
-    }) = ast
-    {
-        if let Type::Path(ref struct_type) = *self_ty {
-            let TypePath { path, .. } = struct_type.clone();
-            let Path { segments, .. } = path;
-            let seg1: PathSegment = segments[0].clone();
-            let PathSegment { arguments, .. } = seg1;
-            if let PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }) =
-                arguments
-            {
-                let mut arg_uments = vec![];
-                for _arg in args.iter() {
-                    arg_uments.push(quote!(a));
-                }
+    let ItemImpl {
+        trait_, self_ty, ..
+    } = ast;
+    let trait_ident = match trait_ {
+        Some((_opt, ident, _for)) => ident,
+        None => panic!("needs to be on an impl"),
+    };
+    let struct_type = match *self_ty {
+        Type::Path(ref stype) => stype,
+        _ => panic!("needs to be on an impl"),
+    };
 
-                results.append_all(process_case(struct_type, &trait_ident, &arg_uments));
-            } else {
-                results.append_all(process_case(struct_type, &trait_ident, &[]));
-            }
-        } else {
-            panic!("needs to be on an impl...");
+    let TypePath { path, .. } = struct_type.clone();
+    let Path { segments, .. } = path;
+    let seg1: PathSegment = segments[0].clone();
+    let PathSegment { arguments, .. } = seg1;
+    if let PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }) = arguments {
+        let mut arg_uments = vec![];
+        for _arg in args.iter() {
+            arg_uments.push(quote!(a));
         }
+
+        results.append_all(process_case(struct_type, &trait_ident, &arg_uments));
     } else {
-        panic!("needs to be on impl.");
+        results.append_all(process_case(struct_type, &trait_ident, &[]));
     }
-    //println!("trait_impl: {:#?}", &results);
     results.into()
 }
 
@@ -287,14 +283,17 @@ fn generate_unique_test_name(
     )
 }
 
-fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
-    let mut items = trait_def.items.clone();
-    let mut test_calls: Vec<Ident> = Vec::new();
-    for item in &items {
+/// Creates a method that runs all the test methods that this trait defines.
+/// Takes in a trait item and outputs that same item with the added method.
+fn inject_test_all_method(mut trait_def: ItemTrait) -> ItemTrait {
+    // A list of functions that will end up being run on test
+    let mut test_calls: Vec<Ident> = Vec::with_capacity(trait_def.items.len());
+    for item in &trait_def.items {
+        // Tests don't return anything...
         if let TraitItem::Method(TraitItemMethod {
             sig:
                 MethodSig {
-                    ident: ref a,
+                    ident: ref call_signature,
                     decl:
                         FnDecl {
                             output: ReturnType::Default,
@@ -306,12 +305,14 @@ fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
             ..
         }) = item
         {
+            // ... and don't take any arguments either
             if args.is_empty() {
-                test_calls.push(a.clone());
+                test_calls.push(call_signature.clone());
             }
         }
     }
 
+    // The function that contains all the tests
     let test_all_fn = syn::parse(
         quote!(
             fn test_all() {
@@ -322,6 +323,6 @@ fn inject_test_all_method(trait_def: ItemTrait) -> ItemTrait {
     )
     .unwrap();
 
-    items.push(test_all_fn);
-    syn::ItemTrait { items, ..trait_def }
+    trait_def.items.push(test_all_fn);
+    trait_def
 }

@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![feature(proc_macro)]
 
 extern crate trait_tests;
 
