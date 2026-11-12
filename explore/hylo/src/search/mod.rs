@@ -30,17 +30,23 @@ impl<'p, P: GlobalSearch> Plan<RoseF<P::Space>> for Backtrack<'p, P> {
     }
 }
 
-/// The query: a semiring over the search tree. Leaves that extract weigh `one`.
+/// How a solution is weighed in a carrier. The default, `one`, gives exists and count.
+/// A cost gives optimisation; `Delta::new(cost, Nat(1))` gives the number of optima (Theorem 6).
+pub trait Weigh<S: Semiring>: GlobalSearch {
+    fn weigh(&self, _r: &Self::Space) -> S { S::one() }
+}
+
+/// The query: a semiring over the search tree. Extracted leaves contribute their weight.
 pub struct Aggregate<'p, P: GlobalSearch, S> { p: &'p P, _s: core::marker::PhantomData<S> }
-impl<'p, P: GlobalSearch, S: Semiring> Algebra<RoseF<P::Space>> for Aggregate<'p, P, S> {
+impl<'p, P: Weigh<S>, S: Semiring> Algebra<RoseF<P::Space>> for Aggregate<'p, P, S> {
     type Out = S;
     fn fold(&mut self, (r, kids): (P::Space, Vec<S>)) -> S {
-        let here = if self.p.extract(&r) { S::one() } else { S::zero() };
+        let here = if self.p.extract(&r) { self.p.weigh(&r) } else { S::zero() };
         kids.into_iter().fold(here, S::add)
     }
 }
 
-pub fn search<P: GlobalSearch, S: Semiring>(p: &P, x: &P::Input) -> S {
+pub fn search<P: Weigh<S>, S: Semiring>(p: &P, x: &P::Input) -> S {
     let root = p.initial(x);
     hylo::<RoseF<P::Space>, _, _>(&mut Backtrack { p }, &mut Aggregate { p, _s: core::marker::PhantomData }, root)
 }
@@ -62,6 +68,17 @@ impl GlobalSearch for Queens {
     }
     fn extract(&self, (n, cols): &Self::Space) -> bool { cols.len() == *n }
 }
+impl Weigh<crate::algebra::Boolean> for Queens {}
+impl Weigh<crate::algebra::Nat> for Queens {}
+/// Cost of a placement: the sum of its columns. Arbitrary, but it has ties, which is the point.
+impl Weigh<crate::algebra::Tropical> for Queens {
+    fn weigh(&self, (_, cols): &Self::Space) -> crate::algebra::Tropical { crate::algebra::Tropical(cols.iter().map(|&c| c as u64).sum()) }
+}
+impl Weigh<crate::algebra::Delta<crate::algebra::Tropical, crate::algebra::Nat>> for Queens {
+    fn weigh(&self, r: &Self::Space) -> crate::algebra::Delta<crate::algebra::Tropical, crate::algebra::Nat> {
+        crate::algebra::Delta::new(<Self as Weigh<crate::algebra::Tropical>>::weigh(self, r), crate::algebra::Nat(1))
+    }
+}
 
 // ---- Knuth 7.8: branch and bound. Same shape, same split; the incumbent is plan state.
 // The answer is order-independent (it is a max), the cost is not: that is exactly what
@@ -75,11 +92,16 @@ pub trait Bounded: GlobalSearch {
 
 /// Plan: prune any space whose bound cannot beat the incumbent; raise the incumbent on extract.
 /// Pruning happens at the node's own unfold, after its earlier siblings have been explored.
-pub struct BranchBound<'p, P: Bounded> { p: &'p P, pub incumbent: u64 }
+///
+/// `cut_ties` is the product obligation made concrete: a query that only wants the optimum may
+/// cut a space whose bound merely equals the incumbent; a query that counts optima may not,
+/// because that space can hold more of them (Steffen & Giegerich, Theorem 1(3)).
+pub struct BranchBound<'p, P: Bounded> { p: &'p P, pub incumbent: u64, pub cut_ties: bool }
 impl<'p, P: Bounded> Plan<RoseF<(P::Space, bool)>> for BranchBound<'p, P> {
     type Seed = P::Space;
     fn unfold(&mut self, r: P::Space) -> ((P::Space, bool), Vec<P::Space>) {
-        if self.p.bound(&r) <= self.incumbent && self.incumbent > 0 {
+        let b = self.p.bound(&r);
+        if b < self.incumbent || (self.cut_ties && b == self.incumbent && self.incumbent > 0) {
             return ((r, true), Vec::new());
         }
         if self.p.extract(&r) {
@@ -103,7 +125,25 @@ impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for Best<'p, P> {
 
 pub fn maximise<P: Bounded>(p: &P, x: &P::Input) -> u64 {
     let root = p.initial(x);
-    hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0 }, &mut Best { p }, root)
+    hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0, cut_ties: true }, &mut Best { p }, root)
+}
+
+/// Query: the Δ-product `MaxPlus Δ Nat` over the pruned tree: (optimum, number of optima).
+pub struct BestCount<'p, P: Bounded> { p: &'p P }
+impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for BestCount<'p, P> {
+    type Out = crate::algebra::Delta<crate::algebra::MaxPlus, crate::algebra::Nat>;
+    fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<Self::Out>)) -> Self::Out {
+        use crate::algebra::{Delta, MaxPlus, Nat, Semiring};
+        let here = if !pruned && self.p.extract(&r) { Delta::new(MaxPlus(Some(self.p.value(&r))), Nat(1)) } else { Delta::zero() };
+        kids.into_iter().fold(here, Delta::add)
+    }
+}
+
+/// Same plan with ties kept: the count is only right because `cut_ties` is false.
+pub fn maximise_count<P: Bounded>(p: &P, x: &P::Input) -> (u64, u64) {
+    let root = p.initial(x);
+    let d = hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0, cut_ties: false }, &mut BestCount { p }, root);
+    (d.cost().0.unwrap_or(0), d.count().0)
 }
 
 /// 0/1 knapsack. Space = (next item index, weight used, value so far).
@@ -152,3 +192,5 @@ impl<'a, T: Ord + Clone> GlobalSearch for BinarySearch<'a, T> {
     }
     fn extract(&self, &(lo, hi): &Self::Space) -> bool { hi - lo == 1 && self.sorted[lo] == self.target }
 }
+impl<'a, T: Ord + Clone> Weigh<crate::algebra::Boolean> for BinarySearch<'a, T> {}
+impl<'a, T: Ord + Clone> Weigh<crate::algebra::Nat> for BinarySearch<'a, T> {}

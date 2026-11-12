@@ -137,10 +137,35 @@ mod delta_laws {
     impl SemiringTests for Delta<Tropical, Nat> {}
     impl SemiringTests for Delta<Boolean, Boolean> {}
     impl SemiringTests for Delta<Tropical, Tropical> {}
+    impl SemiringTests for Delta<MaxPlus, Nat> {}
     impl DioidTests for Delta<Boolean, Boolean> {}
     impl DioidTests for Delta<Tropical, Tropical> {}
     mod tropical_nat { use super::*; SemiringTests!(Delta<Tropical, Nat>); }
     mod trilean { use super::*; SemiringTests!(Delta<Boolean, Boolean>); }
     mod trilean_dioid { use super::*; DioidTests!(Delta<Boolean, Boolean>); }
     mod lex_dioid { use super::*; DioidTests!(Delta<Tropical, Tropical>); }
+    mod maxplus_nat { use super::*; SemiringTests!(Delta<MaxPlus, Nat>); }
+}
+
+/// (max, +) with `None` as −∞: maximisation. Regular elements are the finite ones.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct MaxPlus(pub Option<u64>);
+#[cfg_attr(test, trait_tests::test_impl)]
+impl Semiring for MaxPlus {
+    fn zero() -> Self { MaxPlus(None) }
+    fn one() -> Self { MaxPlus(Some(0)) }
+    fn add(self, o: Self) -> Self {
+        match (self.0, o.0) { (Some(a), Some(b)) => MaxPlus(Some(if a >= b { a } else { b })), (Some(a), None) => MaxPlus(Some(a)), (None, b) => MaxPlus(b) }
+    }
+    fn mul(self, o: Self) -> Self {
+        match (self.0, o.0) { (Some(a), Some(b)) => MaxPlus(Some(a + b)), _ => MaxPlus(None) }
+    }
+}
+#[cfg_attr(test, trait_tests::test_impl)]
+impl Dioid for MaxPlus {
+    // "smaller" = better = larger value; −∞ is the top (worst).
+    fn le(self, o: Self) -> bool {
+        match (self.0, o.0) { (Some(a), Some(b)) => a >= b, (Some(_), None) => true, (None, None) => true, (None, Some(_)) => false }
+    }
+    fn regular(self) -> bool { self.0.is_some() }
 }

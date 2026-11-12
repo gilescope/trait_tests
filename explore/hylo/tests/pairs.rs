@@ -176,3 +176,41 @@ fn trace_dp_is_the_formalism_crate_as_one_pair() {
     assert_eq!(eval::<formalism::semiring::Nat, _>(&as_hylo, &Ones).0, 5);
     assert!(eval::<formalism::semiring::Boolean, _>(&as_hylo, &Ones).0);
 }
+
+#[test]
+fn counting_optima_is_a_query_and_forbids_cutting_ties() {
+    use hylo::algebra::{Delta, Nat, Tropical};
+    use hylo::search::{maximise_count, search, Knapsack, Queens};
+    // N-queens: minimum column sum and how many placements reach it, vs brute force over all solutions.
+    for n in 4..=7usize {
+        let d: Delta<Tropical, Nat> = search(&Queens, &n);
+        let all = { // every solution's cost, by naive recursion
+            fn go(n: usize, cols: &mut Vec<usize>, out: &mut Vec<u64>) {
+                if cols.len() == n { out.push(cols.iter().map(|&c| c as u64).sum()); return; }
+                for c in 0..n { let r = cols.len(); if cols.iter().enumerate().all(|(i, &ci)| ci != c && (r - i) != c.abs_diff(ci)) { cols.push(c); go(n, cols, out); cols.pop(); } }
+            }
+            let mut v = Vec::new(); go(n, &mut Vec::new(), &mut v); v
+        };
+        let best = *all.iter().min().unwrap();
+        assert_eq!(d.cost().0, best);
+        assert_eq!(d.count().0, all.iter().filter(|&&c| c == best).count() as u64);
+    }
+    // Knapsack: (optimum, number of optimal subsets) vs a counting DP.
+    let mut r = Lcg(41);
+    for _ in 0..60 {
+        let n = 1 + (r.next() % 10) as usize;
+        let items: Vec<(u64, u64)> = (0..n).map(|_| (1 + r.next() % 8, 1 + r.next() % 6)).collect(); // small values: many ties
+        let capacity = r.next() % 20;
+        let mut dp: Vec<(u64, u64)> = vec![(0, 1); capacity as usize + 1]; // (best, count)
+        for &(w, v) in &items {
+            for c in (w as usize..=capacity as usize).rev() {
+                let (b, k) = dp[c - w as usize];
+                let cand = (b + v, k);
+                if cand.0 > dp[c].0 { dp[c] = cand } else if cand.0 == dp[c].0 { dp[c].1 += cand.1 }
+            }
+        }
+        // dp[capacity] counts subsets with weight <= capacity achieving the best: that is what the search counts
+        let k = Knapsack { items, capacity };
+        assert_eq!(maximise_count(&k, &()), dp[capacity as usize]);
+    }
+}

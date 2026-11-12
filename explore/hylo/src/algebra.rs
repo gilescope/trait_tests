@@ -1,7 +1,7 @@
 //! Carriers and their laws. Laws are the contract; see FORMALISM.md for the test/proof story.
 
 // One set of carriers: the semiring hierarchy and the Δ-product live in `formalism::semiring`.
-pub use formalism::semiring::{Boolean, Delta, Dioid, Nat, Semiring, Tropical};
+pub use formalism::semiring::{Boolean, Delta, Dioid, MaxPlus, Nat, Semiring, Tropical};
 
 /// Lehmann: a* = 1 + a·a*. Makes `closure` well defined (Floyd–Warshall, Warshall, Kleene).
 pub trait Star: Semiring {
