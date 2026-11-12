@@ -1,0 +1,16 @@
+[package]
+name = "formalism"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Algorithm = construction grammar x trace x semiring. After Baril, Couceiro, Lagerkvist (arXiv:2512.03916)."
+
+[features]
+default = []
+trait-tests = ["dep:trait_tests"]
+
+[dependencies]
+trait_tests = { path = "../..", optional = true }
+
+[dev-dependencies]
+formalism = { path = ".", features = ["trait-tests"] }

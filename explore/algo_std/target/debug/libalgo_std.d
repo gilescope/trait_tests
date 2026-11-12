@@ -1,0 +1,1 @@
+/home/user/trait_tests/explore/algo_std/target/debug/libalgo_std.rlib: /home/user/trait_tests/explore/algo_std/src/cmp.rs /home/user/trait_tests/explore/algo_std/src/lib.rs /home/user/trait_tests/explore/algo_std/src/search.rs /home/user/trait_tests/explore/algo_std/src/semiring.rs /home/user/trait_tests/explore/algo_std/src/sort.rs

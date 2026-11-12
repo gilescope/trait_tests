@@ -1,0 +1,23 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.15
+      - run: earthly --ci +test
+  verify:
+    # Lean/Aeneas pipeline. Slow (mathlib) and not yet proven to pass; does not gate merges.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.15
+      - run: earthly --ci +verify
