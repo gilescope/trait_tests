@@ -7,17 +7,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: earthly/actions-setup@v1
+      - uses: earthbuild/actions-setup@f4d20223e70dbb43b5fc08c4d857ab9cf0dbf3ae # v2.2.0
         with:
-          version: v0.8.15
-      - run: earthly --ci +test
+          version: v0.8.19
+      - run: earth --ci +test
   verify:
     # Lean/Aeneas pipeline. Slow (mathlib) and not yet proven to pass; does not gate merges.
+    # Runs against upstream Aeneas and the gilescope fork so the two can be compared.
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        aeneas:
+          - { repo: AeneasVerif/aeneas, rev: 0d21a9ec7bbbb110110cacc14464a47fd71c8705 }
+          - { repo: gilescope/aeneas,   rev: fbd149f8693ee58a4bb0f78d447564e9c70496a1 }
     steps:
       - uses: actions/checkout@v4
-      - uses: earthly/actions-setup@v1
+      - uses: earthbuild/actions-setup@f4d20223e70dbb43b5fc08c4d857ab9cf0dbf3ae # v2.2.0
         with:
-          version: v0.8.15
-      - run: earthly --ci +verify
+          version: v0.8.19
+      - run: earth --ci +verify --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}
