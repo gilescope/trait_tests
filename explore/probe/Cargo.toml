@@ -1,0 +1,6 @@
+[package]
+name = "probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Smallest crate that exercises the GAT-encoded hylo. Exists to be fed to Charon/Aeneas first."

@@ -2,6 +2,7 @@ VERSION 0.8
 # Everything runs in containers: `earth +ci` (EarthBuild). Nothing to install but earth and docker.
 #
 #   +test     Rust: trait_tests, explore workspace, no_std build, clippy
+#   +probe    Charon + Aeneas on explore/probe: the GAT hylo alone, no collections
 #   +extract  Rust -> LLBC -> Lean via Charon + Aeneas (pinned, built with nix)
 #   +verify   lake build of the Lean spec against the extracted definitions
 #   +ci       all of the above
@@ -34,6 +35,16 @@ aeneas:
     RUN nix --extra-experimental-features 'nix-command flakes' \
         build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
     ENV PATH=/opt/aeneas/bin:$PATH
+
+# Answers one question: does Charon/Aeneas accept the GAT-encoded hylo? Fails fast if not.
+probe:
+    FROM +aeneas
+    WORKDIR /src
+    COPY --dir Cargo.toml src explore .
+    RUN cd explore/probe && charon cargo --preset=aeneas
+    RUN mkdir -p /out && aeneas -backend lean -dest /out explore/probe/probe.llbc
+    RUN find /out -name '*.lean' -exec cat {} +
+    SAVE ARTIFACT /out /Probe
 
 extract:
     FROM +aeneas

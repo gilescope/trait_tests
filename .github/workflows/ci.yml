@@ -27,4 +27,5 @@ jobs:
       - uses: earthbuild/actions-setup@f4d20223e70dbb43b5fc08c4d857ab9cf0dbf3ae # v2.2.0
         with:
           version: v0.8.19
+      - run: earth --ci +probe --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}
       - run: earth --ci +verify --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}
