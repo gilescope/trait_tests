@@ -62,3 +62,74 @@ impl GlobalSearch for Queens {
     }
     fn extract(&self, (n, cols): &Self::Space) -> bool { cols.len() == *n }
 }
+
+// ---- Knuth 7.8: branch and bound. Same shape, same split; the incumbent is plan state.
+// The answer is order-independent (it is a max), the cost is not: that is exactly what
+// the Plan axis is for.
+
+/// A global search with an objective and an admissible (never under-estimating) bound.
+pub trait Bounded: GlobalSearch {
+    fn value(&self, r: &Self::Space) -> u64;
+    fn bound(&self, r: &Self::Space) -> u64;
+}
+
+/// Plan: prune any space whose bound cannot beat the incumbent; raise the incumbent on extract.
+/// Pruning happens at the node's own unfold, after its earlier siblings have been explored.
+pub struct BranchBound<'p, P: Bounded> { p: &'p P, pub incumbent: u64 }
+impl<'p, P: Bounded> Plan<RoseF<(P::Space, bool)>> for BranchBound<'p, P> {
+    type Seed = P::Space;
+    fn unfold(&mut self, r: P::Space) -> ((P::Space, bool), Vec<P::Space>) {
+        if self.p.bound(&r) <= self.incumbent && self.incumbent > 0 {
+            return ((r, true), Vec::new());
+        }
+        if self.p.extract(&r) {
+            self.incumbent = self.incumbent.max(self.p.value(&r));
+        }
+        let kids = self.p.split(&r).into_iter().filter(|c| self.p.filter(c)).collect();
+        ((r, false), kids)
+    }
+}
+
+/// Query: the maximum extracted value. Agrees with the incumbent; stated as a fold anyway so the
+/// same tree could answer other queries.
+pub struct Best<'p, P: Bounded> { p: &'p P }
+impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for Best<'p, P> {
+    type Out = u64;
+    fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<u64>)) -> u64 {
+        let here = if !pruned && self.p.extract(&r) { self.p.value(&r) } else { 0 };
+        kids.into_iter().fold(here, u64::max)
+    }
+}
+
+pub fn maximise<P: Bounded>(p: &P, x: &P::Input) -> u64 {
+    let root = p.initial(x);
+    hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0 }, &mut Best { p }, root)
+}
+
+/// 0/1 knapsack. Space = (next item index, weight used, value so far).
+pub struct Knapsack { pub items: Vec<(u64, u64)>, pub capacity: u64 } // (weight, value)
+impl GlobalSearch for Knapsack {
+    type Input = ();
+    type Space = (usize, u64, u64);
+    fn initial(&self, _: &()) -> Self::Space { (0, 0, 0) }
+    fn split(&self, &(i, w, v): &Self::Space) -> Vec<Self::Space> {
+        if i == self.items.len() { return Vec::new(); }
+        let (wi, vi) = self.items[i];
+        alloc::vec![(i + 1, w + wi, v + vi), (i + 1, w, v)]
+    }
+    fn filter(&self, &(_, w, _): &Self::Space) -> bool { w <= self.capacity }
+    fn extract(&self, &(i, _, _): &Self::Space) -> bool { i == self.items.len() }
+}
+impl Bounded for Knapsack {
+    fn value(&self, &(_, _, v): &Self::Space) -> u64 { v }
+    /// Value so far plus the fractional relaxation of what remains: admissible.
+    fn bound(&self, &(i, w, v): &Self::Space) -> u64 {
+        let mut rest: Vec<(u64, u64)> = self.items[i..].to_vec();
+        rest.sort_by(|a, b| (b.1 * a.0).cmp(&(a.1 * b.0))); // by value density, descending
+        let (mut cap, mut b) = (self.capacity - w, v);
+        for (wi, vi) in rest {
+            if wi <= cap { cap -= wi; b += vi; } else { b += vi * cap / wi.max(1); break; }
+        }
+        b
+    }
+}

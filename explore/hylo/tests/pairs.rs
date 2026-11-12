@@ -96,3 +96,19 @@ fn n_queens_is_global_search_over_two_semirings() {
     }
     assert!(!search::<Queens, Boolean>(&Queens, &3).0);
 }
+
+#[test]
+fn knapsack_branch_and_bound_matches_dp() {
+    use hylo::search::{maximise, Knapsack};
+    let mut r = Lcg(23);
+    for _ in 0..60 {
+        let n = 1 + (r.next() % 12) as usize;
+        let items: Vec<(u64, u64)> = (0..n).map(|_| (1 + r.next() % 15, 1 + r.next() % 30)).collect();
+        let capacity = r.next() % 40;
+        // textbook DP oracle
+        let mut dp = vec![0u64; capacity as usize + 1];
+        for &(w, v) in &items { for c in (w as usize..=capacity as usize).rev() { dp[c] = dp[c].max(dp[c - w as usize] + v); } }
+        let k = Knapsack { items, capacity };
+        assert_eq!(maximise(&k, &()), dp[capacity as usize]);
+    }
+}
