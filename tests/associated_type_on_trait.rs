@@ -46,13 +46,13 @@ mod associated_type_with_param {
     use std::marker::PhantomData;
     use trait_tests::*;
 
-    trait Hello {
+    trait Hello2 {
         type MyAssociatedType;
         fn get_greeting(&self) -> &str;
     }
 
     #[trait_tests]
-    trait HelloTests: Hello<MyAssociatedType = isize> + Sized + Default {
+    trait Hello2Tests: Hello2<MyAssociatedType = isize> + Sized + Default {
         fn test() {
             assert!(Self::default().get_greeting().len() < 200);
         }
@@ -71,7 +71,7 @@ mod associated_type_with_param {
     }
 
     #[test_impl]
-    impl<T> Hello for SpanishHelloImpl<T> {
+    impl<T> Hello2 for SpanishHelloImpl<T> {
         type MyAssociatedType = T;
         fn get_greeting(&self) -> &str {
             "Hola"

@@ -30,12 +30,29 @@ pub fn trait_tests(_attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(_) => panic!("Failed to parse input"),
     };
 
-    trait_def = inject_test_all_method(trait_def);
+    let law_names = collect_law_names(&trait_def);
+    trait_def = inject_test_all_method(trait_def, &law_names);
     let output = quote!(#trait_def); //TODO loses span information!
 
     let mut tokens = proc_macro2::TokenStream::new();
 
     let trait_name_str = trait_def.ident.clone();
+
+    // One `#[test]` per law. Exported at the crate root under the trait's own name
+    // (separate namespace), so `use some_crate::XTests;` imports both trait and macro.
+    let test_trait = trait_def.ident.clone();
+    let law_fns = law_names.clone();
+    let law_calls = law_names.clone();
+    let test_trait_rep = vec![test_trait.clone(); law_names.len()];
+    tokens.append_all(quote! {
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #test_trait {
+            ($t:ty) => {
+                #( #[test] fn #law_fns() { <$t as #test_trait_rep>::#law_calls() } )*
+            };
+        }
+    });
 
     let p: TypeParamBound = trait_def
         .supertraits
@@ -150,9 +167,11 @@ fn process_case(
     let impl_type_name =
         get_type_with_filled_in_type_params_impl(path, &trait_name_str, num_params_trait_takes);
 
-    quote!( #[test]
-            fn #test_fn_name() {
-                <#impl_type_name as #trait_name>::test_all();
+    quote!( #[cfg(test)]
+            mod #test_fn_name {
+                #[allow(unused_imports)]
+                use super::*;
+                #trait_name!(#impl_type_name);
             }
 
             impl #trait_name for #impl_type_name {})
@@ -285,8 +304,24 @@ fn generate_unique_test_name(
 
 /// Creates a method that runs all the test methods that this trait defines.
 /// Takes in a trait item and outputs that same item with the added method.
-fn inject_test_all_method(mut trait_def: ItemTrait) -> ItemTrait {
-    // A list of functions that will end up being run on test
+fn inject_test_all_method(mut trait_def: ItemTrait, test_calls: &[Ident]) -> ItemTrait {
+    // The function that contains all the tests
+    let test_all_fn = syn::parse(
+        quote!(
+            fn test_all() {
+                #(Self::#test_calls());*
+            }
+        )
+        .into(),
+    )
+    .unwrap();
+
+    trait_def.items.push(test_all_fn);
+    trait_def
+}
+
+/// A law is a trait method with no arguments and no return type.
+fn collect_law_names(trait_def: &ItemTrait) -> Vec<Ident> {
     let mut test_calls: Vec<Ident> = Vec::with_capacity(trait_def.items.len());
     for item in &trait_def.items {
         // Tests don't return anything...
@@ -311,18 +346,5 @@ fn inject_test_all_method(mut trait_def: ItemTrait) -> ItemTrait {
             }
         }
     }
-
-    // The function that contains all the tests
-    let test_all_fn = syn::parse(
-        quote!(
-            fn test_all() {
-                #(Self::#test_calls());*
-            }
-        )
-        .into(),
-    )
-    .unwrap();
-
-    trait_def.items.push(test_all_fn);
-    trait_def
+    test_calls
 }
