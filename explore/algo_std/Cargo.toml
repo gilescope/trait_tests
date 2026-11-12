@@ -1,0 +1,17 @@
+[package]
+name = "algo_std"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+# Ships the trait-level law suites so downstream impls can run them.
+trait-tests = ["dep:trait_tests"]
+
+[dependencies]
+trait_tests = { path = "../..", optional = true }
+
+[dev-dependencies]
+algo_std = { path = ".", features = ["trait-tests"] }
