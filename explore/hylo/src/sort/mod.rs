@@ -43,7 +43,8 @@ impl<T: Ord> Plan<NodeTreeF<T>> for Pivot {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>, Vec<T>)> {
         let p = v.pop()?;
-        let (l, r): (Vec<T>, Vec<T>) = v.into_iter().partition(|x| *x < p);
+        let (mut l, mut r) = (Vec::new(), Vec::new());
+        while let Some(x) = v.pop() { if x < p { l.push(x) } else { r.push(x) } }
         Some((p, l, r))
     }
 }
@@ -69,14 +70,16 @@ impl<T: Ord> Algebra<LeafTreeF<T>> for Merge {
     fn fold(&mut self, l: LeafTree<T, Vec<T>>) -> Vec<T> {
         match l {
             LeafTree::Leaf(t) => t.into_iter().collect(),
-            LeafTree::Node(a, b) => {
-                let (mut a, mut b) = (a.into_iter().peekable(), b.into_iter().peekable());
+            LeafTree::Node(mut a, mut b) => {
+                // consume from the back so no element is ever moved out by index
+                a.reverse();
+                b.reverse();
                 let mut out = Vec::new();
                 loop {
-                    match (a.peek(), b.peek()) {
-                        (Some(x), Some(y)) => if x <= y { out.push(a.next().unwrap()) } else { out.push(b.next().unwrap()) },
-                        (Some(_), None) => out.extend(a.by_ref()),
-                        (None, Some(_)) => out.extend(b.by_ref()),
+                    match (a.last(), b.last()) {
+                        (Some(x), Some(y)) => { if x <= y { out.push(a.pop().unwrap()) } else { out.push(b.pop().unwrap()) } }
+                        (Some(_), None) => { while let Some(x) = a.pop() { out.push(x) } }
+                        (None, Some(_)) => { while let Some(y) = b.pop() { out.push(y) } }
                         (None, None) => return out,
                     }
                 }

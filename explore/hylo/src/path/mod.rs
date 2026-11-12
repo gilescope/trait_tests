@@ -4,9 +4,8 @@
 use crate::algebra::{KClosed, Semiring, Star, Superior};
 use crate::shape::{Iter, IterF, Last};
 use crate::{hylo, Plan};
-use alloc::collections::{BinaryHeap, VecDeque};
+use crate::collections::{Fifo as FifoVec, MinHeap};
 use alloc::vec::Vec;
-use core::cmp::Reverse;
 
 pub type Node = usize;
 pub struct Graph<S> { pub adj: Vec<Vec<(Node, S)>> }
@@ -18,41 +17,54 @@ pub trait Queue<S>: Sized {
     fn push(&mut self, n: Node, key: S);
     fn pop(&mut self) -> Option<Node>;
 }
-pub struct Fifo(VecDeque<Node>);
+pub struct Fifo(FifoVec<Node>);
 impl<S> Queue<S> for Fifo {
-    fn new(_: &Graph<S>) -> Option<Self> { Some(Fifo(VecDeque::new())) }
-    fn push(&mut self, n: Node, _: S) { self.0.push_back(n) }
-    fn pop(&mut self) -> Option<Node> { self.0.pop_front() }
+    fn new(_: &Graph<S>) -> Option<Self> { Some(Fifo(FifoVec::default())) }
+    fn push(&mut self, n: Node, _: S) { self.0.push(n) }
+    fn pop(&mut self) -> Option<Node> { self.0.pop() }
 }
 /// Requires `Superior` so that each node is settled when first popped.
-pub struct ShortestFirst<S: Ord>(BinaryHeap<Reverse<(S, Node)>>);
+pub struct ShortestFirst<S: Ord>(MinHeap<S, Node>);
 impl<S: Superior + Ord> Queue<S> for ShortestFirst<S> {
-    fn new(_: &Graph<S>) -> Option<Self> { Some(ShortestFirst(BinaryHeap::new())) }
-    fn push(&mut self, n: Node, key: S) { self.0.push(Reverse((key, n))) }
-    fn pop(&mut self) -> Option<Node> { self.0.pop().map(|Reverse((_, n))| n) }
+    fn new(_: &Graph<S>) -> Option<Self> { Some(ShortestFirst(MinHeap::default())) }
+    fn push(&mut self, n: Node, key: S) { self.0.push(key, n) }
+    fn pop(&mut self) -> Option<Node> { self.0.pop() }
 }
 /// Pops in topological order. Exists only for acyclic graphs, where every semiring is trivially
 /// k-closed, so `relax_acyclic` needs no `KClosed` bound and counting paths becomes legal.
-pub struct Topological { rank: Vec<usize>, heap: BinaryHeap<Reverse<(usize, Node)>> }
+pub struct Topological { rank: Vec<usize>, heap: MinHeap<usize, Node> }
 impl<S> Queue<S> for Topological {
     fn new(g: &Graph<S>) -> Option<Self> {
         // Kahn's algorithm; fails on a cycle.
         let n = g.adj.len();
         let mut indeg = alloc::vec![0usize; n];
-        for es in &g.adj { for &(v, _) in es { indeg[v] += 1; } }
-        let mut ready: VecDeque<Node> = (0..n).filter(|&v| indeg[v] == 0).collect();
+        let mut u = 0;
+        while u < n {
+            let mut j = 0;
+            while j < g.adj[u].len() { indeg[g.adj[u][j].0] += 1; j += 1; }
+            u += 1;
+        }
+        let mut ready: FifoVec<Node> = FifoVec::default();
+        let mut v = 0;
+        while v < n { if indeg[v] == 0 { ready.push(v); } v += 1; }
         let mut rank = alloc::vec![usize::MAX; n];
         let mut next = 0;
-        while let Some(u) = ready.pop_front() {
+        while let Some(u) = ready.pop() {
             rank[u] = next;
             next += 1;
-            for &(v, _) in &g.adj[u] { indeg[v] -= 1; if indeg[v] == 0 { ready.push_back(v); } }
+            let mut j = 0;
+            while j < g.adj[u].len() {
+                let v = g.adj[u][j].0;
+                indeg[v] -= 1;
+                if indeg[v] == 0 { ready.push(v); }
+                j += 1;
+            }
         }
         if next < n { return None; }
-        Some(Topological { rank, heap: BinaryHeap::new() })
+        Some(Topological { rank, heap: MinHeap::default() })
     }
-    fn push(&mut self, n: Node, _: S) { self.heap.push(Reverse((self.rank[n], n))) }
-    fn pop(&mut self) -> Option<Node> { self.heap.pop().map(|Reverse((_, n))| n) }
+    fn push(&mut self, n: Node, _: S) { self.heap.push(self.rank[n], n) }
+    fn pop(&mut self) -> Option<Node> { self.heap.pop() }
 }
 
 /// Mohri's generic single-source shortest-distance algorithm as a plan over `IterF`.
@@ -66,7 +78,9 @@ impl<'g, S: Semiring, Q: Queue<S>> Plan<IterF<Vec<S>>> for Relax<'g, S, Q> {
         let Some(q) = self.q.pop() else { return Iter::Done(st.d) };
         self.inq[q] = false;
         let rq = core::mem::replace(&mut st.r[q], S::zero());
-        for &(n, w) in &self.g.adj[q] {
+        let mut j = 0;
+        while j < self.g.adj[q].len() {
+            let (n, w) = self.g.adj[q][j];
             let via = rq.mul(w);
             let d2 = st.d[n].add(via);
             if d2 != st.d[n] {
@@ -74,6 +88,7 @@ impl<'g, S: Semiring, Q: Queue<S>> Plan<IterF<Vec<S>>> for Relax<'g, S, Q> {
                 st.r[n] = st.r[n].add(via);
                 if !self.inq[n] { self.inq[n] = true; self.q.push(n, d2); }
             }
+            j += 1;
         }
         Iter::Step(st)
     }
@@ -110,14 +125,18 @@ impl<S: Star> Plan<IterF<Vec<Vec<S>>>> for Lehmann {
     fn unfold(&mut self, mut m: Vec<Vec<S>>) -> Iter<Vec<Vec<S>>, Vec<Vec<S>>> {
         let n = m.len();
         if self.k == n {
-            for (i, row) in m.iter_mut().enumerate() { row[i] = row[i].add(S::one()); } // the final "1 +"
+                let mut i = 0;
+            while i < n { m[i][i] = m[i][i].add(S::one()); i += 1; } // the final "1 +"
             return Iter::Done(m);
         }
         let k = self.k;
         let kk = m[k][k].star();
-        for i in 0..n { for j in 0..n {
-            m[i][j] = m[i][j].add(m[i][k].mul(kk).mul(m[k][j]));
-        } }
+        let mut i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < n { m[i][j] = m[i][j].add(m[i][k].mul(kk).mul(m[k][j])); j += 1; }
+            i += 1;
+        }
         self.k += 1;
         Iter::Step(m)
     }
@@ -130,7 +149,12 @@ impl<S: Semiring> Graph<S> {
     pub fn matrix(&self) -> Vec<Vec<S>> {
         let n = self.adj.len();
         let mut m = alloc::vec![alloc::vec![S::zero(); n]; n];
-        for (u, es) in self.adj.iter().enumerate() { for &(v, w) in es { m[u][v] = m[u][v].add(w); } }
+        let mut u = 0;
+        while u < n {
+            let mut j = 0;
+            while j < self.adj[u].len() { let (v, w) = self.adj[u][j]; m[u][v] = m[u][v].add(w); j += 1; }
+            u += 1;
+        }
         m
     }
 }
