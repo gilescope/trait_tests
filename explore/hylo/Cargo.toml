@@ -1,0 +1,6 @@
+[package]
+name = "hylo"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "algorithm = hylo(plan, algebra) over a shape. Plans and algebras are types; pairs are the API."
