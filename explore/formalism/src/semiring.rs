@@ -52,7 +52,7 @@ impl Semiring for Nat {
 
 /// (min, +) over u64 ∪ {∞}: minimum cost. `u64::MAX` is ∞.
 /// Finite sums that would reach `u64::MAX` panic; Aeneas models that as `fail`.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Tropical(pub u64);
 
 impl Tropical {
