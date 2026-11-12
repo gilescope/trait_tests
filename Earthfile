@@ -2,7 +2,8 @@ VERSION 0.8
 # Everything runs in containers: `earth +ci` (EarthBuild). Nothing to install but earth and docker.
 #
 #   +test     Rust: trait_tests, explore workspace, no_std build, clippy
-#   +probe    Charon + Aeneas on explore/probe: the GAT hylo alone, no collections
+#   +probe    Charon + Aeneas on explore/probe: one-shape hylo, no GAT, no closure
+#   +probe-gat  the GAT hylo: fails on upstream Aeneas (GAT unimplemented); canary for the fork
 #   +extract  Rust -> LLBC -> Lean via Charon + Aeneas (pinned, built with nix)
 #   +verify   lake build of the Lean spec against the extracted definitions
 #   +ci       all of the above
@@ -36,7 +37,7 @@ aeneas:
         build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
     ENV PATH=/opt/aeneas/bin:$PATH
 
-# Answers one question: does Charon/Aeneas accept the GAT-encoded hylo? Fails fast if not.
+# The smallest extractable hylo. Must pass; anything +verify then trips on is a std model.
 probe:
     FROM +aeneas
     WORKDIR /src
@@ -45,6 +46,17 @@ probe:
     RUN mkdir -p /out && aeneas -backend lean -dest /out explore/probe/probe.llbc
     RUN find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Probe
+
+# The GAT hylo. Known to fail on upstream Aeneas 0d21a9e: "Unimplemented" on `type Layer<X>` and
+# a mixed recursive group (hylo with its closure's FnMut impl). Run non-blocking to watch the fork.
+probe-gat:
+    FROM +aeneas
+    WORKDIR /src
+    COPY --dir Cargo.toml src explore .
+    RUN cd explore/probe_gat && charon cargo --preset=aeneas
+    RUN mkdir -p /out && aeneas -backend lean -dest /out explore/probe_gat/probe_gat.llbc
+    RUN find /out -name '*.lean' -exec cat {} +
+    SAVE ARTIFACT /out /ProbeGat
 
 extract:
     FROM +aeneas

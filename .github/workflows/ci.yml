@@ -28,4 +28,6 @@ jobs:
         with:
           version: v0.8.19
       - run: earth --ci +probe --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}
+      - run: earth --ci +probe-gat --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}
+        continue-on-error: true
       - run: earth --ci +verify --AENEAS_REPO=${{ matrix.aeneas.repo }} --AENEAS_REV=${{ matrix.aeneas.rev }}

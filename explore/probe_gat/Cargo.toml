@@ -1,0 +1,6 @@
+[package]
+name = "probe_gat"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "The GAT-encoded hylo. Aeneas upstream rejects it (GAT unimplemented; closure recursion is a mixed group): a canary for the fork."
