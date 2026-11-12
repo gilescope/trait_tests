@@ -32,9 +32,9 @@ impl LowerBound for Binary {
     }
 }
 
-/// Branchless variant with an off-by-one bug. Exists to prove the contract test catches it.
+/// Variant with an off-by-one bug. Exists to prove the contract test catches it;
+/// see the `should_panic` test below rather than `#[test_impl]`, so CI stays green.
 pub struct Buggy;
-#[cfg_attr(test, trait_tests::test_impl)]
 impl LowerBound for Buggy {
     fn lower_bound<T, C: Comparator<T>>(s: &[T], x: &T, mut c: C) -> usize {
         let (mut lo, mut hi) = (0, s.len());
@@ -48,4 +48,11 @@ impl LowerBound for Buggy {
         }
         lo
     }
+}
+
+#[cfg(test)]
+mod buggy_is_caught {
+    use super::*;
+    impl LowerBoundTests for Buggy {}
+    #[test] #[should_panic] fn matches_definition() { <Buggy as LowerBoundTests>::matches_definition() }
 }

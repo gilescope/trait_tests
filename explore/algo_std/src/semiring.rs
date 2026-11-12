@@ -41,13 +41,22 @@ impl Semiring for Count {
     fn mul(self, o: Self) -> Self { Count(self.0.wrapping_mul(o.0)) }
 }
 
-/// Deliberately wrong: `mul` is not distributive over `add`. Exists to prove the laws catch it.
+/// Deliberately wrong: `mul` is not distributive over `add`. Exists to prove the laws catch it;
+/// see the `should_panic` tests below rather than `#[test_impl]`, so CI stays green.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Broken(pub u64);
-#[cfg_attr(test, trait_tests::test_impl)]
 impl Semiring for Broken {
     fn zero() -> Self { Broken(0) }
     fn one() -> Self { Broken(1) }
     fn add(self, o: Self) -> Self { Broken(self.0.wrapping_add(o.0)) }
     fn mul(self, o: Self) -> Self { Broken(self.0.max(o.0)) }
+}
+
+#[cfg(test)]
+mod broken_is_caught {
+    use super::*;
+    impl SemiringTests for Broken {}
+    #[test] #[should_panic] fn distributive() { <Broken as SemiringTests>::distributive() }
+    #[test] #[should_panic] fn mul_identity() { <Broken as SemiringTests>::mul_identity() }
+    #[test] #[should_panic] fn zero_annihilates() { <Broken as SemiringTests>::zero_annihilates() }
 }
