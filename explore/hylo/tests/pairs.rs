@@ -64,3 +64,35 @@ fn reachability_is_the_same_plan_over_boolean() {
         assert_eq!(warshall, want, "seed {seed}");
     }
 }
+
+#[test]
+fn counting_paths_needs_the_acyclic_plan() {
+    use hylo::algebra::Nat;
+    use hylo::path::relax_acyclic;
+    let mut r = Lcg(11);
+    for _ in 0..40 {
+        let n = 8;
+        // edges only forward: a DAG by construction
+        let mut adj = Vec::new();
+        for u in 0..n { let mut es = Vec::new(); for v in u + 1..n { if r.next().is_multiple_of(2) { es.push((v, Nat(1))); } } adj.push(es); }
+        let g = Graph { adj };
+        let got = relax_acyclic(&g, 0).expect("acyclic");
+        // brute: count paths by DFS enumeration
+        fn count(g: &Graph<Nat>, u: usize, t: usize) -> u64 { if u == t { 1 } else { g.adj[u].iter().map(|&(v, _)| count(g, v, t)).sum() } }
+        for (t, g_t) in got.iter().enumerate() { assert_eq!(g_t.0, count(&g, 0, t)); }
+    }
+    // a cycle makes the acyclic plan refuse, instead of miscounting
+    let cyc = Graph { adj: vec![vec![(1, Nat(1))], vec![(0, Nat(1))]] };
+    assert!(relax_acyclic(&cyc, 0).is_none());
+}
+
+#[test]
+fn n_queens_is_global_search_over_two_semirings() {
+    use hylo::algebra::Nat;
+    use hylo::search::{search, Queens};
+    for (n, want) in [(4, 2), (5, 10), (6, 4), (7, 40), (8, 92)] {
+        assert_eq!(search::<Queens, Nat>(&Queens, &n).0, want);
+        assert!(search::<Queens, Boolean>(&Queens, &n).0);
+    }
+    assert!(!search::<Queens, Boolean>(&Queens, &3).0);
+}
