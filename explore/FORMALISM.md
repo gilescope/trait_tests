@@ -1,4 +1,49 @@
-# A formalism for parameterised algorithms
+# A formalism for algorithms
+
+Current statement (see the research note "Interlocking Traits" for the evidence):
+
+```
+algorithm = hylo(plan, algebra) over a shape
+  Shape   F : one layer of the virtual structure, owned (no lifetime GATs)
+  Plan    c : A → F A, a type with state; obligation: recursive (Knuth's finiteness)
+  Algebra a : F B → B, a type; obligation: the carrier's laws
+  Query     : the choice of a; free by fusion
+```
+
+Two theorems are the generic API: **fusion** (an algebra homomorphism commutes with the hylo,
+so the query is free) and the **homomorphism theorem** (with a commutative monoid action and
+the shape's laws, the plan is free). Lean statements: `formalism/verify/FormalismVerify/Hylo.lean`.
+Implementation: `hylo/`. Named algorithms are pairs:
+
+| Knuth | name | shape | plan | algebra |
+|---|---|---|---|---|
+| 4.5.2 | gcd | `IterF` | `Euclid` | `Last` |
+| 4.6.3 | power, Fibonacci | `IterF` | `Square` over a monoid | `Last` |
+| 4.6 | reduce, scan | `ListF` / `LeafTreeF` | `Uncons` / `Halve` | `ReduceL` / `ReduceT` / `Scan` |
+| 5.2.1 | insertion sort | `ListF` | `Uncons` | `Insert` |
+| 5.2.3 | selection sort | `ListF` | `SelectMin` | `Cons` |
+| 5.2.2 | quicksort | `NodeTreeF` | `Pivot` | `Concat` |
+| 5.2.4 | mergesort | `LeafTreeF` | `Halve` | `Merge` |
+| 6.2.1 | binary search, count | `RoseF` | `Backtrack<BinarySearch>` | `Aggregate<Boolean / Nat>` |
+| 7.2.2 | backtracking, N-queens | `RoseF` | `Backtrack<Queens>` | `Aggregate<S>` |
+| 7.3 | Bellman-Ford | `IterF` | `Relax<Tropical, Fifo>` | `Last` |
+| 7.3 | Dijkstra | `IterF` | `Relax<Tropical, ShortestFirst>` | `Last` |
+| 7.3 | path counting (DAG) | `IterF` | `Relax<Nat, Topological>` | `Last` |
+| 7.3 | Floyd–Warshall, Warshall | `IterF` | `Lehmann` over `Star` | `Last` |
+| 7.8 | branch and bound, knapsack | `RoseF` | `BranchBound<Knapsack>` | `Best` |
+
+Bounds are theorem hypotheses: `KClosed<0>` on `relax` (Mohri Thm 1), `Superior` on
+`ShortestFirst` (Huang), `Star` on `Lehmann` (Lehmann), `Monoid` on reduce (third homomorphism
+theorem). `Nat` has no `KClosed` impl, so counting on a cyclic graph does not compile; the
+acyclic plan is `relax_acyclic`, which refuses cycles at runtime.
+
+The rest of this file is the earlier, narrower formalism (the semiring DP of Baril et al.),
+which is now one instance: `trace_dp` is a hylo over a decomposition shape whose algebra is a
+semiring measure.
+
+---
+
+# The semiring DP instance
 
 After Baril, Couceiro, Lagerkvist, *New perspectives on semiring applications to dynamic
 programming*, Discrete Applied Mathematics 383 (2026), arXiv:2512.03916.
