@@ -3,6 +3,7 @@ use crate::expr::{join, join_leaves, union, Expr, Val, Var};
 use alloc::vec::Vec;
 
 /// A construction of the input: a tree of operations.
+#[derive(Clone, Debug)]
 pub struct Node<Op> {
     pub op: Op,
     pub children: Vec<Node<Op>>,
@@ -52,21 +53,13 @@ fn union_into<Tau: PartialEq>(table: &mut Table<Tau>, tau: Tau, e: Expr) {
     table.push(Row { tau, expr: e });
 }
 
-/// Post-order fold. For each node: for every tuple of child rows, ask `step`, and union
-/// the joined child expressions (plus owned leaves) into the row of the new trace.
+/// One DP step: the table of a node from `op` and its children's tables.
 ///
 /// Invariant (Claim 1 of the paper): `⟦row(tau).expr⟧` is exactly the set of partial
 /// candidates at this node whose trace is `tau`, restricted to owned variables.
 /// Rows have distinct traces, so every `union` here is over disjoint sets, and every
 /// `join` is over disjoint owned-variable domains: legality is by construction.
-pub fn run<P: Traced>(p: &P, node: &Node<P::Op>) -> Table<P::Tau> {
-    let mut child_tables: Vec<Table<P::Tau>> = Vec::new();
-    let mut c = 0;
-    while c < node.children.len() {
-        child_tables.push(run(p, &node.children[c]));
-        c += 1;
-    }
-
+pub fn step_node<P: Traced>(p: &P, op: &P::Op, child_tables: Vec<Table<P::Tau>>) -> Table<P::Tau> {
     let mut table: Table<P::Tau> = Vec::new();
     let n = child_tables.len();
     let mut idx: Vec<usize> = Vec::new();
@@ -87,7 +80,7 @@ pub fn run<P: Traced>(p: &P, node: &Node<P::Op>) -> Table<P::Tau> {
             joined = join(joined, row.expr.clone());
             k += 1;
         }
-        let outs = p.step(&node.op, &traces);
+        let outs = p.step(op, &traces);
         let mut o = 0;
         while o < outs.len() {
             let e = join_leaves(joined.clone(), &outs[o].1);
@@ -105,6 +98,18 @@ pub fn run<P: Traced>(p: &P, node: &Node<P::Op>) -> Table<P::Tau> {
             idx[k] = 0;
         }
     }
+}
+
+/// Post-order fold of `step_node` over the construction. In `hylo` terms this is
+/// `hylo(Project, TraceDp)` over `RoseF<Op>`; see `hylo::dp`.
+pub fn run<P: Traced>(p: &P, node: &Node<P::Op>) -> Table<P::Tau> {
+    let mut child_tables: Vec<Table<P::Tau>> = Vec::new();
+    let mut c = 0;
+    while c < node.children.len() {
+        child_tables.push(run(p, &node.children[c]));
+        c += 1;
+    }
+    step_node(p, &node.op, child_tables)
 }
 
 /// `⊎` of the rows of the root table whose trace is accepted: the expression of the

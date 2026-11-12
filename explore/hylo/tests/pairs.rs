@@ -156,3 +156,23 @@ fn binary_search_counts_with_nat_and_decides_with_boolean() {
         }
     }
 }
+
+#[test]
+fn trace_dp_is_the_formalism_crate_as_one_pair() {
+    use formalism::expr::{eval, Ones};
+    use formalism::instances::hcol::{h, solve, Graph as HG, HColoring, NiceTd, Op};
+    use formalism::scheme::Node;
+    use hylo::dp::trace_dp;
+    // Path 0-1-2 with a hand-built nice tree decomposition: bags {0,1} then {1,2}.
+    let mut g = HG::new(3); g.add_edge(0, 1); g.add_edge(1, 2);
+    let n = |op, children| Node { op, children };
+    let td = n(Op::Forget { v: 2 }, vec![n(Op::Forget { v: 1 }, vec![n(Op::Introduce { v: 2, owner: true }, vec![
+        n(Op::Forget { v: 0 }, vec![n(Op::Introduce { v: 1, owner: true }, vec![n(Op::Introduce { v: 0, owner: true }, vec![n(Op::Leaf, vec![])])])])])])]);
+    let p = HColoring { g: g.clone(), h: h::independent_set() };
+    let reference = solve(&p, &NiceTd::new(&g, &td).unwrap());
+    let as_hylo = trace_dp(&p, td.clone());
+    assert_eq!(as_hylo, reference);
+    // The query is fusion: same expression, two measures. P3 has 5 independent sets.
+    assert_eq!(eval::<formalism::semiring::Nat, _>(&as_hylo, &Ones).0, 5);
+    assert!(eval::<formalism::semiring::Boolean, _>(&as_hylo, &Ones).0);
+}
