@@ -133,3 +133,22 @@ impl Bounded for Knapsack {
         b
     }
 }
+
+/// Knuth 6.2.1: binary search is global search over index ranges (Smith's Or-reduction).
+/// The filter is the sortedness argument: the target can only live where lo ≤ target ≤ hi.
+/// Over `Nat` the same search counts occurrences; over `Boolean` it is `contains`.
+pub struct BinarySearch<'a, T> { pub sorted: &'a [T], pub target: T }
+impl<'a, T: Ord + Clone> GlobalSearch for BinarySearch<'a, T> {
+    type Input = ();
+    type Space = (usize, usize); // half-open range
+    fn initial(&self, _: &()) -> Self::Space { (0, self.sorted.len()) }
+    fn split(&self, &(lo, hi): &Self::Space) -> Vec<Self::Space> {
+        if hi - lo <= 1 { return Vec::new(); }
+        let mid = lo + (hi - lo) / 2;
+        alloc::vec![(lo, mid), (mid, hi)]
+    }
+    fn filter(&self, &(lo, hi): &Self::Space) -> bool {
+        lo < hi && self.sorted[lo] <= self.target && self.target <= self.sorted[hi - 1]
+    }
+    fn extract(&self, &(lo, hi): &Self::Space) -> bool { hi - lo == 1 && self.sorted[lo] == self.target }
+}

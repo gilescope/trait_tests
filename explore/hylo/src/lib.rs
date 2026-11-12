@@ -10,8 +10,10 @@
 extern crate alloc;
 
 pub mod algebra;
+pub mod num;
 pub mod path;
 pub mod search;
+pub mod seq;
 pub mod shape;
 pub mod sort;
 

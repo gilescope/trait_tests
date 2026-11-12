@@ -112,3 +112,47 @@ fn knapsack_branch_and_bound_matches_dp() {
         assert_eq!(maximise(&k, &()), dp[capacity as usize]);
     }
 }
+
+#[test]
+fn reduce_is_plan_independent_and_scan_matches_prefix_sums() {
+    use hylo::algebra::Sum;
+    use hylo::seq::{reduce_par, reduce_seq, scan};
+    let mut r = Lcg(31);
+    for n in 0..40 {
+        let v: Vec<Sum> = (0..n).map(|_| Sum(r.next() % 100)).collect();
+        let total = Sum(v.iter().map(|s| s.0).sum());
+        assert_eq!(reduce_seq(v.clone()), total);   // ListF plan
+        assert_eq!(reduce_par(v.clone()), total);   // LeafTreeF plan: third homomorphism theorem
+        let mut acc = 0; let want: Vec<Sum> = v.iter().map(|s| { acc += s.0; Sum(acc) }).collect();
+        assert_eq!(scan(v), want);
+    }
+}
+
+#[test]
+fn euclid_and_repeated_squaring() {
+    use hylo::algebra::{Mat2, Sum};
+    use hylo::num::{gcd, power};
+    assert_eq!(gcd(48u64, 18), 6);
+    assert_eq!(gcd(17u64, 5), 1);
+    assert_eq!(gcd(0u64, 9), 9);
+    assert_eq!(power(Sum(3), 7), Sum(21));                 // additive monoid: multiplication by squaring
+    let fib = |n: u64| power(Mat2([[1, 1], [1, 0]]), n).0[0][1];
+    assert_eq!((0..12).map(fib).collect::<Vec<_>>(), [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]);
+}
+
+#[test]
+fn binary_search_counts_with_nat_and_decides_with_boolean() {
+    use hylo::algebra::Nat;
+    use hylo::search::{search, BinarySearch};
+    let mut r = Lcg(37);
+    for n in 0..40 {
+        let mut v: Vec<u64> = (0..n).map(|_| r.next() % 10).collect();
+        v.sort();
+        for t in 0..10 {
+            let want = v.iter().filter(|&&x| x == t).count() as u64;
+            let bs = BinarySearch { sorted: &v, target: t };
+            assert_eq!(search::<_, Nat>(&bs, &()).0, want);
+            assert_eq!(search::<_, Boolean>(&bs, &()).0, want > 0);
+        }
+    }
+}

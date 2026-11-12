@@ -57,3 +57,32 @@ impl Star for Tropical { fn star(self) -> Self { Tropical(0) } }
 /// 0-closed only without negative cycles; u64 weights have none.
 impl KClosed<0> for Tropical {}
 impl Superior for Tropical {}
+
+/// Associative binary operation. The hypothesis of the third homomorphism theorem:
+/// with it, any split of a sequence (plan) gives the same reduce.
+pub trait Semigroup: Copy { fn op(self, o: Self) -> Self; }
+pub trait Monoid: Semigroup { fn unit() -> Self; }
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Sum(pub u64);
+impl Semigroup for Sum { fn op(self, o: Self) -> Self { Sum(self.0.wrapping_add(o.0)) } }
+impl Monoid for Sum { fn unit() -> Self { Sum(0) } }
+
+/// 2×2 matrices over Z/2^64 under multiplication: Fibonacci by repeated squaring (FM2GP §7.7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Mat2(pub [[u64; 2]; 2]);
+impl Semigroup for Mat2 {
+    fn op(self, o: Self) -> Self {
+        let (a, b) = (self.0, o.0);
+        let m = |i: usize, j: usize| a[i][0].wrapping_mul(b[0][j]).wrapping_add(a[i][1].wrapping_mul(b[1][j]));
+        Mat2([[m(0, 0), m(0, 1)], [m(1, 0), m(1, 1)]])
+    }
+}
+impl Monoid for Mat2 { fn unit() -> Self { Mat2([[1, 0], [0, 1]]) } }
+
+/// Euclidean division, enough for Euclid's algorithm (EoP §5.4 asks for more; this is the minimum).
+pub trait Euclidean: Copy + PartialEq {
+    fn zero() -> Self;
+    fn rem(self, o: Self) -> Self;
+}
+impl Euclidean for u64 { fn zero() -> Self { 0 } fn rem(self, o: Self) -> Self { self % o } }
