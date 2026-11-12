@@ -2,8 +2,7 @@
 //! Bellman-Ford = Relax<Tropical, Fifo>. Dijkstra = Relax<Tropical, ShortestFirst>.
 //! Reachability = Relax<Boolean, _>. Floyd–Warshall = closure::<Tropical>. Warshall = closure::<Boolean>.
 use crate::algebra::{KClosed, Semiring, Star, Superior};
-use crate::shape::{Iter, IterF, Last};
-use crate::{hylo, Plan};
+use crate::shape::{hylo_iter, Iter, IterPlan, Last};
 use crate::collections::{Fifo as FifoVec, MinHeap};
 use alloc::vec::Vec;
 
@@ -72,7 +71,7 @@ impl<S> Queue<S> for Topological {
 pub struct Relax<'g, S, Q> { g: &'g Graph<S>, q: Q, inq: Vec<bool> }
 pub struct State<S> { pub d: Vec<S>, pub r: Vec<S> }
 
-impl<'g, S: Semiring, Q: Queue<S>> Plan<IterF<Vec<S>>> for Relax<'g, S, Q> {
+impl<'g, S: Semiring, Q: Queue<S>> IterPlan<Vec<S>> for Relax<'g, S, Q> {
     type Seed = State<S>;
     fn unfold(&mut self, mut st: State<S>) -> Iter<Vec<S>, State<S>> {
         let Some(q) = self.q.pop() else { return Iter::Done(st.d) };
@@ -103,7 +102,7 @@ fn run_relax<S: Semiring, Q: Queue<S>>(g: &Graph<S>, s: Node, q: Q) -> Vec<S> {
     let mut plan = Relax { g, q, inq: alloc::vec![false; n] };
     plan.inq[s] = true;
     plan.q.push(s, S::one());
-    hylo::<IterF<Vec<S>>, _, _>(&mut plan, &mut Last, State { d, r })
+    hylo_iter(&mut plan, &mut Last, State { d, r })
 }
 
 /// The named pair. `Q` is free by Mohri's Theorem 1; `S: KClosed<0>` is its hypothesis.
@@ -120,7 +119,7 @@ pub fn relax_acyclic<S: Semiring>(g: &Graph<S>, s: Node) -> Option<Vec<S>> {
 /// Lehmann's closure over a dense matrix, as a plan over `IterF` indexed by k.
 /// Boolean → Warshall, Tropical → Floyd–Warshall, regex → Kleene, reals → Gauss–Jordan.
 pub struct Lehmann { k: usize }
-impl<S: Star> Plan<IterF<Vec<Vec<S>>>> for Lehmann {
+impl<S: Star> IterPlan<Vec<Vec<S>>> for Lehmann {
     type Seed = Vec<Vec<S>>;
     fn unfold(&mut self, mut m: Vec<Vec<S>>) -> Iter<Vec<Vec<S>>, Vec<Vec<S>>> {
         let n = m.len();
@@ -142,7 +141,7 @@ impl<S: Star> Plan<IterF<Vec<Vec<S>>>> for Lehmann {
     }
 }
 pub fn closure<S: Star>(m: Vec<Vec<S>>) -> Vec<Vec<S>> {
-    hylo::<IterF<Vec<Vec<S>>>, _, _>(&mut Lehmann { k: 0 }, &mut Last, m)
+    hylo_iter(&mut Lehmann { k: 0 }, &mut Last, m)
 }
 
 impl<S: Semiring> Graph<S> {

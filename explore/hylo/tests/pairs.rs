@@ -214,3 +214,15 @@ fn counting_optima_is_a_query_and_forbids_cutting_ties() {
         assert_eq!(maximise_count(&k, &()), dp[capacity as usize]);
     }
 }
+
+#[test]
+fn generic_gat_hylo_still_runs_every_pair_through_the_bridges() {
+    use hylo::hylo;
+    use hylo::shape::{LeafTreeF, ListF, NodeTreeF};
+    use hylo::sort::{Concat, Halve, Insert, Merge, Pivot, Uncons};
+    let v: Vec<i64> = vec![5, 3, 9, 1, 3, 7];
+    let mut want = v.clone(); want.sort();
+    assert_eq!(hylo::<ListF<i64>, _, _>(&mut Uncons, &mut Insert, v.clone()), want);
+    assert_eq!(hylo::<NodeTreeF<i64>, _, _>(&mut Pivot, &mut Concat, v.clone()), want);
+    assert_eq!(hylo::<LeafTreeF<i64>, _, _>(&mut Halve, &mut Merge, v), want);
+}

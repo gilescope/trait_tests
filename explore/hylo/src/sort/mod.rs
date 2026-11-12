@@ -1,18 +1,17 @@
 //! Knuth 5.2: four sorts as four (shape, plan, algebra) triples.
-use crate::shape::{LeafTree, LeafTreeF, ListF, NodeTreeF};
-use crate::{hylo, Algebra, Plan};
+use crate::shape::{hylo_leaf_tree, hylo_list, hylo_node_tree, LeafTree, LeafTreeAlgebra, LeafTreePlan, ListAlgebra, ListPlan, NodeTreeAlgebra, NodeTreePlan};
 use alloc::vec::Vec;
 
 // ---- 5.2.1 insertion: fold over the list, inserting each head into the sorted tail.
 pub struct Uncons;
-impl<T> Plan<ListF<T>> for Uncons {
+impl<T> ListPlan<T> for Uncons {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>)> {
         if v.is_empty() { None } else { let h = v.remove(0); Some((h, v)) }
     }
 }
 pub struct Insert;
-impl<T: Ord> Algebra<ListF<T>> for Insert {
+impl<T: Ord> ListAlgebra<T> for Insert {
     type Out = Vec<T>;
     fn fold(&mut self, l: Option<(T, Vec<T>)>) -> Vec<T> {
         match l { None => Vec::new(), Some((h, mut t)) => { let i = t.partition_point(|x| *x < h); t.insert(i, h); t } }
@@ -21,7 +20,7 @@ impl<T: Ord> Algebra<ListF<T>> for Insert {
 
 // ---- 5.2.3 selection: unfold by extracting the minimum, fold by consing.
 pub struct SelectMin;
-impl<T: Ord> Plan<ListF<T>> for SelectMin {
+impl<T: Ord> ListPlan<T> for SelectMin {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>)> {
         let i = (0..v.len()).min_by(|&a, &b| v[a].cmp(&v[b]))?;
@@ -30,7 +29,7 @@ impl<T: Ord> Plan<ListF<T>> for SelectMin {
     }
 }
 pub struct Cons;
-impl<T> Algebra<ListF<T>> for Cons {
+impl<T> ListAlgebra<T> for Cons {
     type Out = Vec<T>;
     fn fold(&mut self, l: Option<(T, Vec<T>)>) -> Vec<T> {
         match l { None => Vec::new(), Some((h, mut t)) => { t.insert(0, h); t } }
@@ -39,7 +38,7 @@ impl<T> Algebra<ListF<T>> for Cons {
 
 // ---- 5.2.2 exchanging: hard split (pivot), easy join (concat).
 pub struct Pivot;
-impl<T: Ord> Plan<NodeTreeF<T>> for Pivot {
+impl<T: Ord> NodeTreePlan<T> for Pivot {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>, Vec<T>)> {
         let p = v.pop()?;
@@ -49,7 +48,7 @@ impl<T: Ord> Plan<NodeTreeF<T>> for Pivot {
     }
 }
 pub struct Concat;
-impl<T> Algebra<NodeTreeF<T>> for Concat {
+impl<T> NodeTreeAlgebra<T> for Concat {
     type Out = Vec<T>;
     fn fold(&mut self, l: Option<(T, Vec<T>, Vec<T>)>) -> Vec<T> {
         match l { None => Vec::new(), Some((p, mut a, b)) => { a.push(p); a.extend(b); a } }
@@ -58,14 +57,14 @@ impl<T> Algebra<NodeTreeF<T>> for Concat {
 
 // ---- 5.2.4 merging: easy split (halve), hard join (merge).
 pub struct Halve;
-impl<T> Plan<LeafTreeF<T>> for Halve {
+impl<T> LeafTreePlan<T> for Halve {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> LeafTree<T, Vec<T>> {
         if v.len() <= 1 { LeafTree::Leaf(v.pop()) } else { let r = v.split_off(v.len() / 2); LeafTree::Node(v, r) }
     }
 }
 pub struct Merge;
-impl<T: Ord> Algebra<LeafTreeF<T>> for Merge {
+impl<T: Ord> LeafTreeAlgebra<T> for Merge {
     type Out = Vec<T>;
     fn fold(&mut self, l: LeafTree<T, Vec<T>>) -> Vec<T> {
         match l {
@@ -89,7 +88,7 @@ impl<T: Ord> Algebra<LeafTreeF<T>> for Merge {
 }
 
 // The named algorithms are the pairs.
-pub fn insertion_sort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo::<ListF<T>, _, _>(&mut Uncons, &mut Insert, v) }
-pub fn selection_sort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo::<ListF<T>, _, _>(&mut SelectMin, &mut Cons, v) }
-pub fn quicksort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo::<NodeTreeF<T>, _, _>(&mut Pivot, &mut Concat, v) }
-pub fn mergesort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo::<LeafTreeF<T>, _, _>(&mut Halve, &mut Merge, v) }
+pub fn insertion_sort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo_list(&mut Uncons, &mut Insert, v) }
+pub fn selection_sort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo_list(&mut SelectMin, &mut Cons, v) }
+pub fn quicksort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo_node_tree(&mut Pivot, &mut Concat, v) }
+pub fn mergesort<T: Ord>(v: Vec<T>) -> Vec<T> { hylo_leaf_tree(&mut Halve, &mut Merge, v) }

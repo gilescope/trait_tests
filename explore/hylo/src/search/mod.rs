@@ -5,8 +5,7 @@
 //! The theorem (Smith & Lowry 4.1): with any necessary filter, the search is correct.
 //! The query is a semiring fold over the search tree: Boolean = exists, Nat = count.
 use crate::algebra::Semiring;
-use crate::shape::RoseF;
-use crate::{hylo, Algebra, Plan};
+use crate::shape::{hylo_rose, RoseAlgebra, RosePlan};
 use alloc::vec::Vec;
 
 pub trait GlobalSearch {
@@ -22,7 +21,7 @@ pub trait GlobalSearch {
 
 /// The plan: unfold a space into its filtered children. Recursive because GS1 makes spaces shrink.
 pub struct Backtrack<'p, P: GlobalSearch> { p: &'p P }
-impl<'p, P: GlobalSearch> Plan<RoseF<P::Space>> for Backtrack<'p, P> {
+impl<'p, P: GlobalSearch> RosePlan<P::Space> for Backtrack<'p, P> {
     type Seed = P::Space;
     fn unfold(&mut self, r: P::Space) -> (P::Space, Vec<P::Space>) {
         let kids = self.p.split(&r).into_iter().filter(|c| self.p.filter(c)).collect();
@@ -38,7 +37,7 @@ pub trait Weigh<S: Semiring>: GlobalSearch {
 
 /// The query: a semiring over the search tree. Extracted leaves contribute their weight.
 pub struct Aggregate<'p, P: GlobalSearch, S> { p: &'p P, _s: core::marker::PhantomData<S> }
-impl<'p, P: Weigh<S>, S: Semiring> Algebra<RoseF<P::Space>> for Aggregate<'p, P, S> {
+impl<'p, P: Weigh<S>, S: Semiring> RoseAlgebra<P::Space> for Aggregate<'p, P, S> {
     type Out = S;
     fn fold(&mut self, (r, kids): (P::Space, Vec<S>)) -> S {
         let here = if self.p.extract(&r) { self.p.weigh(&r) } else { S::zero() };
@@ -48,7 +47,7 @@ impl<'p, P: Weigh<S>, S: Semiring> Algebra<RoseF<P::Space>> for Aggregate<'p, P,
 
 pub fn search<P: Weigh<S>, S: Semiring>(p: &P, x: &P::Input) -> S {
     let root = p.initial(x);
-    hylo::<RoseF<P::Space>, _, _>(&mut Backtrack { p }, &mut Aggregate { p, _s: core::marker::PhantomData }, root)
+    hylo_rose(&mut Backtrack { p }, &mut Aggregate { p, _s: core::marker::PhantomData }, root)
 }
 
 /// N-queens: a space is a partial placement, one queen per row so far.
@@ -97,7 +96,7 @@ pub trait Bounded: GlobalSearch {
 /// cut a space whose bound merely equals the incumbent; a query that counts optima may not,
 /// because that space can hold more of them (Steffen & Giegerich, Theorem 1(3)).
 pub struct BranchBound<'p, P: Bounded> { p: &'p P, pub incumbent: u64, pub cut_ties: bool }
-impl<'p, P: Bounded> Plan<RoseF<(P::Space, bool)>> for BranchBound<'p, P> {
+impl<'p, P: Bounded> RosePlan<(P::Space, bool)> for BranchBound<'p, P> {
     type Seed = P::Space;
     fn unfold(&mut self, r: P::Space) -> ((P::Space, bool), Vec<P::Space>) {
         let b = self.p.bound(&r);
@@ -115,7 +114,7 @@ impl<'p, P: Bounded> Plan<RoseF<(P::Space, bool)>> for BranchBound<'p, P> {
 /// Query: the maximum extracted value. Agrees with the incumbent; stated as a fold anyway so the
 /// same tree could answer other queries.
 pub struct Best<'p, P: Bounded> { p: &'p P }
-impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for Best<'p, P> {
+impl<'p, P: Bounded> RoseAlgebra<(P::Space, bool)> for Best<'p, P> {
     type Out = u64;
     fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<u64>)) -> u64 {
         let here = if !pruned && self.p.extract(&r) { self.p.value(&r) } else { 0 };
@@ -125,12 +124,12 @@ impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for Best<'p, P> {
 
 pub fn maximise<P: Bounded>(p: &P, x: &P::Input) -> u64 {
     let root = p.initial(x);
-    hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0, cut_ties: true }, &mut Best { p }, root)
+    hylo_rose(&mut BranchBound { p, incumbent: 0, cut_ties: true }, &mut Best { p }, root)
 }
 
 /// Query: the Δ-product `MaxPlus Δ Nat` over the pruned tree: (optimum, number of optima).
 pub struct BestCount<'p, P: Bounded> { p: &'p P }
-impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for BestCount<'p, P> {
+impl<'p, P: Bounded> RoseAlgebra<(P::Space, bool)> for BestCount<'p, P> {
     type Out = crate::algebra::Delta<crate::algebra::MaxPlus, crate::algebra::Nat>;
     fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<Self::Out>)) -> Self::Out {
         use crate::algebra::{Delta, MaxPlus, Nat, Semiring};
@@ -142,7 +141,7 @@ impl<'p, P: Bounded> Algebra<RoseF<(P::Space, bool)>> for BestCount<'p, P> {
 /// Same plan with ties kept: the count is only right because `cut_ties` is false.
 pub fn maximise_count<P: Bounded>(p: &P, x: &P::Input) -> (u64, u64) {
     let root = p.initial(x);
-    let d = hylo::<RoseF<(P::Space, bool)>, _, _>(&mut BranchBound { p, incumbent: 0, cut_ties: false }, &mut BestCount { p }, root);
+    let d = hylo_rose(&mut BranchBound { p, incumbent: 0, cut_ties: false }, &mut BestCount { p }, root);
     (d.cost().0.unwrap_or(0), d.count().0)
 }
 
