@@ -52,8 +52,10 @@ verify:
     WORKDIR /verify
     COPY --dir explore/formalism/verify/. .
     COPY +extract/Extracted FormalismVerify/Extracted
-    # point the Lean `aeneas` dependency at the same source the extraction used
+    # point the Lean `aeneas` dependency at the same source the extraction used, and take
+    # that source's Lean toolchain (the fork and upstream pin different versions)
     RUN sed -i "s#https://github.com/AeneasVerif/aeneas#https://github.com/$AENEAS_REPO#; s#^rev = .*#rev = \"$AENEAS_REV\"#" lakefile.toml
+    RUN curl -sSfL "https://raw.githubusercontent.com/$AENEAS_REPO/$AENEAS_REV/backends/lean/lean-toolchain" -o lean-toolchain && cat lean-toolchain
     RUN lake exe cache get || true
     RUN lake build
 
