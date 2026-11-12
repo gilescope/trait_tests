@@ -153,6 +153,8 @@ fn contains(xs: &[Var], v: Var) -> bool {
 }
 
 fn check(g: &Graph, node: &Node<Op>, owners: &mut Vec<usize>, covered: &mut Vec<(Var, Var)>) -> Result<Seen, Invalid> {
+    // No early returns inside loops (Aeneas limitation): loops record a failure, the function
+    // returns after them.
     match &node.op {
         Op::Leaf => {
             if !node.children.is_empty() { return Err(Invalid::Arity); }
@@ -187,17 +189,20 @@ fn check(g: &Graph, node: &Node<Op>, owners: &mut Vec<usize>, covered: &mut Vec<
             if node.children.len() != 2 { return Err(Invalid::Arity); }
             let a = check(g, &node.children[0], owners, covered)?;
             let b = check(g, &node.children[1], owners, covered)?;
+            let mut bags_differ = a.bag.len() != b.bag.len();
             let mut i = 0;
-            while i < a.bag.len() { if !contains(&b.bag, a.bag[i]) { return Err(Invalid::JoinBagsDiffer); } i += 1; }
-            if a.bag.len() != b.bag.len() { return Err(Invalid::JoinBagsDiffer); }
+            while i < a.bag.len() { if !contains(&b.bag, a.bag[i]) { bags_differ = true; } i += 1; }
+            if bags_differ { return Err(Invalid::JoinBagsDiffer); }
             // descbag(N1) ∩ descbag(N2) ⊆ bag(N)
+            let mut leaked: Option<Var> = None;
             let mut i = 0;
             while i < a.desc.len() {
-                if contains(&b.desc, a.desc[i]) && !contains(&a.bag, a.desc[i]) {
-                    return Err(Invalid::IntroduceAlreadyPresent(a.desc[i]));
+                if contains(&b.desc, a.desc[i]) && !contains(&a.bag, a.desc[i]) && leaked.is_none() {
+                    leaked = Some(a.desc[i]);
                 }
                 i += 1;
             }
+            if let Some(v) = leaked { return Err(Invalid::IntroduceAlreadyPresent(v)); }
             let mut desc = a.desc;
             let mut i = 0;
             while i < b.desc.len() { if !contains(&desc, b.desc[i]) { desc.push(b.desc[i]); } i += 1; }
@@ -219,9 +224,13 @@ impl<'a> NiceTd<'a> {
         let mut covered = Vec::new();
         let seen = check(g, root, &mut owners, &mut covered)?;
         if !seen.bag.is_empty() { return Err(Invalid::RootBagNotEmpty); }
+        // scan for the first violation; return after the loops
+        let mut problem: Option<Invalid> = None;
         let mut v = 0;
         while v < g.n() {
-            if contains(&seen.desc, v as Var) && owners[v] != 1 { return Err(Invalid::Owners(v as Var, owners[v])); }
+            if contains(&seen.desc, v as Var) && owners[v] != 1 && problem.is_none() {
+                problem = Some(Invalid::Owners(v as Var, owners[v]));
+            }
             let row = &g.adj[v];
             let mut j = 0;
             while j < row.len() {
@@ -229,14 +238,14 @@ impl<'a> NiceTd<'a> {
                 if u != v as Var {
                     let mut found = false;
                     let mut k = 0;
-                    while k < covered.len() { if covered[k] == (v as Var, u) { found = true; break; } k += 1; }
-                    if !found { return Err(Invalid::EdgeNotCovered(v as Var, u)); }
+                    while k < covered.len() { if covered[k] == (v as Var, u) { found = true; } k += 1; }
+                    if !found && problem.is_none() { problem = Some(Invalid::EdgeNotCovered(v as Var, u)); }
                 }
                 j += 1;
             }
             v += 1;
         }
-        Ok(NiceTd { root })
+        match problem { Some(e) => Err(e), None => Ok(NiceTd { root }) }
     }
 }
 

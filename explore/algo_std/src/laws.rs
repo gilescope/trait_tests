@@ -21,7 +21,7 @@ fn for_each_permutation<T: Clone>(v: &mut [T], f: &mut impl FnMut(&[T])) {
         }
         go(k - 1, v, f);
         for i in 0..k - 1 {
-            if k % 2 == 0 { v.swap(i, k - 1) } else { v.swap(0, k - 1) }
+            if k.is_multiple_of(2) { v.swap(i, k - 1) } else { v.swap(0, k - 1) }
             go(k - 1, v, f);
         }
     }

@@ -25,7 +25,7 @@ pub struct ListF;
 impl Shape for ListF {
     type Layer<X> = Option<(u32, X)>;
     fn map<A, B>(l: Option<(u32, A)>, mut f: impl FnMut(A) -> B) -> Option<(u32, B)> {
-        match l { None => None, Some((h, x)) => Some((h, f(x))) }
+        l.map(|(h, x)| (h, f(x)))
     }
 }
 

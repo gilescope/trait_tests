@@ -75,14 +75,14 @@ impl<T: Ord> Algebra<LeafTreeF<T>> for Merge {
                 a.reverse();
                 b.reverse();
                 let mut out = Vec::new();
-                loop {
-                    match (a.last(), b.last()) {
-                        (Some(x), Some(y)) => { if x <= y { out.push(a.pop().unwrap()) } else { out.push(b.pop().unwrap()) } }
-                        (Some(_), None) => { while let Some(x) = a.pop() { out.push(x) } }
-                        (None, Some(_)) => { while let Some(y) = b.pop() { out.push(y) } }
-                        (None, None) => return out,
-                    }
+                // no `return` inside the loop: Aeneas does not translate those
+                while !a.is_empty() && !b.is_empty() {
+                    let take_a = a[a.len() - 1] <= b[b.len() - 1];
+                    if take_a { out.push(a.pop().unwrap()) } else { out.push(b.pop().unwrap()) }
                 }
+                while let Some(x) = a.pop() { out.push(x) }
+                while let Some(y) = b.pop() { out.push(y) }
+                out
             }
         }
     }

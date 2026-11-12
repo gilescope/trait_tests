@@ -60,17 +60,19 @@ fn union_into<Tau: PartialEq>(table: &mut Table<Tau>, tau: Tau, e: Expr) {
 /// Rows have distinct traces, so every `union` here is over disjoint sets, and every
 /// `join` is over disjoint owned-variable domains: legality is by construction.
 pub fn step_node<P: Traced>(p: &P, op: &P::Op, child_tables: Vec<Table<P::Tau>>) -> Table<P::Tau> {
+    // Written without early returns or breaks inside nested loops: Aeneas does not translate those.
     let mut table: Table<P::Tau> = Vec::new();
     let n = child_tables.len();
     let mut idx: Vec<usize> = Vec::new();
+    let mut any_empty = false;
     let mut k = 0;
     while k < n {
-        if child_tables[k].is_empty() { return table; }
+        if child_tables[k].is_empty() { any_empty = true; }
         idx.push(0);
         k += 1;
     }
-
-    loop {
+    let mut done = any_empty;
+    while !done {
         let mut traces: Vec<P::Tau> = Vec::new();
         let mut joined = Expr::Unit;
         let mut k = 0;
@@ -87,17 +89,17 @@ pub fn step_node<P: Traced>(p: &P, op: &P::Op, child_tables: Vec<Table<P::Tau>>)
             union_into(&mut table, outs[o].0.clone(), e);
             o += 1;
         }
-
-        // odometer over child rows
+        // odometer over child rows; `carry` stays set when every digit wrapped: then we are done
         let mut k = n;
-        loop {
-            if k == 0 { return table; }
+        let mut carry = true;
+        while carry && k > 0 {
             k -= 1;
             idx[k] += 1;
-            if idx[k] < child_tables[k].len() { break; }
-            idx[k] = 0;
+            if idx[k] < child_tables[k].len() { carry = false; } else { idx[k] = 0; }
         }
+        done = carry;
     }
+    table
 }
 
 /// Post-order fold of `step_node` over the construction. In `hylo` terms this is
