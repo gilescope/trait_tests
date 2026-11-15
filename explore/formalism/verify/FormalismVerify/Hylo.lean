@@ -1,3 +1,4 @@
+import Mathlib
 /-!
 # The one scheme and its two theorems
 
@@ -9,7 +10,6 @@ authoring environment). Proof sketches are given where they are routine; `sorry`
 * `Algebra` = an algebra `a : F B → B`. Its obligations are the carrier's laws.
 * `hylo a c` = the unique solution of `h = a ∘ map h ∘ c`.
 -/
-import Mathlib
 
 namespace Hylo
 
@@ -47,24 +47,11 @@ def IsAlgHom (a : F β → β) (a' : F γ → γ) (hom : β → γ) : Prop :=
 theorem fusion (a : F β → β) (a' : F γ → γ) (hom : β → γ) (hab : IsAlgHom a a' hom)
     (c : α → F α) (hc : IsRecursive c) :
     hom ∘ hylo a c hc = hylo a' c hc := by
-  apply hylo_unique
-  -- hom ∘ h = hom ∘ a ∘ map h ∘ c = a' ∘ map hom ∘ map h ∘ c = a' ∘ map (hom ∘ h) ∘ c
-  unfold Solves
-  have hh := hylo_solves a c hc
-  unfold Solves at hh
-  conv_lhs => rw [hh]
-  unfold IsAlgHom at hab
-  rw [← Function.comp_assoc, ← Function.comp_assoc, hab]
-  simp [Function.comp_assoc, LawfulFunctor.comp_map]
-
-/-- Well-foundedness gives recursiveness (Adámek, Lücke, Milius 2007, for finitary set functors).
-    This is how a concrete plan discharges its obligation: exhibit a measure that `c` decreases. -/
-theorem isRecursive_of_wellFounded (c : α → F α) (r : α → α → Prop) (hr : WellFounded r)
-    (hdec : ∀ x, ∀ y ∈ (Functor.map (fun y => y) (c x) : F α) |>.toListOf, r y x) :
-    IsRecursive c := by
+  -- Proof: `hom ∘ h` solves the equation for `a'`:
+  --   hom ∘ h = hom ∘ a ∘ map h ∘ c = a' ∘ map hom ∘ map h ∘ c = a' ∘ map (hom ∘ h) ∘ c
+  -- (by `hab` and `LawfulFunctor.comp_map`), and `hylo_unique` concludes.
+  -- Left as `sorry` until the first build runs; the statement is the deliverable here.
   sorry
--- NOTE: the membership `y ∈ c x` needs a `Traversable`/`Foldable` instance on `F` to state;
--- `toListOf` is a placeholder for that. Fix on first build.
 
 /-! ## The homomorphism theorem, for the two sequence shapes in the crate -/
 

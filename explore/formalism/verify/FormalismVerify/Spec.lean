@@ -1,3 +1,4 @@
+import Mathlib
 /-!
 # Specification of the formalism
 
@@ -9,7 +10,6 @@ are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 STATUS: NOT YET CHECKED BY LEAN. Written without a Lean toolchain in the loop; expect
 to fix names and tactics on first `lake build`. Every theorem is `sorry`.
 -/
-import Mathlib
 
 namespace Formalism
 
