@@ -33,18 +33,26 @@ test:
     RUN cd explore && cargo build -p formalism --no-default-features
     RUN cd explore && cargo clippy -p formalism --no-default-features -- -D warnings
 
-# Charon + Aeneas: from a release tarball when AENEAS_TARBALL_URL is set, else built with nix
-# from the Aeneas flake (its package symlinks charon into bin/).
+# Charon + Aeneas, built with nix from the Aeneas flake (its package symlinks charon into bin/).
+aeneas-nix:
+    FROM nixos/nix:2.26.3
+    RUN nix --extra-experimental-features 'nix-command flakes' \
+        build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
+
+# Charon + Aeneas from a release tarball (static linux x86_64; the gilescope fork publishes them).
+aeneas-tarball:
+    FROM ubuntu:24.04
+    RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && rm -rf /var/lib/apt/lists/*
+    RUN mkdir -p /opt/aeneas/bin && curl -sSfL "$AENEAS_TARBALL_URL" | tar -xz -C /opt/aeneas/bin
+    RUN ls -la /opt/aeneas/bin && /opt/aeneas/bin/aeneas -version && /opt/aeneas/bin/charon --version
+
+# Pick one: the IF needs a shell, hence the throwaway base image.
 aeneas:
+    FROM alpine:3.20
     IF [ -n "$AENEAS_TARBALL_URL" ]
-        FROM ubuntu:24.04
-        RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && rm -rf /var/lib/apt/lists/*
-        RUN mkdir -p /opt/aeneas/bin && curl -sSfL "$AENEAS_TARBALL_URL" | tar -xz -C /opt/aeneas/bin
-        RUN ls -la /opt/aeneas/bin && /opt/aeneas/bin/aeneas -version && /opt/aeneas/bin/charon --version
+        FROM +aeneas-tarball
     ELSE
-        FROM nixos/nix:2.26.3
-        RUN nix --extra-experimental-features 'nix-command flakes' \
-            build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
+        FROM +aeneas-nix
     END
     ENV PATH=/opt/aeneas/bin:$PATH
 
