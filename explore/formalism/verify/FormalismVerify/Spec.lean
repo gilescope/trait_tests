@@ -7,8 +7,8 @@ Baril, Couceiro, Lagerkvist, *New perspectives on semiring applications to dynam
 programming* (arXiv:2512.03916). Aeneas-extracted definitions land in `Extracted/` and
 are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 
-STATUS: NOT YET CHECKED BY LEAN. Written without a Lean toolchain in the loop; expect
-to fix names and tactics on first `lake build`. Every theorem is `sorry`.
+Checked by `lake build` in CI (`+verify` in the Earthfile). Lemma 1 (`eval_eq_measure`) is
+proved; the Δ-product semiring instance (Theorem 3) and the DP soundness claim are still `sorry`.
 -/
 
 namespace Formalism

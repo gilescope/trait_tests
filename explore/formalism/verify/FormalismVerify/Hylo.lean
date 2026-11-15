@@ -2,8 +2,7 @@ import Mathlib
 /-!
 # The one scheme and its two theorems
 
-Model of `explore/hylo/src/lib.rs`. STATUS: NOT YET CHECKED BY LEAN (no toolchain in the
-authoring environment). Proof sketches are given where they are routine; `sorry` elsewhere.
+Model of `explore/hylo/src/lib.rs`. Checked by `lake build` in CI (`+verify` in the Earthfile).
 
 * `Shape`   = a lawful functor `F`.
 * `Plan`    = a coalgebra `c : A → F A`. Its obligation is `IsRecursive`.
@@ -99,9 +98,34 @@ def LeafTree.scan {M : Type} [Monoid M] : LeafTree M → M × List M
 def prefixes {M : Type} [Monoid M] (xs : List M) : List M :=
   (List.range xs.length).map fun i => (xs.take (i + 1)).prod
 
-/-- Scan over any split equals the sequential prefix products. -/
+theorem prefixes_nil {M : Type} [Monoid M] : prefixes ([] : List M) = [] := by
+  simp [prefixes]
+
+theorem prefixes_cons {M : Type} [Monoid M] (x : M) (xs : List M) :
+    prefixes (x :: xs) = x :: (prefixes xs).map (x * ·) := by
+  simp [prefixes, List.range_succ_eq_map, List.map_map, Function.comp_def, List.take_succ_cons,
+    List.prod_cons]
+
+/-- Prefix products of a concatenation: the right part is shifted by the left product. This is
+    the one fact Sklansky's node needs. -/
+theorem prefixes_append {M : Type} [Monoid M] (xs ys : List M) :
+    prefixes (xs ++ ys) = prefixes xs ++ (prefixes ys).map (xs.prod * ·) := by
+  induction xs with
+  | nil => simp [prefixes_nil]
+  | cons x xs ih => simp [prefixes_cons, ih, List.map_map, Function.comp_def, mul_assoc]
+
+/-- Scan over any split computes the total and the sequential prefix products. -/
+theorem scan_spec {M : Type} [Monoid M] (t : LeafTree M) :
+    t.scan = (t.flatten.prod, prefixes t.flatten) := by
+  induction t with
+  | leaf o => cases o <;> simp [LeafTree.scan, LeafTree.flatten, prefixes_nil, prefixes_cons]
+  | node l r ihl ihr =>
+    simp [LeafTree.scan, LeafTree.flatten, ihl, ihr, List.prod_append, prefixes_append]
+
+/-- **Homomorphism theorem, scan case.** Scan over any split equals the sequential prefix
+    products, so `Scan` is plan-independent for every monoid. -/
 theorem scan_eq_prefixes {M : Type} [Monoid M] (t : LeafTree M) :
     t.scan.2 = prefixes t.flatten := by
-  sorry
+  rw [scan_spec]
 
 end Hylo
