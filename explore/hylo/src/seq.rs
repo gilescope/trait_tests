@@ -17,7 +17,7 @@ pub struct ReduceT<M>(core::marker::PhantomData<M>);
 impl<M: Monoid> LeafTreeAlgebra<M> for ReduceT<M> {
     type Out = M;
     fn fold(&mut self, l: LeafTree<M, M>) -> M {
-        match l { LeafTree::Leaf(x) => x.unwrap_or_else(M::unit), LeafTree::Node(a, b) => a.op(b) }
+        match l { LeafTree::Leaf(None) => M::unit(), LeafTree::Leaf(Some(x)) => x, LeafTree::Node(a, b) => a.op(b) }
     }
 }
 
