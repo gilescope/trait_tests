@@ -119,9 +119,13 @@ Everything else is inherited.
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
 
-Status: pipeline unexecuted. This container has no Docker daemon and the Lean installer
-was blocked, so `Spec.lean` has not been elaborated. Expect name and tactic fixes on the
-first `lake build`.
+Status (15 November 2026): green end to end on the gilescope/aeneas release tarball
+(`build-7a8e111`, Lean 4.34.0). `earth +verify` extracts `explore/hylo` from the sixteen named
+algorithms (3057 lines of Lean, snapshot in `hylo/extracted/`), then `lake build` accepts
+`Spec.lean`, `Hylo.lean` and the extracted module. `fusion`, `solve_sound`, `scan_eq_prefixes`
+and the Δ-product instance are stated with `sorry`; `reduce_eq_prod` and `eval_eq_measure`'s
+base case are proved. Upstream Aeneas (0d21a9e) extracts the same crate but rejects the GAT
+probe; the `gat-lite` branch of the fork is the fix under test.
 
 ## What fits, what does not
 
