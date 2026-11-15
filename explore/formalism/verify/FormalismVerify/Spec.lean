@@ -79,10 +79,19 @@ theorem eval_eq_measure (M : Var → Val → A) {e : Expr} {F : Finset Assign}
     (h : Sem e F) : eval M e = measure M F := by
   induction h with
   | empty => simp [eval, measure]
-  | unit => sorry
-  | leaf s t => sorry
-  | union _ _ hdisj _ iha ihb => sorry
-  | join _ _ hdom iha ihb => sorry
+  | unit => simp [eval, measure, Assign.empty]
+  | leaf s t => simp [eval, measure, Assign.single]
+  | union _ _ hdisj _ iha ihb =>
+    -- a disjoint union is a sum of sums
+    simp only [eval]
+    rw [iha, ihb]
+    unfold measure
+    exact (Finset.sum_union hdisj).symm
+  | join _ _ hdom iha ihb =>
+    -- the join of two sets with disjoint domains is a product of sums: needs that
+    -- `(f, g) ↦ f.join g` is injective on `A ×ˢ B` and that the product over `f.join g`
+    -- splits as the product over `f` times the product over `g`
+    sorry
 
 end Measure
 

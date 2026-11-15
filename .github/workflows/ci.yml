@@ -2,6 +2,10 @@ name: ci
 on:
   push:
   pull_request:
+# A newer push supersedes a running build: each matrix leg rebuilds Aeneas with nix.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
