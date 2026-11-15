@@ -1130,7 +1130,7 @@ structure Instance (Op Tau : Type*) extends Traced Op Tau where
       from them. -/
   owned : Op → Finset Var
   owned_disjoint : ∀ (op : Op) (cs : List (Node Op)), ∀ c ∈ cs, Disjoint (owned op) (nodeDom c)
-  children_disjoint : ∀ op (cs : List (Node Op)), (cs.map nodeDom).Pairwise Disjoint
+  children_disjoint : ∀ cs : List (Node Op), (cs.map nodeDom).Pairwise Disjoint
   /-- Every output of `step` assigns exactly the owned variables, each once. -/
   step_leaves : ∀ (op : Op) (taus : List Tau), ∀ out ∈ step op taus,
     (out.2.map Prod.fst).Nodup ∧ (out.2.map Prod.fst).toFinset = owned op
@@ -1165,9 +1165,9 @@ theorem rowSet_disjoint (n : Node Op) {τ τ' : Tau} (h : τ ≠ τ') :
   rw [rowSet, Finset.mem_filter] at hf hf'
   exact h (hf.2.symm.trans hf'.2)
 
-theorem children_pairwise (op : Op) (cs : List (Node Op)) :
+theorem children_pairwise (cs : List (Node Op)) :
     cs.Pairwise fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c') :=
-  List.pairwise_map.mp (I.children_disjoint op cs)
+  List.pairwise_map.mp (I.children_disjoint cs)
 
 /-- Restricting a join of one candidate per child to a child's variables recovers that
     candidate. -/
@@ -1197,9 +1197,9 @@ theorem restrict_foldl_join_cand :
       exact ⟨he c' (List.mem_cons_of_mem _ hc'), hfd ▸ hpair.1 c' hc'⟩
 
 theorem restrict_joinAll {fs : List Assign} {cs : List (Node Op)}
-    (hF : List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs) (op : Op) :
+    (hF : List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs) :
     List.Forall₂ (fun f c => (Assign.joinAll fs).restrict (I.nodeDom c) = f) fs cs :=
-  I.restrict_foldl_join_cand hF (I.children_pairwise op cs) Assign.empty
+  I.restrict_foldl_join_cand hF (I.children_pairwise cs) Assign.empty
     (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _)
 
 /-- The children's tables, as the induction hypothesis provides them. -/
@@ -1238,7 +1238,7 @@ theorem joined_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
   apply Sem.joined
   · exact forall₂_zipWith_of_forall₂ _ (fun _ _ h => h) hrs
   · apply pairwise_zipWith_right (P := fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) _ _
-      rows cs (I.children_pairwise op cs)
+      rows cs (I.children_pairwise cs)
     intro r r' c c' hcc' f hf g hg
     rw [rowSet, Finset.mem_filter] at hf hg
     rw [I.dom_eq c f hf.1, I.dom_eq c' g hg.1]
@@ -1348,7 +1348,7 @@ theorem restrict_children_of_mem_itemSet (op : Op) {cs : List (Node Op)}
   obtain ⟨a, ha, rfl⟩ := hf
   rw [mem_joinedSet] at ha
   obtain ⟨fs, hfs, rfl⟩ := ha
-  have hres := I.restrict_foldl_join_rows rows cs fs hfs hlen (I.children_pairwise op cs)
+  have hres := I.restrict_foldl_join_rows rows cs fs hfs hlen (I.children_pairwise cs)
     Assign.empty (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _)
   refine forall₂_imp_mem ?_ hres
   intro r _ c hc h
