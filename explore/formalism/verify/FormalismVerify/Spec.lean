@@ -99,6 +99,48 @@ theorem join_restrict_right {f g : Assign} (h : Disjoint f.dom g.dom) :
   rw [hf, Finset.empty_union]
   exact Finset.filter_true_of_mem fun p hp => fst_mem_dom hp
 
+theorem empty_dom : (empty : Assign).dom = ∅ := by
+  simp [dom, empty]
+
+theorem single_dom (s : Var) (t : Val) : (single s t).dom = {s} := by
+  simp [dom, single]
+
+theorem empty_join (g : Assign) : empty.join g = g := by
+  apply Subtype.ext
+  show (∅ : Finset (Var × Val)) ∪ g.1.filter (fun q => q.1 ∉ empty.dom) = g.1
+  simp [empty_dom]
+
+theorem join_empty (f : Assign) : f.join empty = f := by
+  apply Subtype.ext
+  show f.1 ∪ (∅ : Finset (Var × Val)).filter (fun q => q.1 ∉ f.dom) = f.1
+  simp
+
+/-- Joins of pairwise disjoint assignments associate. -/
+theorem join_assoc {f g h : Assign} (hfg : Disjoint f.dom g.dom) (hfh : Disjoint f.dom h.dom)
+    (hgh : Disjoint g.dom h.dom) : (f.join g).join h = f.join (g.join h) := by
+  apply Subtype.ext
+  have hfg' : Disjoint (f.join g).dom h.dom := by
+    rw [join_dom hfg]; exact Finset.disjoint_union_left.mpr ⟨hfh, hgh⟩
+  have hgh' : Disjoint f.dom (g.join h).dom := by
+    rw [join_dom hgh]; exact Finset.disjoint_union_right.mpr ⟨hfg, hfh⟩
+  rw [join_val hfg', join_val hfg, join_val hgh', join_val hgh, Finset.union_assoc]
+
+/-- The assignment a list of leaves denotes (`join_leaves` on the assignment side). -/
+def ofList : List (Var × Val) → Assign
+  | [] => empty
+  | p :: rest => (single p.1 p.2).join (ofList rest)
+
+theorem ofList_dom :
+    ∀ l : List (Var × Val), (l.map Prod.fst).Nodup → (ofList l).dom = (l.map Prod.fst).toFinset
+  | [], _ => by simp [ofList, empty_dom]
+  | p :: rest, hl => by
+    rw [List.map_cons, List.nodup_cons] at hl
+    have ih := ofList_dom rest hl.2
+    have hd : Disjoint (single p.1 p.2).dom (ofList rest).dom := by
+      rw [single_dom, ih, Finset.disjoint_singleton_left, List.mem_toFinset]
+      exact hl.1
+    rw [ofList, join_dom hd, single_dom, ih, List.map_cons, List.toFinset_cons, Finset.insert_eq]
+
 end Assign
 
 /-- `E ::= ∅ | T^∅ | (s ↦ t) | E ⊎ E | E ⨝ E` (Definition 7). Mirrors `expr::Expr`. -/
@@ -422,6 +464,91 @@ def joinLeaves (e : Expr) (leaves : List (Var × Val)) : Expr :=
   leaves.foldl (fun acc p => join' acc (.leaf p.1 p.2)) e
 
 end Expr
+
+/-! Denotations of the smart constructors: the same sets as the raw constructors, so the
+executable model and the relation `Sem` agree. -/
+
+theorem image_join_singleton_left (B : Finset Assign) :
+    (({Assign.empty} : Finset Assign) ×ˢ B).image (fun p : Assign × Assign => p.1.join p.2) = B := by
+  ext g; simp [Assign.empty_join]
+
+theorem image_join_singleton_right (A : Finset Assign) :
+    (A ×ˢ ({Assign.empty} : Finset Assign)).image (fun p : Assign × Assign => p.1.join p.2) = A := by
+  ext f; simp [Assign.join_empty]
+
+theorem image_join_product_singleton (A : Finset Assign) (g : Assign) :
+    (A ×ˢ ({g} : Finset Assign)).image (fun p : Assign × Assign => p.1.join p.2) =
+      A.image fun f => f.join g := by
+  ext h; simp
+
+theorem Sem.union' {a b : Expr} {A B : Finset Assign} (ha : Sem a A) (hb : Sem b B)
+    (hdisj : Disjoint A B) (hdom : ∀ f ∈ A, ∀ g ∈ B, f.dom = g.dom) :
+    Sem (Expr.union' a b) (A ∪ B) := by
+  cases a <;> cases b <;> simp only [Expr.union'] <;> first
+    | (cases ha; simpa using hb)
+    | (cases hb; simpa using ha)
+    | exact Sem.union ha hb hdisj hdom
+
+theorem Sem.join' {a b : Expr} {A B : Finset Assign} (ha : Sem a A) (hb : Sem b B)
+    (hdom : ∀ f ∈ A, ∀ g ∈ B, Disjoint f.dom g.dom) :
+    Sem (Expr.join' a b) ((A ×ˢ B).image fun p => p.1.join p.2) := by
+  cases a <;> cases b <;> simp only [Expr.join'] <;> first
+    | (cases ha; simpa using Sem.empty)
+    | (cases hb; simpa using Sem.empty)
+    | (cases ha; rw [image_join_singleton_left]; exact hb)
+    | (cases hb; rw [image_join_singleton_right]; exact ha)
+    | exact Sem.join ha hb hdom
+
+/-- `join_leaves` denotes the join with the leaves' assignment, when the leaves are variables
+    new to the denoted assignments and distinct from each other. -/
+theorem Sem.joinLeaves {e : Expr} {E : Finset Assign} (he : Sem e E) :
+    ∀ l : List (Var × Val), (l.map Prod.fst).Nodup → (∀ f ∈ E, ∀ q ∈ l, q.1 ∉ f.dom) →
+      Sem (Expr.joinLeaves e l) (E.image fun f => f.join (Assign.ofList l))
+  | [], _, _ => by simpa [Expr.joinLeaves, Assign.ofList, Assign.join_empty] using he
+  | p :: rest, hl, hnew => by
+    rw [List.map_cons, List.nodup_cons] at hl
+    -- one leaf in, then the rest
+    have hstep : Sem (Expr.join' e (.leaf p.1 p.2)) (E.image fun f => f.join (Assign.single p.1 p.2)) := by
+      rw [← image_join_product_singleton]
+      apply Sem.join' he (Sem.leaf p.1 p.2)
+      intro f hf g hg
+      rw [Finset.mem_singleton] at hg
+      rw [hg, Assign.single_dom, Finset.disjoint_singleton_right]
+      exact hnew f hf p (List.mem_cons_self ..)
+    have hnew' : ∀ f ∈ E.image (fun f => f.join (Assign.single p.1 p.2)), ∀ q ∈ rest, q.1 ∉ f.dom := by
+      intro f hf q hq
+      rw [Finset.mem_image] at hf
+      obtain ⟨f0, hf0, rfl⟩ := hf
+      have hd : Disjoint f0.dom (Assign.single p.1 p.2).dom := by
+        rw [Assign.single_dom, Finset.disjoint_singleton_right]
+        exact hnew f0 hf0 p (List.mem_cons_self ..)
+      rw [Assign.join_dom hd, Assign.single_dom, Finset.mem_union, Finset.mem_singleton]
+      rintro (h | h)
+      · exact hnew f0 hf0 q (List.mem_cons_of_mem _ hq) h
+      · exact hl.1 (h ▸ List.mem_map_of_mem hq)
+    have ih := Sem.joinLeaves hstep rest hl.2 hnew'
+    show Sem (Expr.joinLeaves (Expr.join' e (.leaf p.1 p.2)) rest) _
+    convert ih using 1
+    rw [Finset.image_image]
+    apply Finset.image_congr
+    intro f hf
+    have hf : f ∈ E := Finset.mem_coe.mp hf
+    show f.join ((Assign.single p.1 p.2).join (Assign.ofList rest)) =
+      (f.join (Assign.single p.1 p.2)).join (Assign.ofList rest)
+    have h1 : Disjoint f.dom (Assign.single p.1 p.2).dom := by
+      rw [Assign.single_dom, Finset.disjoint_singleton_right]
+      exact hnew f hf p (List.mem_cons_self ..)
+    have h2 : Disjoint f.dom (Assign.ofList rest).dom := by
+      rw [Assign.ofList_dom rest hl.2, Finset.disjoint_left]
+      intro x hx hx'
+      rw [List.mem_toFinset, List.mem_map] at hx'
+      obtain ⟨q, hq, rfl⟩ := hx'
+      exact hnew f hf q (List.mem_cons_of_mem _ hq) hx
+    have h3 : Disjoint (Assign.single p.1 p.2).dom (Assign.ofList rest).dom := by
+      rw [Assign.single_dom, Assign.ofList_dom rest hl.2, Finset.disjoint_singleton_left,
+        List.mem_toFinset]
+      exact hl.1
+    exact (Assign.join_assoc h1 h2 h3).symm
 
 namespace Traced
 variable {Op Tau : Type*} [DecidableEq Tau]
