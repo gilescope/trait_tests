@@ -119,15 +119,21 @@ verify:
     RUN curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
     ENV PATH=/root/.elan/bin:$PATH
     WORKDIR /verify
-    COPY explore/formalism/verify/lakefile.toml explore/formalism/verify/lean-toolchain explore/formalism/verify/FormalismVerify.lean ./
-    COPY --dir explore/formalism/verify/FormalismVerify ./
-    COPY +extract/Extracted FormalismVerify/Extracted
-    RUN ls -la . FormalismVerify FormalismVerify/Extracted
+    # Dependencies first, in layers that only the lakefile and the toolchain pin reach: Mathlib
+    # from its olean cache, the Aeneas backend compiled from source (a stub root module pulls it
+    # in). Editing a proof then rebuilds our three files, not the backend.
+    COPY explore/formalism/verify/lakefile.toml ./
     # point the Lean `aeneas` dependency at the same source the extraction used, and take
     # that source's Lean toolchain (the fork and upstream pin different versions)
     RUN sed -i "s#https://github.com/AeneasVerif/aeneas#https://github.com/$AENEAS_REPO#; s#^rev = .*#rev = \"$AENEAS_REV\"#" lakefile.toml
     RUN curl -sSfL "https://raw.githubusercontent.com/$AENEAS_REPO/$AENEAS_REV/backends/lean/lean-toolchain" -o lean-toolchain && cat lean-toolchain
     RUN lake exe cache get || true
+    RUN echo 'import Aeneas' > FormalismVerify.lean && lake build
+    # Now the proofs and the extraction.
+    COPY explore/formalism/verify/FormalismVerify.lean ./
+    COPY --dir explore/formalism/verify/FormalismVerify ./
+    COPY +extract/Extracted FormalismVerify/Extracted
+    RUN ls -la . FormalismVerify FormalismVerify/Extracted
     RUN lake build
 
 ci:
