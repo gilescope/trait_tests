@@ -1152,6 +1152,7 @@ structure Instance (Op Tau : Type*) extends Traced Op Tau where
   accept_iff : ∀ n f, f ∈ candidates n → (solution n f ↔ accept (trace n f) = true)
 
 namespace Instance
+open Traced
 variable {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau)
 
 /-- The candidates of a node with a given trace: what a row should denote. -/
@@ -1466,12 +1467,261 @@ theorem exists_rows {tables : List (Table Tau)} {cs : List (Node Op)} (hT : I.Ta
       · rw [List.zipWith_cons_cons]
         exact List.Forall₂.cons hfr h3
 
-end Instance
+/-- Claim 1, one step: the children's tables give the node's table. -/
+theorem stepNode_sound (op : Op) {cs : List (Node Op)} {tables : List (Table Tau)}
+    (hT : I.TablesSem tables cs) :
+    TableSem (stepNode I.toTraced op tables) (I.rowSet (.mk op cs)) := by
+  rw [stepNode_eq_foldl]
+  have hlen : tables.length = cs.length := List.Forall₂.length_eq hT
+  -- every item comes from a tuple of rows and a step output
+  have hmem : ∀ it, it ∈ tables.sections.flatMap (rowItems I.toTraced op) ↔
+      ∃ rows, List.Forall₂ (· ∈ ·) rows tables ∧
+        ∃ out ∈ I.step op (rows.map Prod.fst),
+          it = (out.1, Expr.joinLeaves (joined rows) out.2) := by
+    intro it
+    rw [List.mem_flatMap]
+    constructor
+    · rintro ⟨rows, hrows, hit⟩
+      rw [rowItems, List.mem_map] at hit
+      obtain ⟨out, hout, rfl⟩ := hit
+      exact ⟨rows, List.mem_sections.mp hrows, out, hout, rfl⟩
+    · rintro ⟨rows, hrows, out, hout, rfl⟩
+      exact ⟨rows, List.mem_sections.mpr hrows, List.mem_map.mpr ⟨out, hout, rfl⟩⟩
+  have hden : ∀ rows, List.Forall₂ (· ∈ ·) rows tables → ∀ out ∈ I.step op (rows.map Prod.fst),
+      denot (Expr.joinLeaves (joined rows) out.2) = I.itemSet cs rows out :=
+    fun rows hrows out hout => Sem.denot_eq (I.item_sem hT hrows hout)
+  -- members of items are candidates of the node, with the output's trace
+  have hcand : ∀ rows, List.Forall₂ (· ∈ ·) rows tables → ∀ out ∈ I.step op (rows.map Prod.fst),
+      ∀ f ∈ I.itemSet cs rows out,
+        f ∈ I.candidates (.mk op cs) ∧ I.trace (.mk op cs) f = out.1 := by
+    intro rows hrows out hout f hf
+    rw [itemSet, Finset.mem_image] at hf
+    obtain ⟨a, ha, rfl⟩ := hf
+    rw [mem_joinedSet] at ha
+    obtain ⟨fs, hfs, rfl⟩ := ha
+    obtain ⟨hc, htr⟩ := I.cand_of_zip rows cs fs ((List.Forall₂.length_eq hrows).trans hlen) hfs
+    rw [htr] at hout
+    exact ⟨(I.cand_iff op cs _).mpr ⟨fs, hc, out, hout, rfl⟩, I.trace_mk op cs fs out hc hout⟩
+  -- the rows' table is exactly the node's candidates by trace
+  have hset : ∀ τ, itemsSet (fun it => denot it.2) (tables.sections.flatMap (rowItems I.toTraced op)) τ
+      = I.rowSet (.mk op cs) τ := by
+    intro τ
+    ext f
+    rw [mem_itemsSet, rowSet, Finset.mem_filter]
+    constructor
+    · rintro ⟨it, hit, hτ, hf⟩
+      rw [hmem] at hit
+      obtain ⟨rows, hrows, out, hout, rfl⟩ := hit
+      rw [hden rows hrows out hout] at hf
+      have h := hcand rows hrows out hout f hf
+      exact ⟨h.1, h.2.trans hτ⟩
+    · rintro ⟨hf, hτ⟩
+      obtain ⟨fs, hc, out, hout, rfl⟩ := (I.cand_iff op cs f).mp hf
+      obtain ⟨rows, hrows, htr, hfs⟩ := I.exists_rows hT hc
+      have hout' : out ∈ I.step op (rows.map Prod.fst) := by rw [htr]; exact hout
+      refine ⟨(out.1, Expr.joinLeaves (joined rows) out.2), ?_, ?_, ?_⟩
+      · rw [hmem]
+        exact ⟨rows, hrows, out, hout', rfl⟩
+      · show out.1 = τ
+        rw [← hτ, I.trace_mk op cs fs out hc hout]
+      · show _ ∈ denot (Expr.joinLeaves (joined rows) out.2)
+        rw [hden rows hrows out hout', itemSet, Finset.mem_image]
+        exact ⟨Assign.joinAll fs, (mem_joinedSet _ _).mpr ⟨fs, hfs, rfl⟩, rfl⟩
+  have key := TableSem.foldl_unionInto (Dn := I.nodeDom (.mk op cs)) (fun it => denot it.2)
+    (tables.sections.flatMap (rowItems I.toTraced op)) (T := []) (S := fun _ => ∅)
+    (fun _ => Sem.empty) ?_ ?_ ?_ ?_ ?_
+  · intro τ
+    have h := key τ
+    simp only [Finset.empty_union] at h
+    rw [hset τ] at h
+    exact h
+  · -- every item denotes
+    intro it hit
+    rw [hmem] at hit
+    obtain ⟨rows, hrows, out, hout, rfl⟩ := hit
+    show Sem (Expr.joinLeaves (joined rows) out.2) (denot (Expr.joinLeaves (joined rows) out.2))
+    rw [hden rows hrows out hout]
+    exact I.item_sem hT hrows hout
+  · -- items are pairwise disjoint
+    apply pairwise_flatMap_of
+    · intro rows hrows
+      have hrows' := List.mem_sections.mp hrows
+      rw [rowItems, List.pairwise_map]
+      have hs : (I.step op (rows.map Prod.fst)).Pairwise
+          (fun o o' => Assign.ofList o.2 ≠ Assign.ofList o'.2) :=
+        List.pairwise_map.mp (I.step_nodup op (rows.map Prod.fst))
+      refine List.Pairwise.imp_of_mem ?_ hs
+      intro o o' ho ho' hne
+      show Disjoint (denot (Expr.joinLeaves (joined rows) o.2))
+        (denot (Expr.joinLeaves (joined rows) o'.2))
+      rw [hden rows hrows' o ho, hden rows hrows' o' ho']
+      exact I.itemSet_disjoint_of_ne_leaves ho ho' hne
+    · have hnd : tables.sections.Pairwise (· ≠ ·) := by
+        apply nodup_sections
+        intro T hT'
+        obtain ⟨c, _, hc⟩ := forall₂_mem_left hT hT'
+        exact hc.2.of_map Prod.fst
+      refine List.Pairwise.imp_of_mem ?_ hnd
+      intro rows rows' hr hr' hne a ha b hb
+      rw [rowItems, List.mem_map] at ha hb
+      obtain ⟨o, ho, rfl⟩ := ha
+      obtain ⟨o', ho', rfl⟩ := hb
+      show Disjoint (denot (Expr.joinLeaves (joined rows) o.2))
+        (denot (Expr.joinLeaves (joined rows') o'.2))
+      rw [hden rows (List.mem_sections.mp hr) o ho, hden rows' (List.mem_sections.mp hr') o' ho']
+      exact I.itemSet_disjoint_of_ne_rows hT (List.mem_sections.mp hr) (List.mem_sections.mp hr')
+        hne ho ho'
+  · intro it _
+    exact Finset.disjoint_empty_left _
+  · intro it hit f hf
+    rw [hmem] at hit
+    obtain ⟨rows, hrows, out, hout, rfl⟩ := hit
+    change f ∈ denot (Expr.joinLeaves (joined rows) out.2) at hf
+    rw [hden rows hrows out hout] at hf
+    exact I.dom_eq _ f (hcand rows hrows out hout f hf).1
+  · intro τ f hf
+    exact absurd hf (Finset.notMem_empty f)
+
 end Instance
 
-/-- Claim 1 at the root: the DP's output denotes exactly the solution set. Not yet proved. -/
+namespace Instance
+variable {Op Tau : Type*} [DecidableEq Tau]
+
+mutual
+/-- Claim 1 at every node: the table of `run` denotes the candidates by trace, with distinct
+    traces. -/
+theorem run_sound (I : Instance Op Tau) :
+    ∀ n : Node Op,
+      Traced.TableSem (Traced.run I.toTraced n) (I.rowSet n) ∧
+        ((Traced.run I.toTraced n).map Prod.fst).Nodup
+  | .mk op cs => by
+    rw [Traced.run]
+    exact ⟨I.stepNode_sound op (runList_sound I cs), Traced.stepNode_nodup _ _ _⟩
+theorem runList_sound (I : Instance Op Tau) :
+    ∀ cs : List (Node Op), I.TablesSem (Traced.runList I.toTraced cs) cs
+  | [] => List.Forall₂.nil
+  | c :: cs => by
+    rw [Traced.runList]
+    exact List.Forall₂.cons (run_sound I c) (runList_sound I cs)
+end
+
+end Instance
+
+namespace Traced
+variable {Op Tau : Type*} [DecidableEq Tau]
+
+/-- The accepted rows of a list, as a set. -/
+def acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) (L : List (Tau × Expr)) :
+    Finset Assign :=
+  (L.filter fun row => I.accept row.1).foldr (fun row acc => S row.1 ∪ acc) ∅
+
+theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
+    ∀ (L : List (Tau × Expr)) (f : Assign),
+      f ∈ acceptedSet I S L ↔ ∃ row ∈ L, I.accept row.1 = true ∧ f ∈ S row.1
+  | [], f => by simp [acceptedSet]
+  | row :: L, f => by
+    unfold acceptedSet
+    rw [List.filter_cons]
+    by_cases h : I.accept row.1 = true
+    · simp only [h, decide_true, List.foldr_cons, Finset.mem_union, List.mem_cons]
+      rw [← acceptedSet, mem_acceptedSet I S L]
+      constructor
+      · rintro (hf | ⟨r, hr, ha, hf⟩)
+        · exact ⟨row, Or.inl rfl, h, hf⟩
+        · exact ⟨r, Or.inr hr, ha, hf⟩
+      · rintro ⟨r, hr | hr, ha, hf⟩
+        · exact Or.inl (hr ▸ hf)
+        · exact Or.inr ⟨r, hr, ha, hf⟩
+    · simp only [h, decide_false]
+      rw [← acceptedSet, mem_acceptedSet I S L]
+      constructor
+      · rintro ⟨r, hr, ha, hf⟩
+        exact ⟨r, List.mem_cons_of_mem _ hr, ha, hf⟩
+      · rintro ⟨r, hr, ha, hf⟩
+        rw [List.mem_cons] at hr
+        rcases hr with rfl | hr
+        · exact absurd ha h
+        · exact ⟨r, hr, ha, hf⟩
+
+/-- Folding `union'` over the accepted rows of a table whose rows denote pairwise disjoint sets
+    of one domain. -/
+theorem Sem.foldl_accept {Dn : Finset Var} (I : Traced Op Tau) (S : Tau → Finset Assign)
+    (hS : ∀ τ τ', τ ≠ τ' → Disjoint (S τ) (S τ')) (hdom : ∀ τ, ∀ f ∈ S τ, f.dom = Dn) :
+    ∀ (L : List (Tau × Expr)) (e : Expr) (A : Finset Assign), Sem e A →
+      (L.map Prod.fst).Nodup → (∀ row ∈ L, Sem row.2 (S row.1)) →
+      (∀ row ∈ L, Disjoint A (S row.1)) → (∀ f ∈ A, f.dom = Dn) →
+      Sem (L.foldl (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) e)
+        (A ∪ acceptedSet I S L)
+  | [], e, A, he, _, _, _, _ => by simpa [acceptedSet] using he
+  | row :: L, e, A, he, hnd, hL, hA, hAd => by
+    rw [List.map_cons, List.nodup_cons] at hnd
+    rw [List.foldl_cons]
+    have hdisjL : ∀ r ∈ L, Disjoint (S row.1) (S r.1) := by
+      intro r hr
+      apply hS
+      intro heq
+      exact hnd.1 (heq ▸ List.mem_map.mpr ⟨r, hr, rfl⟩)
+    by_cases h : I.accept row.1 = true
+    · rw [if_pos h]
+      have ih := Sem.foldl_accept (Dn := Dn) I S hS hdom L (Expr.union' e row.2) (A ∪ S row.1)
+        (Sem.union' he (hL row (List.mem_cons_self ..)) (hA row (List.mem_cons_self ..))
+          (fun f hf g hg => by rw [hAd f hf, hdom _ g hg]))
+        hnd.2 (fun r hr => hL r (List.mem_cons_of_mem _ hr))
+        (fun r hr => Finset.disjoint_union_left.mpr
+          ⟨hA r (List.mem_cons_of_mem _ hr), hdisjL r hr⟩)
+        (fun f hf => by
+          rw [Finset.mem_union] at hf
+          rcases hf with hf | hf
+          · exact hAd f hf
+          · exact hdom _ f hf)
+      have hacc : acceptedSet I S (row :: L) = S row.1 ∪ acceptedSet I S L := by
+        unfold acceptedSet
+        rw [List.filter_cons]
+        simp [h]
+      rw [hacc, ← Finset.union_assoc]
+      exact ih
+    · rw [if_neg h]
+      have hacc : acceptedSet I S (row :: L) = acceptedSet I S L := by
+        unfold acceptedSet
+        rw [List.filter_cons]
+        simp [h]
+      rw [hacc]
+      exact Sem.foldl_accept (Dn := Dn) I S hS hdom L e A he hnd.2
+        (fun r hr => hL r (List.mem_cons_of_mem _ hr))
+        (fun r hr => hA r (List.mem_cons_of_mem _ hr)) hAd
+
+end Traced
+
+/-- Claim 1 at the root: the DP's output denotes exactly the solution set. -/
 theorem solve_sound {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau) (n : Node Op) :
     Sem (I.toTraced.solve n) ((I.candidates n).filter fun f => I.accept (I.trace n f) = true) := by
-  sorry
+  obtain ⟨hT, hnd⟩ := I.run_sound n
+  unfold Traced.solve
+  have h := Traced.Sem.foldl_accept (Dn := I.nodeDom n) I.toTraced (I.rowSet n)
+    (fun τ τ' hne => I.rowSet_disjoint n hne)
+    (fun τ f hf => I.dom_eq n f (Finset.mem_filter.mp hf).1)
+    (Traced.run I.toTraced n) .empty ∅ Sem.empty hnd
+    (fun row hr => by
+      have := hT row.1
+      rwa [Traced.rowExpr_of_mem hnd (show (row.1, row.2) ∈ _ from hr)] at this)
+    (fun _ _ => Finset.disjoint_empty_left _) (fun f hf => absurd hf (Finset.notMem_empty f))
+  rw [Finset.empty_union] at h
+  have hset : Traced.acceptedSet I.toTraced (I.rowSet n) (Traced.run I.toTraced n) =
+      (I.candidates n).filter fun f => I.accept (I.trace n f) = true := by
+    ext f
+    rw [Traced.mem_acceptedSet, Finset.mem_filter]
+    constructor
+    · rintro ⟨row, _, ha, hf⟩
+      rw [Instance.rowSet, Finset.mem_filter] at hf
+      exact ⟨hf.1, hf.2 ▸ ha⟩
+    · rintro ⟨hf, ha⟩
+      have hfr : f ∈ I.rowSet n (I.trace n f) := by
+        rw [Instance.rowSet, Finset.mem_filter]
+        exact ⟨hf, rfl⟩
+      have hne := Sem.ne_empty (hT (I.trace n f)) ⟨f, hfr⟩
+      exact ⟨(I.trace n f, Traced.rowExpr (Traced.run I.toTraced n) (I.trace n f)),
+        Traced.mem_of_rowExpr_ne hne, ha, hfr⟩
+  rw [hset] at h
+  exact h
 
 end Formalism
