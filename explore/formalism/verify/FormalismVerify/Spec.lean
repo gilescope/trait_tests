@@ -125,6 +125,9 @@ theorem join_assoc {f g h : Assign} (hfg : Disjoint f.dom g.dom) (hfh : Disjoint
     rw [join_dom hgh]; exact Finset.disjoint_union_right.mpr ⟨hfg, hfh⟩
   rw [join_val hfg', join_val hfg, join_val hgh', join_val hgh, Finset.union_assoc]
 
+/-- The join of a list of assignments, left to right from `empty`. -/
+def joinAll (fs : List Assign) : Assign := fs.foldl join empty
+
 /-- The assignment a list of leaves denotes (`join_leaves` on the assignment side). -/
 def ofList : List (Var × Val) → Assign
   | [] => empty
@@ -700,6 +703,84 @@ theorem stepNode_eq_foldl (I : Traced Op Tau) (op : Op) (tables : List (Table Ta
     stepNode I op tables =
       (tables.sections.flatMap (rowItems I op)).foldl (fun T it => unionInto T it.1 it.2) [] :=
   foldl_unionInto_flatMap (rowItems I op) tables.sections []
+
+/-! ### The join of one row from each child -/
+
+/-- The denotation of `joined`: joins of one assignment from each set. -/
+def joinedSet (R : List (Finset Assign)) : Finset Assign :=
+  R.foldl (fun acc A => (acc ×ˢ A).image fun p => p.1.join p.2) {Assign.empty}
+
+theorem mem_foldl_join_image :
+    ∀ (R : List (Finset Assign)) (E : Finset Assign) (f : Assign),
+      f ∈ R.foldl (fun acc A => (acc ×ˢ A).image fun p => p.1.join p.2) E ↔
+        ∃ e ∈ E, ∃ fs, List.Forall₂ (· ∈ ·) fs R ∧ f = fs.foldl Assign.join e
+  | [], E, f => by
+    constructor
+    · intro hf
+      exact ⟨f, hf, [], List.Forall₂.nil, rfl⟩
+    · rintro ⟨e, he, fs, hfs, rfl⟩
+      cases hfs
+      exact he
+  | A :: R, E, f => by
+    rw [List.foldl_cons, mem_foldl_join_image R]
+    constructor
+    · rintro ⟨e', he', fs, hfs, rfl⟩
+      rw [Finset.mem_image] at he'
+      obtain ⟨⟨e, a⟩, hea, rfl⟩ := he'
+      rw [Finset.mem_product] at hea
+      exact ⟨e, hea.1, a :: fs, List.Forall₂.cons hea.2 hfs, rfl⟩
+    · rintro ⟨e, he, fs, hfs, rfl⟩
+      cases hfs with
+      | cons ha hfs =>
+        rename_i a fs'
+        exact ⟨e.join a, Finset.mem_image_of_mem _ (Finset.mem_product.mpr ⟨he, ha⟩), fs', hfs, rfl⟩
+
+theorem mem_joinedSet (R : List (Finset Assign)) (f : Assign) :
+    f ∈ joinedSet R ↔ ∃ fs, List.Forall₂ (· ∈ ·) fs R ∧ f = Assign.joinAll fs := by
+  unfold joinedSet
+  rw [mem_foldl_join_image]
+  constructor
+  · rintro ⟨e, he, fs, hfs, rfl⟩
+    rw [Finset.mem_singleton] at he
+    exact ⟨fs, hfs, by rw [he]; rfl⟩
+  · rintro ⟨fs, hfs, rfl⟩
+    exact ⟨Assign.empty, Finset.mem_singleton_self _, fs, hfs, rfl⟩
+
+theorem Sem.joined_aux :
+    ∀ (rows : List (Tau × Expr)) (R : List (Finset Assign)) (e : Expr) (E : Finset Assign),
+      Sem e E → List.Forall₂ (fun r A => Sem r.2 A) rows R →
+      (∀ A ∈ R, ∀ f ∈ E, ∀ g ∈ A, Disjoint f.dom g.dom) →
+      R.Pairwise (fun A B => ∀ f ∈ A, ∀ g ∈ B, Disjoint f.dom g.dom) →
+      Sem (rows.foldl (fun acc r => Expr.join' acc r.2) e)
+        (R.foldl (fun acc A => (acc ×ˢ A).image fun p => p.1.join p.2) E)
+  | [], [], _, _, he, _, _, _ => he
+  | [], _ :: _, _, _, _, hF, _, _ => nomatch hF
+  | _ :: _, [], _, _, _, hF, _, _ => nomatch hF
+  | r :: rows, A :: R, e, E, he, hF, hdisj, hpair => by
+    rw [List.forall₂_cons] at hF
+    rw [List.pairwise_cons] at hpair
+    simp only [List.foldl_cons]
+    apply Sem.joined_aux rows R _ _ (Sem.join' he hF.1 (hdisj A (List.mem_cons_self ..))) hF.2
+    · intro B hB h hh g' hg'
+      rw [Finset.mem_image] at hh
+      obtain ⟨⟨f, g⟩, hfg, rfl⟩ := hh
+      rw [Finset.mem_product] at hfg
+      rw [Assign.join_dom (hdisj A (List.mem_cons_self ..) f hfg.1 g hfg.2)]
+      exact Finset.disjoint_union_left.mpr
+        ⟨hdisj B (List.mem_cons_of_mem _ hB) f hfg.1 g' hg', hpair.1 B hB g hfg.2 g' hg'⟩
+    · exact hpair.2
+
+/-- `joined` denotes the joins of one assignment per child, when the children's domains are
+    pairwise disjoint. -/
+theorem Sem.joined (rows : List (Tau × Expr)) (R : List (Finset Assign))
+    (hF : List.Forall₂ (fun r A => Sem r.2 A) rows R)
+    (hpair : R.Pairwise (fun A B => ∀ f ∈ A, ∀ g ∈ B, Disjoint f.dom g.dom)) :
+    Sem (joined rows) (joinedSet R) := by
+  apply Sem.joined_aux rows R Expr.unit {Assign.empty} Sem.unit hF _ hpair
+  intro A _ f hf g _
+  rw [Finset.mem_singleton] at hf
+  rw [hf, Assign.empty_dom]
+  exact Finset.disjoint_empty_left _
 
 mutual
 /-- Mirrors `scheme::run`: post-order fold of `stepNode` over the construction. -/
