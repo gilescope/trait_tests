@@ -98,6 +98,7 @@ extract:
         [ -f /src/hylo.llbc ] || cp "$(find / -name 'hylo.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/hylo.llbc; \
         ls -la /src/hylo.llbc
     RUN mkdir -p /out && aeneas -backend lean -dest /out /src/hylo.llbc
+    RUN find /out -name '*.lean' | xargs wc -l && find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Extracted AS LOCAL explore/formalism/verify/FormalismVerify/Extracted
 
 verify:
@@ -106,8 +107,10 @@ verify:
     RUN curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
     ENV PATH=/root/.elan/bin:$PATH
     WORKDIR /verify
-    COPY --dir explore/formalism/verify/. .
+    COPY explore/formalism/verify/lakefile.toml explore/formalism/verify/lean-toolchain explore/formalism/verify/FormalismVerify.lean ./
+    COPY --dir explore/formalism/verify/FormalismVerify ./
     COPY +extract/Extracted FormalismVerify/Extracted
+    RUN ls -la . FormalismVerify FormalismVerify/Extracted
     # point the Lean `aeneas` dependency at the same source the extraction used, and take
     # that source's Lean toolchain (the fork and upstream pin different versions)
     RUN sed -i "s#https://github.com/AeneasVerif/aeneas#https://github.com/$AENEAS_REPO#; s#^rev = .*#rev = \"$AENEAS_REV\"#" lakefile.toml
