@@ -358,6 +358,7 @@ instance : CommSemiring (Delta D A) where
     · simp only [add_a, add_d]
       exact addA_assoc _ _ _ _ _ _
   zero := 0
+  nsmul := nsmulRec
   zero_add x := by
     ext
     · simp [min_eq_right (Dioid.le_zero x.d)]
