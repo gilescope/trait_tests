@@ -67,4 +67,6 @@ jobs:
       - run: earth $EARTH_FLAGS +probe $BUILD_ARGS
       - run: earth $EARTH_FLAGS +probe-gat $BUILD_ARGS
         continue-on-error: true
+      - run: earth $EARTH_FLAGS +fork-test-gat $BUILD_ARGS
+        continue-on-error: true
       - run: earth $EARTH_FLAGS +verify $BUILD_ARGS

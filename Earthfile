@@ -85,6 +85,19 @@ probe-gat:
     RUN mkdir -p /out && (aeneas -backend lean -dest /out -print-error-emitters /src/probe_gat.llbc; rc=$?; find /out -name '*.lean' -exec cat {} +; exit $rc)
     SAVE ARTIFACT /out /ProbeGat
 
+# The fork's test for GAT-lite, extracted exactly as its test runner does it (same charon and
+# aeneas flags, same paths), so the printed file can be committed as tests/lean/Gat.lean in the
+# fork: its CI regenerates every test and diffs byte for byte. Non-blocking.
+fork-test-gat:
+    FROM +aeneas
+    ARG GAT_RS_URL=https://raw.githubusercontent.com/gilescope/aeneas/91721484a4f619e20b776caf9b420b5d74d6d40a/tests/src/gat.rs
+    WORKDIR /work
+    RUN mkdir -p tests/src tests/lean tests/llbc && curl -sSfL "$GAT_RS_URL" -o tests/src/gat.rs
+    RUN charon rustc --dest-file /work/tests/llbc/gat.llbc --preset=aeneas -- tests/src/gat.rs --crate-name=gat --crate-type=rlib --allow=unused --allow=non_snake_case --edition=2021
+    RUN aeneas tests/llbc/gat.llbc -dest tests/lean -backend lean -abort-on-error -checks -print-error-emitters -no-progress-bar -checks -color -sequential
+    RUN echo '===== tests/lean/Gat.lean' && cat tests/lean/Gat.lean
+    SAVE ARTIFACT tests/lean/Gat.lean /Gat.lean
+
 extract:
     FROM +aeneas
     WORKDIR /src
