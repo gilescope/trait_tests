@@ -649,8 +649,8 @@ theorem Sem.unique {e : Expr} {A B : Finset Assign} (ha : Sem e A) (hb : Sem e B
     cases hb with
     | join ha' hb' _ => rw [iha ha', ihb hb']
 
-/-- The set an expression denotes (`∅` for an illegal expression). -/
 open Classical in
+/-- The set an expression denotes (`∅` for an illegal expression). -/
 noncomputable def denot (e : Expr) : Finset Assign := if h : ∃ A, Sem e A then h.choose else ∅
 
 theorem Sem.denot_eq {e : Expr} {A : Finset Assign} (h : Sem e A) : denot e = A := by
@@ -890,7 +890,7 @@ theorem rowExpr_of_mem :
       simp [rowExpr]
     · have hne : t' ≠ t := by
         rintro rfl
-        exact hnd.1 (List.mem_map_of_mem h)
+        exact hnd.1 (List.mem_map.mpr ⟨(t', e), h, rfl⟩)
       rw [rowExpr, if_neg hne]
       exact rowExpr_of_mem hnd.2 h
 
@@ -1032,20 +1032,22 @@ structure Instance (Op Tau : Type*) extends Traced Op Tau where
   /-- Variables an operation owns itself; the children's are pairwise disjoint and disjoint
       from them. -/
   owned : Op → Finset Var
-  owned_disjoint : ∀ op cs, ∀ c ∈ cs, Disjoint (owned op) (nodeDom c)
+  owned_disjoint : ∀ (op : Op) (cs : List (Node Op)), ∀ c ∈ cs, Disjoint (owned op) (nodeDom c)
   children_disjoint : ∀ op (cs : List (Node Op)), (cs.map nodeDom).Pairwise Disjoint
   /-- Every output of `step` assigns exactly the owned variables, each once. -/
-  step_leaves : ∀ op taus, ∀ out ∈ step op taus,
+  step_leaves : ∀ (op : Op) (taus : List Tau), ∀ out ∈ step op taus,
     (out.2.map Prod.fst).Nodup ∧ (out.2.map Prod.fst).toFinset = owned op
   /-- Distinct outputs assign the owned variables differently. -/
-  step_nodup : ∀ op taus, ((step op taus).map fun out => Assign.ofList out.2).Nodup
+  step_nodup : ∀ (op : Op) (taus : List Tau),
+    ((step op taus).map fun out => Assign.ofList out.2).Nodup
   /-- Obligation 3: the candidates at a node are the joins of one candidate per child with the
       leaves `step` yields for their traces, and `step` names their trace. -/
-  cand_iff : ∀ op cs f, f ∈ candidates (.mk op cs) ↔
-    ∃ fs, List.Forall₂ (fun f c => f ∈ candidates c) fs cs ∧
+  cand_iff : ∀ (op : Op) (cs : List (Node Op)) (f : Assign), f ∈ candidates (.mk op cs) ↔
+    ∃ fs : List Assign, List.Forall₂ (fun f c => f ∈ candidates c) fs cs ∧
       ∃ out ∈ step op (List.zipWith trace cs fs),
         f = (Assign.joinAll fs).join (Assign.ofList out.2)
-  trace_mk : ∀ op cs fs out, List.Forall₂ (fun f c => f ∈ candidates c) fs cs →
+  trace_mk : ∀ (op : Op) (cs : List (Node Op)) (fs : List Assign) (out : Tau × List (Var × Val)),
+    List.Forall₂ (fun f c => f ∈ candidates c) fs cs →
     out ∈ step op (List.zipWith trace cs fs) →
     trace (.mk op cs) ((Assign.joinAll fs).join (Assign.ofList out.2)) = out.1
   /-- Obligation 2: solutionhood from the trace alone. -/
