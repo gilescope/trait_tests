@@ -144,6 +144,71 @@ theorem ofList_dom :
       exact hl.1
     rw [ofList, join_dom hd, single_dom, ih, List.map_cons, List.toFinset_cons, Finset.insert_eq]
 
+theorem join_dom_subset (f g : Assign) : (f.join g).dom ⊆ f.dom ∪ g.dom := by
+  intro x hx
+  rw [dom, Finset.mem_image] at hx
+  obtain ⟨p, hp, rfl⟩ := hx
+  have hp' : p ∈ f.1 ∪ g.1.filter (fun q => q.1 ∉ f.dom) := hp
+  rw [Finset.mem_union, Finset.mem_filter] at hp'
+  rcases hp' with h | ⟨h, _⟩
+  · exact Finset.mem_union_left _ (fst_mem_dom h)
+  · exact Finset.mem_union_right _ (fst_mem_dom h)
+
+/-- Restricting away from `g`'s variables ignores `g`. -/
+theorem restrict_join_of_disjoint_right {f g : Assign} {D : Finset Var} (h : Disjoint D g.dom) :
+    (f.join g).restrict D = f.restrict D := by
+  apply Subtype.ext
+  show (f.1 ∪ g.1.filter (fun q => q.1 ∉ f.dom)).filter (fun p => p.1 ∈ D) =
+    f.1.filter (fun p => p.1 ∈ D)
+  rw [Finset.filter_union]
+  have hg : (g.1.filter (fun q => q.1 ∉ f.dom)).filter (fun p => p.1 ∈ D) = ∅ := by
+    rw [Finset.filter_eq_empty_iff]
+    intro p hp hpD
+    rw [Finset.mem_filter] at hp
+    exact Finset.disjoint_left.mp h hpD (fst_mem_dom hp.1)
+  rw [hg, Finset.union_empty]
+
+/-- Restricting away from `f`'s variables ignores `f`. -/
+theorem restrict_join_of_disjoint_left {f g : Assign} {D : Finset Var} (h : Disjoint D f.dom) :
+    (f.join g).restrict D = g.restrict D := by
+  apply Subtype.ext
+  show (f.1 ∪ g.1.filter (fun q => q.1 ∉ f.dom)).filter (fun p => p.1 ∈ D) =
+    g.1.filter (fun p => p.1 ∈ D)
+  rw [Finset.filter_union, Finset.filter_filter]
+  have hf : f.1.filter (fun p => p.1 ∈ D) = ∅ := by
+    rw [Finset.filter_eq_empty_iff]
+    intro p hp hpD
+    exact Finset.disjoint_left.mp h hpD (fst_mem_dom hp)
+  rw [hf, Finset.empty_union]
+  apply Finset.filter_congr
+  intro p _
+  constructor
+  · exact fun hh => hh.2
+  · intro hpD
+    exact ⟨fun hfd => Finset.disjoint_left.mp h hpD hfd, hpD⟩
+
+theorem restrict_foldl_join {D : Finset Var} :
+    ∀ (fs : List Assign) (e : Assign), (∀ g ∈ fs, Disjoint D g.dom) →
+      (fs.foldl join e).restrict D = e.restrict D
+  | [], _, _ => rfl
+  | g :: fs, e, h => by
+    rw [List.foldl_cons, restrict_foldl_join fs _ (fun g' hg' => h g' (List.mem_cons_of_mem _ hg'))]
+    exact restrict_join_of_disjoint_right (h g (List.mem_cons_self ..))
+
+theorem dom_foldl_join_subset :
+    ∀ (fs : List Assign) (e : Assign), (fs.foldl join e).dom ⊆ e.dom ∪ (fs.map dom).foldr (· ∪ ·) ∅
+  | [], e => by simp
+  | g :: fs, e => by
+    rw [List.foldl_cons, List.map_cons, List.foldr_cons]
+    intro x hx
+    have hx' := dom_foldl_join_subset fs (e.join g) hx
+    rw [Finset.mem_union] at hx' ⊢
+    rcases hx' with h | h
+    · rcases Finset.mem_union.mp (join_dom_subset e g h) with h | h
+      · exact Or.inl h
+      · exact Or.inr (Finset.mem_union_left _ h)
+    · exact Or.inr (Finset.mem_union_right _ h)
+
 end Assign
 
 /-- `E ::= ∅ | T^∅ | (s ↦ t) | E ⊎ E | E ⨝ E` (Definition 7). Mirrors `expr::Expr`. -/
@@ -941,6 +1006,17 @@ theorem forall₂_zipWith_of_forall₂ {α β γ : Type*} (g : α → β → γ)
     rw [List.zipWith_cons_cons]
     exact List.Forall₂.cons (hQ a b h.1) (forall₂_zipWith_of_forall₂ g hQ h.2)
 
+theorem forall₂_mem_left {α β : Type*} {R : α → β → Prop} :
+    ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs → ∀ {a}, a ∈ as → ∃ b ∈ bs, R a b
+  | [], [], _, _, h => nomatch h
+  | a :: as, b :: bs, h, a', ha' => by
+    rw [List.forall₂_cons] at h
+    rw [List.mem_cons] at ha'
+    rcases ha' with rfl | ha'
+    · exact ⟨b, List.mem_cons_self .., h.1⟩
+    · obtain ⟨b', hb', hr⟩ := forall₂_mem_left h.2 ha'
+      exact ⟨b', List.mem_cons_of_mem _ hb', hr⟩
+
 /-! ### Instances -/
 
 /-- The specification side of an instance: what the construction denotes, what a trace is, and
@@ -989,6 +1065,43 @@ theorem rowSet_disjoint (n : Node Op) {τ τ' : Tau} (h : τ ≠ τ') :
   intro f hf hf'
   rw [rowSet, Finset.mem_filter] at hf hf'
   exact h (hf.2.symm.trans hf'.2)
+
+theorem children_pairwise (op : Op) (cs : List (Node Op)) :
+    cs.Pairwise fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c') :=
+  List.pairwise_map.mp (I.children_disjoint op cs)
+
+/-- Restricting a join of one candidate per child to a child's variables recovers that
+    candidate. -/
+theorem restrict_foldl_join_cand :
+    ∀ {fs : List Assign} {cs : List (Node Op)}, List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs →
+      cs.Pairwise (fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) →
+      ∀ e : Assign, (∀ c ∈ cs, Disjoint e.dom (I.nodeDom c)) →
+      List.Forall₂ (fun f c => (fs.foldl Assign.join e).restrict (I.nodeDom c) = f) fs cs
+  | [], [], _, _, _, _ => List.Forall₂.nil
+  | f :: fs, c :: cs, hF, hpair, e, he => by
+    rw [List.forall₂_cons] at hF
+    rw [List.pairwise_cons] at hpair
+    rw [List.foldl_cons]
+    have hfd : f.dom = I.nodeDom c := I.dom_eq c f hF.1
+    refine List.Forall₂.cons ?_ ?_
+    · rw [Assign.restrict_foldl_join fs (e.join f)]
+      · rw [Assign.restrict_join_of_disjoint_left (he c (List.mem_cons_self ..)).symm, ← hfd,
+          Assign.restrict_dom_self]
+      · intro g hg
+        obtain ⟨c', hc', hgc'⟩ := forall₂_mem_left hF.2 hg
+        rw [I.dom_eq c' g hgc']
+        exact hpair.1 c' hc'
+    · apply I.restrict_foldl_join_cand hF.2 hpair.2 (e.join f)
+      intro c' hc'
+      apply Finset.disjoint_of_subset_left (Assign.join_dom_subset e f)
+      rw [Finset.disjoint_union_left]
+      exact ⟨he c' (List.mem_cons_of_mem _ hc'), hfd ▸ hpair.1 c' hc'⟩
+
+theorem restrict_joinAll {fs : List Assign} {cs : List (Node Op)}
+    (hF : List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs) (op : Op) :
+    List.Forall₂ (fun f c => (Assign.joinAll fs).restrict (I.nodeDom c) = f) fs cs :=
+  I.restrict_foldl_join_cand hF (I.children_pairwise op cs) Assign.empty
+    (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _)
 
 end Instance
 
