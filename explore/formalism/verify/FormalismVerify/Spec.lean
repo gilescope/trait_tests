@@ -387,7 +387,10 @@ instance : CommSemiring (Delta D A) where
 
 end Delta
 
-/-! ## The generic trace DP (Remark 3) -/
+/-! ## The generic trace DP (Remark 3)
+
+The executable model mirrors `scheme.rs` constructor for constructor, smart constructors
+included, so that the refinement to the Aeneas extraction is syntactic. -/
 
 /-- Mirrors `scheme::Node`. -/
 inductive Node (Op : Type*)
@@ -398,7 +401,70 @@ structure Traced (Op Tau : Type*) where
   step : Op → List Tau → List (Tau × List (Var × Val))
   accept : Tau → Bool
 
-/-- The specification side of an instance: what the construction builds and what a trace is. -/
+namespace Expr
+
+/-- `expr::union`: `∅` is the unit. -/
+def union' : Expr → Expr → Expr
+  | .empty, b => b
+  | a, .empty => a
+  | a, b => .union a b
+
+/-- `expr::join`: `T^∅` is the unit, `∅` the zero. -/
+def join' : Expr → Expr → Expr
+  | .empty, _ => .empty
+  | _, .empty => .empty
+  | .unit, b => b
+  | a, .unit => a
+  | a, b => .join a b
+
+/-- `expr::join_leaves`: `E ⨝ (s₁ ↦ t₁) ⨝ … ⨝ (sₙ ↦ tₙ)`. -/
+def joinLeaves (e : Expr) (leaves : List (Var × Val)) : Expr :=
+  leaves.foldl (fun acc p => join' acc (.leaf p.1 p.2)) e
+
+end Expr
+
+namespace Traced
+variable {Op Tau : Type*} [DecidableEq Tau]
+
+/-- Mirrors `scheme::Table`: rows with distinct traces. -/
+abbrev Table (Tau : Type*) := List (Tau × Expr)
+
+/-- Mirrors `scheme::union_into`: `⊎` into the row of `tau`, or a new row. -/
+def unionInto : Table Tau → Tau → Expr → Table Tau
+  | [], tau, e => [(tau, e)]
+  | (t, e') :: rows, tau, e =>
+    if t = tau then (t, Expr.union' e' e) :: rows else (t, e') :: unionInto rows tau e
+
+/-- Mirrors `scheme::step_node`: one row from each child, every way (`List.sections`); each
+    `(trace, leaves)` the step yields joins the leaves onto the children's expressions and goes
+    into the row of that trace. -/
+def stepNode (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) : Table Tau :=
+  tables.sections.foldl
+    (fun table rows =>
+      let joined := rows.foldl (fun acc r => Expr.join' acc r.2) Expr.unit
+      (I.step op (rows.map Prod.fst)).foldl
+        (fun table out => unionInto table out.1 (Expr.joinLeaves joined out.2)) table)
+    []
+
+mutual
+/-- Mirrors `scheme::run`: post-order fold of `stepNode` over the construction. -/
+def run (I : Traced Op Tau) : Node Op → Table Tau
+  | .mk op cs => stepNode I op (runList I cs)
+def runList (I : Traced Op Tau) : List (Node Op) → List (Table Tau)
+  | [] => []
+  | c :: cs => run I c :: runList I cs
+end
+
+/-- Mirrors `scheme::solve`: `⊎` of the accepted rows of the root table. -/
+def solve (I : Traced Op Tau) (root : Node Op) : Expr :=
+  (run I root).foldl (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty
+
+end Traced
+
+/-- The specification side of an instance: what the construction denotes and what a trace is.
+    Obligation 2 of `Traced` is `accept_iff`. Obligation 3, that `step` is the compositional
+    image of `trace` on the candidate sets, is the hypothesis Claim 1 needs; it is not yet
+    stated here (see `solve_sound`). -/
 structure Instance (Op Tau : Type*) extends Traced Op Tau where
   /-- Partial candidates built at a node, each with the variables it owns. -/
   candidates : Node Op → Finset Assign
@@ -407,17 +473,13 @@ structure Instance (Op Tau : Type*) extends Traced Op Tau where
   /-- Obligation 2: solutionhood from the trace alone. -/
   solution : Node Op → Assign → Prop
   accept_iff : ∀ n f, f ∈ candidates n → (solution n f ↔ accept (trace n f) = true)
-  /-- Obligation 3: `step` is the compositional image of `trace` (stated per instance). -/
-  step_sound : True
 
-/-- Mirrors `scheme::solve`. Defined on the Lean side so the theorem is about the model;
-    the extracted `formalism.scheme.solve` refines it. -/
-noncomputable def solve {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau) (n : Node Op) : Expr :=
-  sorry
-
-/-- Claim 1 at the root: the DP's output denotes exactly the solution set. -/
+/-- Claim 1 at the root: the DP's output denotes exactly the solution set. Not yet proved: the
+    compositional obligation on `step` (the candidates at a node are the joins of one candidate
+    per child with the leaves `step` yields for their traces, over disjoint variables) has to be
+    stated as a hypothesis first. -/
 theorem solve_sound {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau) (n : Node Op) :
-    Sem (solve I n) ((I.candidates n).filter fun f => I.accept (I.trace n f) = true) := by
+    Sem (I.toTraced.solve n) ((I.candidates n).filter fun f => I.accept (I.trace n f) = true) := by
   sorry
 
 end Formalism
