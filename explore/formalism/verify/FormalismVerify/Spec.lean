@@ -906,23 +906,93 @@ def solve (I : Traced Op Tau) (root : Node Op) : Expr :=
 
 end Traced
 
-/-- The specification side of an instance: what the construction denotes and what a trace is.
-    Obligation 2 of `Traced` is `accept_iff`. Obligation 3, that `step` is the compositional
-    image of `trace` on the candidate sets, is the hypothesis Claim 1 needs; it is not yet
-    stated here (see `solve_sound`). -/
+/-! ### List lemmas for the induction -/
+
+theorem mem_zipWith_right {α β γ : Type*} (g : α → β → γ) :
+    ∀ (as : List α) (bs : List β) {c : γ}, c ∈ List.zipWith g as bs → ∃ a b, b ∈ bs ∧ c = g a b
+  | [], _, _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+  | a :: as, b :: bs, c, h => by
+    rw [List.zipWith_cons_cons, List.mem_cons] at h
+    rcases h with h | h
+    · exact ⟨a, b, List.mem_cons_self .., h⟩
+    · obtain ⟨a', b', hb', rfl⟩ := mem_zipWith_right g as bs h
+      exact ⟨a', b', List.mem_cons_of_mem _ hb', rfl⟩
+
+theorem pairwise_zipWith_right {α β γ : Type*} {P : β → β → Prop} {Q : γ → γ → Prop}
+    (g : α → β → γ) (hg : ∀ a a' b b', P b b' → Q (g a b) (g a' b')) :
+    ∀ (as : List α) (bs : List β), bs.Pairwise P → (List.zipWith g as bs).Pairwise Q
+  | [], _, _ => by simp
+  | _ :: _, [], _ => by simp
+  | a :: as, b :: bs, h => by
+    rw [List.pairwise_cons] at h
+    rw [List.zipWith_cons_cons, List.pairwise_cons]
+    refine ⟨?_, pairwise_zipWith_right g hg as bs h.2⟩
+    intro c hc
+    obtain ⟨a', b', hb', rfl⟩ := mem_zipWith_right g as bs hc
+    exact hg a a' b b' (h.1 b' hb')
+
+theorem forall₂_zipWith_of_forall₂ {α β γ : Type*} (g : α → β → γ) {R : α → β → Prop}
+    {Q : α → γ → Prop} (hQ : ∀ a b, R a b → Q a (g a b)) :
+    ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs → List.Forall₂ Q as (List.zipWith g as bs)
+  | [], [], _ => List.Forall₂.nil
+  | a :: as, b :: bs, h => by
+    rw [List.forall₂_cons] at h
+    rw [List.zipWith_cons_cons]
+    exact List.Forall₂.cons (hQ a b h.1) (forall₂_zipWith_of_forall₂ g hQ h.2)
+
+/-! ### Instances -/
+
+/-- The specification side of an instance: what the construction denotes, what a trace is, and
+    the obligations the paper leaves to each instance. -/
 structure Instance (Op Tau : Type*) extends Traced Op Tau where
   /-- Partial candidates built at a node, each with the variables it owns. -/
   candidates : Node Op → Finset Assign
   /-- Trace of a partial candidate at a node. -/
   trace : Node Op → Assign → Tau
+  /-- Variables the candidates of a node assign (`dom` in Definition 10). -/
+  nodeDom : Node Op → Finset Var
+  dom_eq : ∀ n, ∀ f ∈ candidates n, f.dom = nodeDom n
+  /-- Variables an operation owns itself; the children's are pairwise disjoint and disjoint
+      from them. -/
+  owned : Op → Finset Var
+  owned_disjoint : ∀ op cs, ∀ c ∈ cs, Disjoint (owned op) (nodeDom c)
+  children_disjoint : ∀ op (cs : List (Node Op)), (cs.map nodeDom).Pairwise Disjoint
+  /-- Every output of `step` assigns exactly the owned variables, each once. -/
+  step_leaves : ∀ op taus, ∀ out ∈ step op taus,
+    (out.2.map Prod.fst).Nodup ∧ (out.2.map Prod.fst).toFinset = owned op
+  /-- Distinct outputs assign the owned variables differently. -/
+  step_nodup : ∀ op taus, ((step op taus).map fun out => Assign.ofList out.2).Nodup
+  /-- Obligation 3: the candidates at a node are the joins of one candidate per child with the
+      leaves `step` yields for their traces, and `step` names their trace. -/
+  cand_iff : ∀ op cs f, f ∈ candidates (.mk op cs) ↔
+    ∃ fs, List.Forall₂ (fun f c => f ∈ candidates c) fs cs ∧
+      ∃ out ∈ step op (List.zipWith trace cs fs),
+        f = (Assign.joinAll fs).join (Assign.ofList out.2)
+  trace_mk : ∀ op cs fs out, List.Forall₂ (fun f c => f ∈ candidates c) fs cs →
+    out ∈ step op (List.zipWith trace cs fs) →
+    trace (.mk op cs) ((Assign.joinAll fs).join (Assign.ofList out.2)) = out.1
   /-- Obligation 2: solutionhood from the trace alone. -/
   solution : Node Op → Assign → Prop
   accept_iff : ∀ n f, f ∈ candidates n → (solution n f ↔ accept (trace n f) = true)
 
-/-- Claim 1 at the root: the DP's output denotes exactly the solution set. Not yet proved: the
-    compositional obligation on `step` (the candidates at a node are the joins of one candidate
-    per child with the leaves `step` yields for their traces, over disjoint variables) has to be
-    stated as a hypothesis first. -/
+namespace Instance
+variable {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau)
+
+/-- The candidates of a node with a given trace: what a row should denote. -/
+def rowSet (n : Node Op) (τ : Tau) : Finset Assign :=
+  (I.candidates n).filter fun f => I.trace n f = τ
+
+theorem rowSet_disjoint (n : Node Op) {τ τ' : Tau} (h : τ ≠ τ') :
+    Disjoint (I.rowSet n τ) (I.rowSet n τ') := by
+  rw [Finset.disjoint_left]
+  intro f hf hf'
+  rw [rowSet, Finset.mem_filter] at hf hf'
+  exact h (hf.2.symm.trans hf'.2)
+
+end Instance
+
+/-- Claim 1 at the root: the DP's output denotes exactly the solution set. Not yet proved. -/
 theorem solve_sound {Op Tau : Type*} [DecidableEq Tau] (I : Instance Op Tau) (n : Node Op) :
     Sem (I.toTraced.solve n) ((I.candidates n).filter fun f => I.accept (I.trace n f) = true) := by
   sorry
