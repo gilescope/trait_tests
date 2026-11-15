@@ -571,6 +571,33 @@ theorem Sem.joinLeaves {e : Expr} {E : Finset Assign} (he : Sem e E) :
       exact hl.1
     exact (Assign.join_assoc h1 h2 h3).symm
 
+/-- `Sem` is a partial function: an expression denotes at most one set. -/
+theorem Sem.unique {e : Expr} {A B : Finset Assign} (ha : Sem e A) (hb : Sem e B) : A = B := by
+  induction ha generalizing B with
+  | empty => cases hb; rfl
+  | unit => cases hb; rfl
+  | leaf s t => cases hb; rfl
+  | union _ _ _ _ iha ihb =>
+    cases hb with
+    | union ha' hb' _ _ => rw [iha ha', ihb hb']
+  | join _ _ _ iha ihb =>
+    cases hb with
+    | join ha' hb' _ => rw [iha ha', ihb hb']
+
+/-- The set an expression denotes (`∅` for an illegal expression). -/
+open Classical in
+noncomputable def denot (e : Expr) : Finset Assign := if h : ∃ A, Sem e A then h.choose else ∅
+
+theorem Sem.denot_eq {e : Expr} {A : Finset Assign} (h : Sem e A) : denot e = A := by
+  unfold denot
+  rw [dif_pos (⟨A, h⟩ : ∃ A, Sem e A)]
+  exact Sem.unique (Exists.choose_spec (⟨A, h⟩ : ∃ A, Sem e A)) h
+
+theorem Sem.ne_empty {e : Expr} {A : Finset Assign} (h : Sem e A) (hA : A.Nonempty) : e ≠ .empty := by
+  rintro rfl
+  cases h
+  exact Finset.not_nonempty_empty hA
+
 namespace Traced
 variable {Op Tau : Type*} [DecidableEq Tau]
 
@@ -785,6 +812,79 @@ theorem Sem.joined (rows : List (Tau × Expr)) (R : List (Finset Assign))
   rw [hf, Assign.empty_dom]
   exact Finset.disjoint_empty_left _
 
+/-! ### Rows: lookup and distinct traces -/
+
+theorem rowExpr_of_mem :
+    ∀ {T : Table Tau}, (T.map Prod.fst).Nodup → ∀ {t : Tau} {e : Expr}, (t, e) ∈ T → rowExpr T t = e
+  | [], _, _, _, h => nomatch h
+  | (t', e') :: rows, hnd, t, e, h => by
+    rw [List.map_cons, List.nodup_cons] at hnd
+    rw [List.mem_cons] at h
+    rcases h with h | h
+    · cases h
+      simp [rowExpr]
+    · have hne : t' ≠ t := by
+        rintro rfl
+        exact hnd.1 (List.mem_map_of_mem h)
+      rw [rowExpr, if_neg hne]
+      exact rowExpr_of_mem hnd.2 h
+
+theorem mem_of_rowExpr_ne :
+    ∀ {T : Table Tau} {t : Tau}, rowExpr T t ≠ .empty → (t, rowExpr T t) ∈ T
+  | [], _, h => absurd rfl h
+  | (t', e') :: rows, t, h => by
+    by_cases ht : t' = t
+    · subst ht
+      simp [rowExpr]
+    · rw [rowExpr, if_neg ht] at h ⊢
+      exact List.mem_cons_of_mem _ (mem_of_rowExpr_ne h)
+
+theorem mem_map_fst_unionInto :
+    ∀ (T : Table Tau) (tau : Tau) (e : Expr) {x : Tau},
+      x ∈ (unionInto T tau e).map Prod.fst → x ∈ T.map Prod.fst ∨ x = tau
+  | [], tau, e, x, h => by
+    simp [unionInto] at h
+    exact Or.inr h
+  | (t, e') :: rows, tau, e, x, h => by
+    by_cases ht : t = tau
+    · rw [unionInto, if_pos ht] at h
+      simp only [List.map_cons] at h ⊢
+      exact Or.inl h
+    · rw [unionInto, if_neg ht, List.map_cons, List.mem_cons] at h
+      rw [List.map_cons, List.mem_cons]
+      rcases h with h | h
+      · exact Or.inl (Or.inl h)
+      · rcases mem_map_fst_unionInto rows tau e h with h | h
+        · exact Or.inl (Or.inr h)
+        · exact Or.inr h
+
+theorem nodup_unionInto :
+    ∀ (T : Table Tau) (tau : Tau) (e : Expr),
+      (T.map Prod.fst).Nodup → ((unionInto T tau e).map Prod.fst).Nodup
+  | [], tau, e, _ => by simp [unionInto]
+  | (t, e') :: rows, tau, e, hnd => by
+    rw [List.map_cons, List.nodup_cons] at hnd
+    by_cases ht : t = tau
+    · rw [unionInto, if_pos ht, List.map_cons, List.nodup_cons]
+      exact hnd
+    · rw [unionInto, if_neg ht, List.map_cons, List.nodup_cons]
+      refine ⟨?_, nodup_unionInto rows tau e hnd.2⟩
+      intro hmem
+      rcases mem_map_fst_unionInto rows tau e hmem with h | h
+      · exact hnd.1 h
+      · exact ht h
+
+theorem nodup_foldl_unionInto :
+    ∀ (items : List (Tau × Expr)) (T : Table Tau), (T.map Prod.fst).Nodup →
+      ((items.foldl (fun T it => unionInto T it.1 it.2) T).map Prod.fst).Nodup
+  | [], _, h => h
+  | it :: items, T, h => nodup_foldl_unionInto items _ (nodup_unionInto T it.1 it.2 h)
+
+theorem stepNode_nodup (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) :
+    ((stepNode I op tables).map Prod.fst).Nodup := by
+  rw [stepNode_eq_foldl]
+  exact nodup_foldl_unionInto _ [] List.nodup_nil
+
 mutual
 /-- Mirrors `scheme::run`: post-order fold of `stepNode` over the construction. -/
 def run (I : Traced Op Tau) : Node Op → Table Tau
@@ -793,6 +893,12 @@ def runList (I : Traced Op Tau) : List (Node Op) → List (Table Tau)
   | [] => []
   | c :: cs => run I c :: runList I cs
 end
+
+theorem run_nodup (I : Traced Op Tau) (n : Node Op) : ((run I n).map Prod.fst).Nodup := by
+  cases n with
+  | mk op cs =>
+    rw [run]
+    exact stepNode_nodup I op (runList I cs)
 
 /-- Mirrors `scheme::solve`: `⊎` of the accepted rows of the root table. -/
 def solve (I : Traced Op Tau) (root : Node Op) : Expr :=
