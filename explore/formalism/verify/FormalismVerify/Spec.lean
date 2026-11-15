@@ -792,6 +792,42 @@ theorem foldl_unionInto_flatMap {α : Type*} (g : α → List (Tau × Expr)) :
     rw [List.foldl_cons, List.flatMap_cons, List.foldl_append]
     exact foldl_unionInto_flatMap g L _
 
+theorem itemsSet_cons (D : Tau × Expr → Finset Assign) (it : Tau × Expr) (items : List (Tau × Expr))
+    (τ : Tau) :
+    itemsSet D (it :: items) τ = if it.1 = τ then D it ∪ itemsSet D items τ else itemsSet D items τ := by
+  unfold itemsSet
+  rw [List.filter_cons]
+  by_cases h : it.1 = τ
+  · simp [h]
+  · simp [h]
+
+theorem mem_itemsSet (D : Tau × Expr → Finset Assign) :
+    ∀ (items : List (Tau × Expr)) (τ : Tau) (f : Assign),
+      f ∈ itemsSet D items τ ↔ ∃ it ∈ items, it.1 = τ ∧ f ∈ D it
+  | [], τ, f => by simp [itemsSet]
+  | it :: items, τ, f => by
+    rw [itemsSet_cons]
+    by_cases h : it.1 = τ
+    · rw [if_pos h, Finset.mem_union, mem_itemsSet D items]
+      constructor
+      · rintro (hf | ⟨it', hit', hτ, hf⟩)
+        · exact ⟨it, List.mem_cons_self .., h, hf⟩
+        · exact ⟨it', List.mem_cons_of_mem _ hit', hτ, hf⟩
+      · rintro ⟨it', hit', hτ, hf⟩
+        rw [List.mem_cons] at hit'
+        rcases hit' with rfl | hit'
+        · exact Or.inl hf
+        · exact Or.inr ⟨it', hit', hτ, hf⟩
+    · rw [if_neg h, mem_itemsSet D items]
+      constructor
+      · rintro ⟨it', hit', hτ, hf⟩
+        exact ⟨it', List.mem_cons_of_mem _ hit', hτ, hf⟩
+      · rintro ⟨it', hit', hτ, hf⟩
+        rw [List.mem_cons] at hit'
+        rcases hit' with rfl | hit'
+        · exact absurd hτ h
+        · exact ⟨it', hit', hτ, hf⟩
+
 /-- `step_node` as one flat fold over every `(tuple of rows, step output)` item. -/
 theorem stepNode_eq_foldl (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) :
     stepNode I op tables =
@@ -1377,6 +1413,58 @@ theorem itemSet_disjoint_of_ne_rows {op : Op} {cs : List (Node Op)} {tables : Li
   exact I.rows_eq_of_restrict hT hrows hrows'
     (I.restrict_children_of_mem_itemSet op ((List.Forall₂.length_eq hrows).trans hlen) hout hf)
     (I.restrict_children_of_mem_itemSet op ((List.Forall₂.length_eq hrows').trans hlen) hout' hf')
+
+/-- One assignment per zipped row set is one candidate per child, with the rows' traces. -/
+theorem cand_of_zip :
+    ∀ (rows : List (Tau × Expr)) (cs : List (Node Op)) (fs : List Assign),
+      rows.length = cs.length →
+      List.Forall₂ (· ∈ ·) fs (List.zipWith (fun r c => I.rowSet c r.1) rows cs) →
+      List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs ∧
+        rows.map Prod.fst = List.zipWith I.trace cs fs
+  | [], [], _, _, hfs => by
+    cases hfs
+    exact ⟨List.Forall₂.nil, rfl⟩
+  | [], _ :: _, _, hlen, _ => by simp at hlen
+  | _ :: _, [], _, hlen, _ => by simp at hlen
+  | r :: rows, c :: cs, fs, hlen, hfs => by
+    rw [List.zipWith_cons_cons] at hfs
+    cases hfs with
+    | cons hf hfs =>
+      rename_i f fs
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
+      rw [rowSet, Finset.mem_filter] at hf
+      obtain ⟨ih1, ih2⟩ := I.cand_of_zip rows cs fs hlen hfs
+      refine ⟨List.Forall₂.cons hf.1 ih1, ?_⟩
+      rw [List.map_cons, List.zipWith_cons_cons, ih2, hf.2]
+
+/-- For one candidate per child there is a tuple of rows, one from each table, with their
+    traces. -/
+theorem exists_rows {tables : List (Table Tau)} {cs : List (Node Op)} (hT : I.TablesSem tables cs) :
+    ∀ {fs : List Assign}, List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs →
+      ∃ rows : List (Tau × Expr), List.Forall₂ (· ∈ ·) rows tables ∧
+        rows.map Prod.fst = List.zipWith I.trace cs fs ∧
+        List.Forall₂ (· ∈ ·) fs (List.zipWith (fun r c => I.rowSet c r.1) rows cs) := by
+  induction hT with
+  | nil =>
+    intro fs hfs
+    cases hfs
+    exact ⟨[], List.Forall₂.nil, rfl, List.Forall₂.nil⟩
+  | cons hTc _ ih =>
+    intro fs hfs
+    cases hfs with
+    | cons hf hfs =>
+      rename_i T c tables cs f fs
+      obtain ⟨rows, h1, h2, h3⟩ := ih hfs
+      have hfr : f ∈ I.rowSet c (I.trace c f) := by
+        rw [rowSet, Finset.mem_filter]
+        exact ⟨hf, rfl⟩
+      have hne : rowExpr T (I.trace c f) ≠ .empty :=
+        Sem.ne_empty (hTc.1 (I.trace c f)) ⟨f, hfr⟩
+      refine ⟨(I.trace c f, rowExpr T (I.trace c f)) :: rows,
+        List.Forall₂.cons (mem_of_rowExpr_ne hne) h1, ?_, ?_⟩
+      · rw [List.map_cons, List.zipWith_cons_cons, h2]
+      · rw [List.zipWith_cons_cons]
+        exact List.Forall₂.cons hfr h3
 
 end Instance
 end Instance
