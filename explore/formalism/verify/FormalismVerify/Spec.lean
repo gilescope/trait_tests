@@ -470,16 +470,34 @@ executable model and the relation `Sem` agree. -/
 
 theorem image_join_singleton_left (B : Finset Assign) :
     (({Assign.empty} : Finset Assign) ×ˢ B).image (fun p : Assign × Assign => p.1.join p.2) = B := by
-  ext g; simp [Assign.empty_join]
+  ext g
+  simp only [Finset.mem_image, Finset.mem_product, Finset.mem_singleton, Prod.exists]
+  constructor
+  · rintro ⟨a, b, ⟨rfl, hb⟩, rfl⟩
+    rw [Assign.empty_join]; exact hb
+  · intro hg
+    exact ⟨Assign.empty, g, ⟨rfl, hg⟩, Assign.empty_join g⟩
 
 theorem image_join_singleton_right (A : Finset Assign) :
     (A ×ˢ ({Assign.empty} : Finset Assign)).image (fun p : Assign × Assign => p.1.join p.2) = A := by
-  ext f; simp [Assign.join_empty]
+  ext f
+  simp only [Finset.mem_image, Finset.mem_product, Finset.mem_singleton, Prod.exists]
+  constructor
+  · rintro ⟨a, b, ⟨ha, rfl⟩, rfl⟩
+    rw [Assign.join_empty]; exact ha
+  · intro hf
+    exact ⟨f, Assign.empty, ⟨hf, rfl⟩, Assign.join_empty f⟩
 
 theorem image_join_product_singleton (A : Finset Assign) (g : Assign) :
     (A ×ˢ ({g} : Finset Assign)).image (fun p : Assign × Assign => p.1.join p.2) =
       A.image fun f => f.join g := by
-  ext h; simp
+  ext h
+  simp only [Finset.mem_image, Finset.mem_product, Finset.mem_singleton, Prod.exists]
+  constructor
+  · rintro ⟨a, b, ⟨ha, rfl⟩, rfl⟩
+    exact ⟨a, ha, rfl⟩
+  · rintro ⟨a, ha, rfl⟩
+    exact ⟨a, g, ⟨ha, rfl⟩, rfl⟩
 
 theorem Sem.union' {a b : Expr} {A B : Finset Assign} (ha : Sem a A) (hb : Sem b B)
     (hdisj : Disjoint A B) (hdom : ∀ f ∈ A, ∀ g ∈ B, f.dom = g.dom) :
