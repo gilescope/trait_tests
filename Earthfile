@@ -13,6 +13,9 @@ VERSION 0.8
 
 ARG --global AENEAS_REPO=AeneasVerif/aeneas
 ARG --global AENEAS_REV=0d21a9ec7bbbb110110cacc14464a47fd71c8705
+# A release tarball (aeneas + charon, static linux x86_64) skips the nix build entirely.
+# The gilescope fork publishes them: https://github.com/gilescope/aeneas/releases
+ARG --global AENEAS_TARBALL_URL=
 
 rust:
     FROM rust:1.97-slim-bookworm
@@ -30,11 +33,19 @@ test:
     RUN cd explore && cargo build -p formalism --no-default-features
     RUN cd explore && cargo clippy -p formalism --no-default-features -- -D warnings
 
-# Charon + Aeneas from the Aeneas flake (its nix package symlinks charon into bin/).
+# Charon + Aeneas: from a release tarball when AENEAS_TARBALL_URL is set, else built with nix
+# from the Aeneas flake (its package symlinks charon into bin/).
 aeneas:
-    FROM nixos/nix:2.26.3
-    RUN nix --extra-experimental-features 'nix-command flakes' \
-        build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
+    IF [ -n "$AENEAS_TARBALL_URL" ]
+        FROM ubuntu:24.04
+        RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && rm -rf /var/lib/apt/lists/*
+        RUN mkdir -p /opt/aeneas/bin && curl -sSfL "$AENEAS_TARBALL_URL" | tar -xz -C /opt/aeneas/bin
+        RUN ls -la /opt/aeneas/bin && /opt/aeneas/bin/aeneas -version && /opt/aeneas/bin/charon --version
+    ELSE
+        FROM nixos/nix:2.26.3
+        RUN nix --extra-experimental-features 'nix-command flakes' \
+            build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
+    END
     ENV PATH=/opt/aeneas/bin:$PATH
 
 # The smallest extractable hylo. Must pass; anything +verify then trips on is a std model.
@@ -42,8 +53,10 @@ probe:
     FROM +aeneas
     WORKDIR /src
     COPY --dir Cargo.toml src explore .
-    RUN cd explore/probe && charon cargo --preset=aeneas
-    RUN mkdir -p /out && aeneas -backend lean -dest /out explore/probe/probe.llbc
+    RUN cd explore/probe && charon cargo --preset=aeneas --dest-file=/src/probe.llbc || true; \
+        [ -f /src/probe.llbc ] || cp "$(find / -name 'probe.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/probe.llbc; \
+        ls -la /src/probe.llbc
+    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/probe.llbc
     RUN find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Probe
 
@@ -53,8 +66,10 @@ probe-gat:
     FROM +aeneas
     WORKDIR /src
     COPY --dir Cargo.toml src explore .
-    RUN cd explore/probe_gat && charon cargo --preset=aeneas
-    RUN mkdir -p /out && aeneas -backend lean -dest /out explore/probe_gat/probe_gat.llbc
+    RUN cd explore/probe_gat && charon cargo --preset=aeneas --dest-file=/src/probe_gat.llbc || true; \
+        [ -f /src/probe_gat.llbc ] || cp "$(find / -name 'probe_gat.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/probe_gat.llbc; \
+        ls -la /src/probe_gat.llbc
+    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/probe_gat.llbc
     RUN find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /ProbeGat
 
@@ -63,8 +78,13 @@ extract:
     WORKDIR /src
     COPY --dir Cargo.toml src explore .
     # hylo (which depends on formalism) is the crate under verification; algo_std is not.
-    RUN cd explore/hylo && charon cargo --preset=aeneas
-    RUN mkdir -p /out && aeneas -backend lean -dest /out explore/hylo/hylo.llbc
+    # Extraction starts from the named algorithms, so the GAT-based generic API (which Aeneas
+    # cannot translate) is never reached: only the per-shape core and what it uses.
+    ARG START_FROM=hylo::sort::insertion_sort,hylo::sort::selection_sort,hylo::sort::quicksort,hylo::sort::mergesort,hylo::seq::reduce_seq,hylo::seq::reduce_par,hylo::seq::scan,hylo::num::gcd,hylo::num::power,hylo::path::relax,hylo::path::relax_acyclic,hylo::path::closure,hylo::search::search,hylo::search::maximise,hylo::search::maximise_count,hylo::dp::trace_dp
+    RUN cd explore/hylo && charon cargo --preset=aeneas --start-from="$START_FROM" --dest-file=/src/hylo.llbc || true; \
+        [ -f /src/hylo.llbc ] || cp "$(find / -name 'hylo.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/hylo.llbc; \
+        ls -la /src/hylo.llbc
+    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/hylo.llbc
     SAVE ARTIFACT /out /Extracted AS LOCAL explore/formalism/verify/FormalismVerify/Extracted
 
 verify:

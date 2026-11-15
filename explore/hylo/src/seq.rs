@@ -30,7 +30,8 @@ impl<M: Monoid> LeafTreeAlgebra<M> for Scan<M> {
             LeafTree::Leaf(None) => (M::unit(), Vec::new()),
             LeafTree::Leaf(Some(x)) => (x, alloc::vec![x]),
             LeafTree::Node((tl, mut pl), (tr, pr)) => {
-                pl.extend(pr.into_iter().map(|x| tl.op(x)));
+                let mut i = 0;
+                while i < pr.len() { pl.push(tl.op(pr[i])); i += 1; }
                 (tl.op(tr), pl)
             }
         }

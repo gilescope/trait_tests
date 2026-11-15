@@ -22,6 +22,9 @@ impl<'p, P: Traced> RoseAlgebra<P::Op> for TraceDp<'p, P> {
 
 /// `⊎` of the accepted root rows: the expression of the solution set.
 pub fn trace_dp<P: Traced>(p: &P, root: Node<P::Op>) -> Expr {
-    let table = hylo_rose(&mut Project, &mut TraceDp(p), root);
-    table.into_iter().filter(|r| p.accept(&r.tau)).fold(Expr::Empty, |e, r| union(e, r.expr))
+    let mut table = hylo_rose(&mut Project, &mut TraceDp(p), root);
+    table.reverse();
+    let mut e = Expr::Empty;
+    while let Some(row) = table.pop() { if p.accept(&row.tau) { e = union(e, row.expr); } }
+    e
 }

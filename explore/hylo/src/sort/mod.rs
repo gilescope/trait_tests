@@ -14,7 +14,16 @@ pub struct Insert;
 impl<T: Ord> ListAlgebra<T> for Insert {
     type Out = Vec<T>;
     fn fold(&mut self, l: Option<(T, Vec<T>)>) -> Vec<T> {
-        match l { None => Vec::new(), Some((h, mut t)) => { let i = t.partition_point(|x| *x < h); t.insert(i, h); t } }
+        match l {
+            None => Vec::new(),
+            Some((h, mut t)) => {
+                // first index whose element is not < h, by hand (no closure for the extractor)
+                let mut i = 0;
+                while i < t.len() && t[i] < h { i += 1; }
+                t.insert(i, h);
+                t
+            }
+        }
     }
 }
 
@@ -23,7 +32,10 @@ pub struct SelectMin;
 impl<T: Ord> ListPlan<T> for SelectMin {
     type Seed = Vec<T>;
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>)> {
-        let i = (0..v.len()).min_by(|&a, &b| v[a].cmp(&v[b]))?;
+        if v.is_empty() { return None; }
+        let mut i = 0;
+        let mut j = 1;
+        while j < v.len() { if v[j] < v[i] { i = j; } j += 1; }
         let m = v.swap_remove(i);
         Some((m, v))
     }
@@ -51,7 +63,15 @@ pub struct Concat;
 impl<T> NodeTreeAlgebra<T> for Concat {
     type Out = Vec<T>;
     fn fold(&mut self, l: Option<(T, Vec<T>, Vec<T>)>) -> Vec<T> {
-        match l { None => Vec::new(), Some((p, mut a, b)) => { a.push(p); a.extend(b); a } }
+        match l {
+            None => Vec::new(),
+            Some((p, mut a, mut b)) => {
+                a.push(p);
+                b.reverse();
+                while let Some(x) = b.pop() { a.push(x); }
+                a
+            }
+        }
     }
 }
 
@@ -68,7 +88,7 @@ impl<T: Ord> LeafTreeAlgebra<T> for Merge {
     type Out = Vec<T>;
     fn fold(&mut self, l: LeafTree<T, Vec<T>>) -> Vec<T> {
         match l {
-            LeafTree::Leaf(t) => t.into_iter().collect(),
+            LeafTree::Leaf(t) => { let mut v = Vec::new(); if let Some(x) = t { v.push(x); } v }
             LeafTree::Node(mut a, mut b) => {
                 // consume from the back so no element is ever moved out by index
                 a.reverse();

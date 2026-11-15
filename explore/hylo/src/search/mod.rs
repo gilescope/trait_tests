@@ -19,12 +19,22 @@ pub trait GlobalSearch {
     fn extract(&self, r: &Self::Space) -> bool;
 }
 
+/// Children that pass the necessary filter, kept in order. Written as a loop so the extractor
+/// never sees a closure.
+fn keep_filtered<P: GlobalSearch>(p: &P, kids: Vec<P::Space>) -> Vec<P::Space> {
+    let mut out = Vec::new();
+    let mut kids = kids;
+    kids.reverse();
+    while let Some(k) = kids.pop() { if p.filter(&k) { out.push(k); } }
+    out
+}
+
 /// The plan: unfold a space into its filtered children. Recursive because GS1 makes spaces shrink.
 pub struct Backtrack<'p, P: GlobalSearch> { p: &'p P }
 impl<'p, P: GlobalSearch> RosePlan<P::Space> for Backtrack<'p, P> {
     type Seed = P::Space;
     fn unfold(&mut self, r: P::Space) -> (P::Space, Vec<P::Space>) {
-        let kids = self.p.split(&r).into_iter().filter(|c| self.p.filter(c)).collect();
+        let kids = keep_filtered(self.p, self.p.split(&r));
         (r, kids)
     }
 }
@@ -40,8 +50,10 @@ pub struct Aggregate<'p, P: GlobalSearch, S> { p: &'p P, _s: core::marker::Phant
 impl<'p, P: Weigh<S>, S: Semiring> RoseAlgebra<P::Space> for Aggregate<'p, P, S> {
     type Out = S;
     fn fold(&mut self, (r, kids): (P::Space, Vec<S>)) -> S {
-        let here = if self.p.extract(&r) { self.p.weigh(&r) } else { S::zero() };
-        kids.into_iter().fold(here, S::add)
+        let mut acc = if self.p.extract(&r) { self.p.weigh(&r) } else { S::zero() };
+        let mut i = 0;
+        while i < kids.len() { acc = acc.add(kids[i]); i += 1; }
+        acc
     }
 }
 
@@ -57,13 +69,24 @@ impl GlobalSearch for Queens {
     type Space = (usize, Vec<usize>); // (n, columns by row)
     fn initial(&self, n: &usize) -> Self::Space { (*n, Vec::new()) }
     fn split(&self, (n, cols): &Self::Space) -> Vec<Self::Space> {
-        if cols.len() == *n { return Vec::new(); }
-        (0..*n).map(|c| { let mut v = cols.clone(); v.push(c); (*n, v) }).collect()
+        let mut out = Vec::new();
+        if cols.len() == *n { return out; }
+        let mut c = 0;
+        while c < *n { let mut v = cols.clone(); v.push(c); out.push((*n, v)); c += 1; }
+        out
     }
     fn filter(&self, (_, cols): &Self::Space) -> bool {
-        let Some((&c, rest)) = cols.split_last() else { return true };
-        let r = rest.len();
-        rest.iter().enumerate().all(|(i, &ci)| ci != c && (r - i) != c.abs_diff(ci))
+        if cols.is_empty() { return true; }
+        let r = cols.len() - 1;
+        let c = cols[r];
+        let mut ok = true;
+        let mut i = 0;
+        while i < r {
+            let ci = cols[i];
+            if ci == c || (r - i) == c.abs_diff(ci) { ok = false; }
+            i += 1;
+        }
+        ok
     }
     fn extract(&self, (n, cols): &Self::Space) -> bool { cols.len() == *n }
 }
@@ -71,7 +94,12 @@ impl Weigh<crate::algebra::Boolean> for Queens {}
 impl Weigh<crate::algebra::Nat> for Queens {}
 /// Cost of a placement: the sum of its columns. Arbitrary, but it has ties, which is the point.
 impl Weigh<crate::algebra::Tropical> for Queens {
-    fn weigh(&self, (_, cols): &Self::Space) -> crate::algebra::Tropical { crate::algebra::Tropical(cols.iter().map(|&c| c as u64).sum()) }
+    fn weigh(&self, (_, cols): &Self::Space) -> crate::algebra::Tropical {
+        let mut s = 0u64;
+        let mut i = 0;
+        while i < cols.len() { s += cols[i] as u64; i += 1; }
+        crate::algebra::Tropical(s)
+    }
 }
 impl Weigh<crate::algebra::Delta<crate::algebra::Tropical, crate::algebra::Nat>> for Queens {
     fn weigh(&self, r: &Self::Space) -> crate::algebra::Delta<crate::algebra::Tropical, crate::algebra::Nat> {
@@ -106,7 +134,7 @@ impl<'p, P: Bounded> RosePlan<(P::Space, bool)> for BranchBound<'p, P> {
         if self.p.extract(&r) {
             self.incumbent = self.incumbent.max(self.p.value(&r));
         }
-        let kids = self.p.split(&r).into_iter().filter(|c| self.p.filter(c)).collect();
+        let kids = keep_filtered(self.p, self.p.split(&r));
         ((r, false), kids)
     }
 }
@@ -117,8 +145,10 @@ pub struct Best<'p, P: Bounded> { p: &'p P }
 impl<'p, P: Bounded> RoseAlgebra<(P::Space, bool)> for Best<'p, P> {
     type Out = u64;
     fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<u64>)) -> u64 {
-        let here = if !pruned && self.p.extract(&r) { self.p.value(&r) } else { 0 };
-        kids.into_iter().fold(here, u64::max)
+        let mut best = if !pruned && self.p.extract(&r) { self.p.value(&r) } else { 0 };
+        let mut i = 0;
+        while i < kids.len() { if kids[i] > best { best = kids[i]; } i += 1; }
+        best
     }
 }
 
@@ -133,8 +163,10 @@ impl<'p, P: Bounded> RoseAlgebra<(P::Space, bool)> for BestCount<'p, P> {
     type Out = crate::algebra::Delta<crate::algebra::MaxPlus, crate::algebra::Nat>;
     fn fold(&mut self, ((r, pruned), kids): ((P::Space, bool), Vec<Self::Out>)) -> Self::Out {
         use crate::algebra::{Delta, MaxPlus, Nat, Semiring};
-        let here = if !pruned && self.p.extract(&r) { Delta::new(MaxPlus(Some(self.p.value(&r))), Nat(1)) } else { Delta::zero() };
-        kids.into_iter().fold(here, Delta::add)
+        let mut acc = if !pruned && self.p.extract(&r) { Delta::new(MaxPlus(Some(self.p.value(&r))), Nat(1)) } else { Delta::zero() };
+        let mut i = 0;
+        while i < kids.len() { acc = acc.add(kids[i]); i += 1; }
+        acc
     }
 }
 
@@ -163,11 +195,23 @@ impl Bounded for Knapsack {
     fn value(&self, &(_, _, v): &Self::Space) -> u64 { v }
     /// Value so far plus the fractional relaxation of what remains: admissible.
     fn bound(&self, &(i, w, v): &Self::Space) -> u64 {
-        let mut rest: Vec<(u64, u64)> = self.items[i..].to_vec();
-        rest.sort_by(|a, b| (b.1 * a.0).cmp(&(a.1 * b.0))); // by value density, descending
+        // remaining items by value density, descending: insertion sort without a closure
+        let mut rest: Vec<(u64, u64)> = Vec::new();
+        let mut k = i;
+        while k < self.items.len() {
+            let (wk, vk) = self.items[k];
+            let mut pos = 0;
+            while pos < rest.len() && rest[pos].1 * wk >= vk * rest[pos].0 { pos += 1; }
+            rest.insert(pos, (wk, vk));
+            k += 1;
+        }
         let (mut cap, mut b) = (self.capacity - w, v);
-        for (wi, vi) in rest {
-            if wi <= cap { cap -= wi; b += vi; } else { b += vi * cap / wi.max(1); break; }
+        let mut j = 0;
+        let mut full = false;
+        while j < rest.len() && !full {
+            let (wj, vj) = rest[j];
+            if wj <= cap { cap -= wj; b += vj; } else { b += vj * cap / if wj > 0 { wj } else { 1 }; full = true; }
+            j += 1;
         }
         b
     }
