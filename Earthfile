@@ -40,11 +40,16 @@ aeneas-nix:
         build "github:$AENEAS_REPO/$AENEAS_REV#aeneas" -o /opt/aeneas
 
 # Charon + Aeneas from a release tarball (static linux x86_64; the gilescope fork publishes them).
+# The tarball ships aeneas, charon, charon-driver and the rust-toolchain pin charon-driver needs;
+# rustup installs that toolchain from the pin placed at / so every cargo invocation below finds it.
 aeneas-tarball:
     FROM ubuntu:24.04
-    RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && rm -rf /var/lib/apt/lists/*
+    RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git build-essential && rm -rf /var/lib/apt/lists/*
     RUN mkdir -p /opt/aeneas/bin && curl -sSfL "$AENEAS_TARBALL_URL" | tar -xz -C /opt/aeneas/bin
-    RUN ls -la /opt/aeneas/bin && /opt/aeneas/bin/aeneas -version && /opt/aeneas/bin/charon --version
+    RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none --profile minimal
+    ENV PATH=/root/.cargo/bin:/opt/aeneas/bin:$PATH
+    RUN cp /opt/aeneas/bin/rust-toolchain /rust-toolchain.toml && cat /rust-toolchain.toml && cd / && rustup toolchain install && rustup show active-toolchain
+    RUN aeneas -version && charon --help | head -3
 
 # Pick one: the IF needs a shell, hence the throwaway base image.
 aeneas:
