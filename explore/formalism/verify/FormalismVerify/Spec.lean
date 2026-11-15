@@ -629,11 +629,12 @@ theorem rowExpr_unionInto (tau : Tau) (e : Expr) (τ : Tau) :
       · simp [unionInto, rowExpr, ht, h, rowExpr_unionInto tau e τ rows]
 
 /-- `union_into` adds a disjoint, same-domain set to the row of `tau`. -/
-theorem TableSem.unionInto {T : Table Tau} {S : Tau → Finset Assign} (hT : TableSem T S)
+theorem TableSem.unionInto_sem {T : Table Tau} {S : Tau → Finset Assign} (hT : TableSem T S)
     {tau : Tau} {e : Expr} {E : Finset Assign} (he : Sem e E) (hdisj : Disjoint (S tau) E)
     (hdom : ∀ f ∈ S tau, ∀ g ∈ E, f.dom = g.dom) :
     TableSem (unionInto T tau e) fun τ => if τ = tau then S tau ∪ E else S τ := by
   intro τ
+  dsimp only
   rw [rowExpr_unionInto]
   by_cases h : τ = tau
   · rw [if_pos h, if_pos h]
@@ -655,13 +656,14 @@ theorem TableSem.foldl_unionInto {Dn : Finset Var} (D : Tau × Expr → Finset A
       (∀ it ∈ items, Disjoint (S it.1) (D it)) →
       (∀ it ∈ items, ∀ f ∈ D it, f.dom = Dn) →
       (∀ τ, ∀ f ∈ S τ, f.dom = Dn) →
-      TableSem (items.foldl (fun T it => unionInto T it.1 it.2) T) fun τ => S τ ∪ itemsSet D items τ
+      TableSem (items.foldl (fun T it => Traced.unionInto T it.1 it.2) T) fun τ =>
+        S τ ∪ itemsSet D items τ
   | [], T, S, hT, _, _, _, _, _ => by
     intro τ
     simpa [itemsSet] using hT τ
   | it :: items, T, S, hT, hD, hpair, hS, hdomD, hdomS => by
     rw [List.pairwise_cons] at hpair
-    have hT' := TableSem.unionInto hT (hD it (List.mem_cons_self ..)) (hS it (List.mem_cons_self ..))
+    have hT' := TableSem.unionInto_sem hT (hD it (List.mem_cons_self ..)) (hS it (List.mem_cons_self ..))
       (fun f hf g hg => by rw [hdomS _ f hf, hdomD it (List.mem_cons_self ..) g hg])
     have ih := TableSem.foldl_unionInto (Dn := Dn) D items hT'
       (fun it' h => hD it' (List.mem_cons_of_mem _ h)) hpair.2
@@ -733,7 +735,8 @@ theorem mem_foldl_join_image :
       cases hfs with
       | cons ha hfs =>
         rename_i a fs'
-        exact ⟨e.join a, Finset.mem_image_of_mem _ (Finset.mem_product.mpr ⟨he, ha⟩), fs', hfs, rfl⟩
+        exact ⟨e.join a, Finset.mem_image.mpr ⟨(e, a), Finset.mem_product.mpr ⟨he, ha⟩, rfl⟩, fs', hfs,
+          rfl⟩
 
 theorem mem_joinedSet (R : List (Finset Assign)) (f : Assign) :
     f ∈ joinedSet R ↔ ∃ fs, List.Forall₂ (· ∈ ·) fs R ∧ f = Assign.joinAll fs := by
