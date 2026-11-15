@@ -47,11 +47,18 @@ def IsAlgHom (a : F β → β) (a' : F γ → γ) (hom : β → γ) : Prop :=
 theorem fusion (a : F β → β) (a' : F γ → γ) (hom : β → γ) (hab : IsAlgHom a a' hom)
     (c : α → F α) (hc : IsRecursive c) :
     hom ∘ hylo a c hc = hylo a' c hc := by
-  -- Proof: `hom ∘ h` solves the equation for `a'`:
-  --   hom ∘ h = hom ∘ a ∘ map h ∘ c = a' ∘ map hom ∘ map h ∘ c = a' ∘ map (hom ∘ h) ∘ c
-  -- (by `hab` and `LawfulFunctor.comp_map`), and `hylo_unique` concludes.
-  -- Left as `sorry` until the first build runs; the statement is the deliverable here.
-  sorry
+  apply hylo_unique
+  unfold Solves
+  have hh : hylo a c hc = a ∘ Functor.map (hylo a c hc) ∘ c := hylo_solves a c hc
+  have hmap : Functor.map (hom ∘ hylo a c hc) =
+      (Functor.map hom ∘ Functor.map (hylo a c hc) : F α → F γ) :=
+    funext fun x => LawfulFunctor.comp_map (hylo a c hc) hom x
+  calc hom ∘ hylo a c hc
+      = hom ∘ (a ∘ Functor.map (hylo a c hc) ∘ c) := congrArg (fun g => hom ∘ g) hh
+    _ = (hom ∘ a) ∘ Functor.map (hylo a c hc) ∘ c := rfl
+    _ = (a' ∘ Functor.map hom) ∘ Functor.map (hylo a c hc) ∘ c := by rw [hab]
+    _ = a' ∘ (Functor.map hom ∘ Functor.map (hylo a c hc)) ∘ c := rfl
+    _ = a' ∘ Functor.map (hom ∘ hylo a c hc) ∘ c := by rw [hmap]
 
 /-! ## The homomorphism theorem, for the two sequence shapes in the crate -/
 
