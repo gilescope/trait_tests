@@ -41,8 +41,8 @@ jobs:
           - { repo: AeneasVerif/aeneas, rev: 1dc8ad31b1b062a77c50e29144a6c7bba955fa09, tarball: "https://github.com/AeneasVerif/aeneas/releases/download/nightly-2026.11.15-1dc8ad3/aeneas-linux-x86_64.tar.gz" }
           # the fork publishes static binaries: no nix build, minutes instead of a quarter hour
           - { repo: gilescope/aeneas,   rev: 7a8e1114293e89615bff16e23edd0593221c7495, tarball: "https://github.com/gilescope/aeneas/releases/download/build-7a8e111/aeneas-linux-x86_64.tar.gz" }
-          # the GAT-lite branch (release/gat-lite = gat-lite d158ed8 + release workflow): +probe-gat is its acceptance test
-          - { repo: gilescope/aeneas,   rev: 1977b47e0a9b9bdb6648b73209ee0ecc26b6c42c, tarball: "https://github.com/gilescope/aeneas/releases/download/build-1977b47/aeneas-linux-x86_64.tar.gz" }
+          # the GAT-lite branch (release/gat-lite = gat-lite b2a7475 merged + release workflow): +probe-gat is its acceptance test
+          - { repo: gilescope/aeneas,   rev: 74561b75ce1e198502fa6f9e88463ddd6dab80ff, tarball: "https://github.com/gilescope/aeneas/releases/download/build-74561b7/aeneas-linux-x86_64.tar.gz" }
     env:
       # One cache image per Aeneas revision: the nix build and the mathlib fetch are layers in it,
       # so a second run against the same revision skips both. --push writes the cache; nothing
