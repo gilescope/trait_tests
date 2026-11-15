@@ -894,6 +894,13 @@ theorem rowExpr_of_mem :
       rw [rowExpr, if_neg hne]
       exact rowExpr_of_mem hnd.2 h
 
+theorem eq_of_mem_of_fst_eq {T : Table Tau} (hnd : (T.map Prod.fst).Nodup) {r r' : Tau × Expr}
+    (hr : r ∈ T) (hr' : r' ∈ T) (h : r.1 = r'.1) : r = r' := by
+  have h1 := rowExpr_of_mem hnd (show (r.1, r.2) ∈ T from hr)
+  have h2 := rowExpr_of_mem hnd (show (r'.1, r'.2) ∈ T from hr')
+  rw [h] at h1
+  exact Prod.ext h (h1.symm.trans h2)
+
 theorem mem_of_rowExpr_ne :
     ∀ {T : Table Tau} {t : Tau}, rowExpr T t ≠ .empty → (t, rowExpr T t) ∈ T
   | [], _, h => absurd rfl h
@@ -1016,6 +1023,18 @@ theorem mem_foldr_union {α : Type*} [DecidableEq α] :
     · obtain ⟨B, hB, hx⟩ := mem_foldr_union l h
       exact ⟨B, List.mem_cons_of_mem _ hB, hx⟩
 
+theorem forall₂_imp_mem {α β : Type*} {R S : α → β → Prop} :
+    ∀ {as : List α} {bs : List β}, (∀ a ∈ as, ∀ b ∈ bs, R a b → S a b) →
+      List.Forall₂ R as bs → List.Forall₂ S as bs
+  | [], [], _, _ => List.Forall₂.nil
+  | [], _ :: _, _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+  | a :: as, b :: bs, hRS, h => by
+    rw [List.forall₂_cons] at h
+    exact List.Forall₂.cons (hRS a (List.mem_cons_self ..) b (List.mem_cons_self ..) h.1)
+      (forall₂_imp_mem (fun a' ha' b' hb' => hRS a' (List.mem_cons_of_mem _ ha') b'
+        (List.mem_cons_of_mem _ hb')) h.2)
+
 theorem forall₂_mem_left {α β : Type*} {R : α → β → Prop} :
     ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs → ∀ {a}, a ∈ as → ∃ b ∈ bs, R a b
   | [], [], _, _, h => nomatch h
@@ -1026,6 +1045,38 @@ theorem forall₂_mem_left {α β : Type*} {R : α → β → Prop} :
     · exact ⟨b, List.mem_cons_self .., h.1⟩
     · obtain ⟨b', hb', hr⟩ := forall₂_mem_left h.2 ha'
       exact ⟨b', List.mem_cons_of_mem _ hb', hr⟩
+
+theorem pairwise_flatMap_of {α β : Type*} {R : β → β → Prop} (g : α → List β) :
+    ∀ L : List α, (∀ x ∈ L, (g x).Pairwise R) →
+      L.Pairwise (fun x y => ∀ a ∈ g x, ∀ b ∈ g y, R a b) → (L.flatMap g).Pairwise R
+  | [], _, _ => List.Pairwise.nil
+  | x :: L, hin, hout => by
+    rw [List.pairwise_cons] at hout
+    rw [List.flatMap_cons, List.pairwise_append]
+    refine ⟨hin x (List.mem_cons_self ..), pairwise_flatMap_of g L
+      (fun y hy => hin y (List.mem_cons_of_mem _ hy)) hout.2, ?_⟩
+    intro a ha b hb
+    rw [List.mem_flatMap] at hb
+    obtain ⟨y, hy, hb⟩ := hb
+    exact hout.1 y hy a ha b hb
+
+theorem nodup_sections {α : Type*} :
+    ∀ L : List (List α), (∀ l ∈ L, l.Nodup) → L.sections.Nodup
+  | [], _ => by simp [List.sections]
+  | l :: L, h => by
+    rw [List.sections, List.nodup_flatMap]
+    refine ⟨?_, ?_⟩
+    · intro s _
+      exact (h l (List.mem_cons_self ..)).map fun a b hab => (List.cons.inj hab).1
+    · have ih := nodup_sections L fun l' hl' => h l' (List.mem_cons_of_mem _ hl')
+      refine List.Pairwise.imp ?_ ih
+      intro s s' hne
+      rw [List.disjoint_left]
+      intro x hx hx'
+      rw [List.mem_map] at hx hx'
+      obtain ⟨a, _, rfl⟩ := hx
+      obtain ⟨a', _, h'⟩ := hx'
+      exact hne (List.cons.inj h').2.symm
 
 /-! ### Instances -/
 
@@ -1188,6 +1239,146 @@ theorem item_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
     exact List.mem_map.mpr ⟨q, hq, rfl⟩
   exact Finset.disjoint_left.mp (I.owned_disjoint op cs c hc) hq_owned hqc
 
+/-- The leaves of an output, as an assignment, assign exactly the owned variables. -/
+theorem ofList_dom_owned {op : Op} {taus : List Tau} {out : Tau × List (Var × Val)}
+    (hout : out ∈ I.step op taus) : (Assign.ofList out.2).dom = I.owned op := by
+  obtain ⟨hnd, hvars⟩ := I.step_leaves op taus out hout
+  rw [Assign.ofList_dom _ hnd, hvars]
+
+/-- A member of an item restricts to the output's leaves on the owned variables. -/
+theorem restrict_owned_of_mem_itemSet {op : Op} {cs : List (Node Op)} {rows : List (Tau × Expr)}
+    {out : Tau × List (Var × Val)} (hout : out ∈ I.step op (rows.map Prod.fst)) {f : Assign}
+    (hf : f ∈ I.itemSet cs rows out) : f.restrict (I.owned op) = Assign.ofList out.2 := by
+  rw [itemSet, Finset.mem_image] at hf
+  obtain ⟨a, ha, rfl⟩ := hf
+  rw [mem_joinedSet] at ha
+  obtain ⟨fs, hfs, rfl⟩ := ha
+  have hd : Disjoint (Assign.joinAll fs).dom (Assign.ofList out.2).dom := by
+    rw [I.ofList_dom_owned hout, Finset.disjoint_left]
+    intro x hx hxo
+    obtain ⟨c, hc, hxc⟩ := I.mem_dom_joinAll hfs hx
+    exact Finset.disjoint_left.mp (I.owned_disjoint op cs c hc) hxo hxc
+  rw [← I.ofList_dom_owned hout]
+  exact Assign.join_restrict_right hd
+
+/-- Restricting a join of one candidate per child (with the rows' traces) to a child's variables
+    gives a candidate of that child with that row's trace. -/
+theorem restrict_foldl_join_rows :
+    ∀ (rows : List (Tau × Expr)) (cs : List (Node Op)) (fs : List Assign),
+      List.Forall₂ (· ∈ ·) fs (List.zipWith (fun r c => I.rowSet c r.1) rows cs) →
+      rows.length = cs.length →
+      cs.Pairwise (fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) →
+      ∀ e : Assign, (∀ c ∈ cs, Disjoint e.dom (I.nodeDom c)) →
+      List.Forall₂ (fun r c => (fs.foldl Assign.join e).restrict (I.nodeDom c) ∈ I.rowSet c r.1)
+        rows cs
+  | [], [], _, _, _, _, _, _ => List.Forall₂.nil
+  | [], _ :: _, _, _, hlen, _, _, _ => by simp at hlen
+  | _ :: _, [], _, _, hlen, _, _, _ => by simp at hlen
+  | r :: rows, c :: cs, fs, hfs, hlen, hpair, e, he => by
+    rw [List.zipWith_cons_cons] at hfs
+    cases hfs with
+    | cons hf hfs =>
+      rename_i f fs
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
+      rw [List.pairwise_cons] at hpair
+      rw [List.foldl_cons]
+      have hf' := hf
+      rw [rowSet, Finset.mem_filter] at hf'
+      have hfd : f.dom = I.nodeDom c := I.dom_eq c f hf'.1
+      refine List.Forall₂.cons ?_ ?_
+      · rw [Assign.restrict_foldl_join fs (e.join f)]
+        · rw [Assign.restrict_join_of_disjoint_left (he c (List.mem_cons_self ..)).symm, ← hfd,
+            Assign.restrict_dom_self]
+          exact hf
+        · intro g hg
+          obtain ⟨A, hA, hgA⟩ := forall₂_mem_left hfs hg
+          obtain ⟨r', c', hc', rfl⟩ := mem_zipWith_right _ rows cs hA
+          rw [rowSet, Finset.mem_filter] at hgA
+          rw [I.dom_eq c' g hgA.1]
+          exact hpair.1 c' hc'
+      · apply I.restrict_foldl_join_rows rows cs fs hfs hlen hpair.2 (e.join f)
+        intro c' hc'
+        apply Finset.disjoint_of_subset_left (Assign.join_dom_subset e f)
+        rw [Finset.disjoint_union_left]
+        exact ⟨he c' (List.mem_cons_of_mem _ hc'), hfd ▸ hpair.1 c' hc'⟩
+
+/-- A member of an item restricts, on each child's variables, to a candidate of that child with
+    the row's trace. -/
+theorem restrict_children_of_mem_itemSet (op : Op) {cs : List (Node Op)}
+    {rows : List (Tau × Expr)} (hlen : rows.length = cs.length) {out : Tau × List (Var × Val)}
+    (hout : out ∈ I.step op (rows.map Prod.fst)) {f : Assign} (hf : f ∈ I.itemSet cs rows out) :
+    List.Forall₂ (fun r c => f.restrict (I.nodeDom c) ∈ I.rowSet c r.1) rows cs := by
+  rw [itemSet, Finset.mem_image] at hf
+  obtain ⟨a, ha, rfl⟩ := hf
+  rw [mem_joinedSet] at ha
+  obtain ⟨fs, hfs, rfl⟩ := ha
+  have hres := I.restrict_foldl_join_rows rows cs fs hfs hlen (I.children_pairwise op cs)
+    Assign.empty (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _)
+  refine forall₂_imp_mem ?_ hres
+  intro r _ c hc h
+  -- the leaves' variables are owned by `op`, away from any child
+  rw [Assign.restrict_join_of_disjoint_right]
+  · exact h
+  · rw [I.ofList_dom_owned hout]
+    exact (I.owned_disjoint op cs c hc).symm
+
+/-- Two tuples of rows that agree on where one assignment restricts are the same tuple. -/
+theorem rows_eq_of_restrict {f : Assign} {tables : List (Table Tau)} {cs : List (Node Op)}
+    (hT : I.TablesSem tables cs) :
+    ∀ {rows rows' : List (Tau × Expr)}, List.Forall₂ (· ∈ ·) rows tables →
+      List.Forall₂ (· ∈ ·) rows' tables →
+      List.Forall₂ (fun r c => f.restrict (I.nodeDom c) ∈ I.rowSet c r.1) rows cs →
+      List.Forall₂ (fun r c => f.restrict (I.nodeDom c) ∈ I.rowSet c r.1) rows' cs →
+      rows = rows' := by
+  induction hT with
+  | nil =>
+    intro rows rows' h1 h2 _ _
+    cases h1
+    cases h2
+    rfl
+  | cons hTc _ ih =>
+    intro rows rows' h1 h2 h3 h4
+    cases h1 with
+    | cons hr h1 =>
+      cases h2 with
+      | cons hr' h2 =>
+        cases h3 with
+        | cons hp h3 =>
+          cases h4 with
+          | cons hp' h4 =>
+            congr 1
+            · apply eq_of_mem_of_fst_eq hTc.2 hr hr'
+              by_contra hne
+              exact Finset.disjoint_left.mp (I.rowSet_disjoint _ hne) hp hp'
+            · exact ih h1 h2 h3 h4
+
+/-- Items of one tuple with different leaves are disjoint. -/
+theorem itemSet_disjoint_of_ne_leaves {op : Op} {cs : List (Node Op)} {rows : List (Tau × Expr)}
+    {out out' : Tau × List (Var × Val)} (hout : out ∈ I.step op (rows.map Prod.fst))
+    (hout' : out' ∈ I.step op (rows.map Prod.fst))
+    (hne : Assign.ofList out.2 ≠ Assign.ofList out'.2) :
+    Disjoint (I.itemSet cs rows out) (I.itemSet cs rows out') := by
+  rw [Finset.disjoint_left]
+  intro f hf hf'
+  exact hne ((I.restrict_owned_of_mem_itemSet hout hf).symm.trans
+    (I.restrict_owned_of_mem_itemSet hout' hf'))
+
+/-- Items of different tuples are disjoint. -/
+theorem itemSet_disjoint_of_ne_rows {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
+    (hT : I.TablesSem tables cs) {rows rows' : List (Tau × Expr)}
+    (hrows : List.Forall₂ (· ∈ ·) rows tables) (hrows' : List.Forall₂ (· ∈ ·) rows' tables)
+    (hne : rows ≠ rows') {out out' : Tau × List (Var × Val)}
+    (hout : out ∈ I.step op (rows.map Prod.fst)) (hout' : out' ∈ I.step op (rows'.map Prod.fst)) :
+    Disjoint (I.itemSet cs rows out) (I.itemSet cs rows' out') := by
+  rw [Finset.disjoint_left]
+  intro f hf hf'
+  have hlen : tables.length = cs.length := List.Forall₂.length_eq hT
+  apply hne
+  exact I.rows_eq_of_restrict hT hrows hrows'
+    (I.restrict_children_of_mem_itemSet op ((List.Forall₂.length_eq hrows).trans hlen) hout hf)
+    (I.restrict_children_of_mem_itemSet op ((List.Forall₂.length_eq hrows').trans hlen) hout' hf')
+
+end Instance
 end Instance
 
 /-- Claim 1 at the root: the DP's output denotes exactly the solution set. Not yet proved. -/
