@@ -32,3 +32,22 @@ the Lean model.
 
 **Recommendation.** Do GAT-lite in the fork as a PR series following the table; steps 1–3 alone
 turn the `CFailure` crash into a clear error (upstream #1195). Offer upstream once green (#1112).
+
+## Status (15 November 2026)
+
+Done in the fork (`gilescope/aeneas`, branch `gat-lite`, draft PR #7), items 1–5 and 7 of the
+table; item 6 was not needed, Charon normalises the projection through known impls already.
+Two fixes beyond the plan were needed and found by the acceptance test, not by inspection:
+
+* `make_subst_from_generics` mapped `Self` to `UnknownTrait` when re-binding a method
+  signature; plain associated types never left a `Self` projection in a signature, a GAT does
+  (`Self::Layer<X>`), and every method mentioning it extracted as `sorry`.
+* Impl methods printed their binders with the impl's explicit-info, computed without inputs,
+  while the trait field used the declaration's, computed from them: `fn wrap<X>(x: X)` read
+  `forall {X}` on one side and `fun (X : Type)` on the other. Pre-existing; no earlier test had a
+  method type parameter that appears only in an input.
+
+The fork CI (tidiness, `nix build`, the regenerated test diff, and Lean compiling every test
+including `Gat.lean`) is green on `b2a7475`. Release tarballs: `build-1977b47` (before the
+binder fix) and the one cut from `release/gat-lite` at `74561b7`. Nothing has been offered
+upstream.

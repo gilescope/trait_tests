@@ -270,6 +270,7 @@ def addA (d₁ : D) (a₁ : A) (d₂ : D) (a₂ : A) : A :=
 theorem addA_comm (d₁ d₂ : D) (a₁ a₂ : A) : addA d₁ a₁ d₂ a₂ = addA d₂ a₂ d₁ a₁ := by
   rcases lt_trichotomy d₁ d₂ with h | h | h <;> (try subst h) <;> simp [*, lt_asymm, add_comm]
 
+set_option linter.unusedSimpArgs false in
 theorem addA_assoc (d₁ d₂ d₃ : D) (a₁ a₂ a₃ : A) :
     addA (min d₁ d₂) (addA d₁ a₁ d₂ a₂) d₃ a₃ = addA d₁ a₁ (min d₂ d₃) (addA d₂ a₂ d₃ a₃) := by
   rcases lt_trichotomy d₁ d₂ with h1 | h1 | h1 <;>
@@ -278,7 +279,7 @@ theorem addA_assoc (d₁ d₂ d₃ : D) (a₁ a₂ a₃ : A) :
   (try subst h1) <;> (try subst h2) <;> (try subst h3) <;>
   first
     | (exfalso; order)
-    | (simp [*, le_of_lt, lt_asymm, min_eq_left, min_eq_right, add_assoc]; done)
+    | simp [*, le_of_lt, lt_asymm, min_eq_left, min_eq_right, add_assoc]
 
 /-- `add` keeps the `D`-minimum and the count of the argmin, summing counts on a tie. -/
 def add (x y : Delta D A) : Delta D A where
