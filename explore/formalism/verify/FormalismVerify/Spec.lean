@@ -8,7 +8,7 @@ programming* (arXiv:2512.03916). Aeneas-extracted definitions land in `Extracted
 are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 
 Checked by `lake build` in CI (`+verify` in the Earthfile). Lemma 1 (`eval_eq_measure`) is
-proved; the Δ-product semiring instance (Theorem 3) and the DP soundness claim are still `sorry`.
+and Theorem 3 (`D Δ A` is a commutative semiring) are proved; the DP soundness claim is still `sorry`.
 -/
 
 namespace Formalism
@@ -213,22 +213,177 @@ end Measure
 
 /-! ## The Δ-product (Section 4) -/
 
-/-- Totally ordered idempotent dioid with a regularity predicate. Mirrors `semiring::Dioid`. -/
+/-- Totally ordered idempotent dioid: `+` is `min` for the order. Mirrors `semiring::Dioid`. -/
 class Dioid (D : Type*) extends CommSemiring D, LinearOrder D where
   add_eq_min : ∀ a b : D, a + b = min a b
-  regular : D → Prop
-  regular_cancel : ∀ a b c : D, regular a → a * b = a * c → b = c
-  zero_not_regular : ¬ regular 0
+
+namespace Dioid
+variable {D : Type*} [Dioid D]
+
+/-- Regular = cancellative. The Rust `Dioid::regular` must agree with this (a law, not a
+    definition, on that side: it is what makes `Delta::new` a semiring). -/
+def regular (d : D) : Prop := ∀ b c : D, d * b = d * c → b = c
+
+theorem regular_one : regular (1 : D) := fun b c h => by simpa using h
+
+theorem regular_mul {a b : D} (ha : regular a) (hb : regular b) : regular (a * b) :=
+  fun x y h => hb x y (ha _ _ (by rwa [← mul_assoc, ← mul_assoc]))
+
+/-- `0` is the greatest element: `a + 0 = a` and `+` is `min`. -/
+theorem le_zero (d : D) : d ≤ 0 := by
+  have h := Dioid.add_eq_min d 0
+  rw [add_zero] at h
+  exact min_eq_left_iff.mp h.symm
+
+/-- Multiplication is monotone, by distributivity over `min`. -/
+theorem mul_le_mul_left (a : D) {b c : D} (h : b ≤ c) : a * b ≤ a * c := by
+  have hbc : b + c = b := by rw [Dioid.add_eq_min, min_eq_left h]
+  have hm : a * b + a * c = a * b := by rw [← mul_add, hbc]
+  rw [Dioid.add_eq_min] at hm
+  exact min_eq_left_iff.mp hm
+
+end Dioid
 
 /-- Definition 12: `D Δ A = {(d, a) | regular d ∨ a = 0}`. -/
+@[ext]
 structure Delta (D A : Type*) [Dioid D] [CommSemiring A] where
   d : D
   a : A
   inv : Dioid.regular d ∨ a = 0
 
+namespace Delta
+variable {D A : Type*} [Dioid D] [CommSemiring A]
+
+/-- The count carried by a sum: that of the strictly smaller cost, both on a tie. -/
+def addA (d₁ : D) (a₁ : A) (d₂ : D) (a₂ : A) : A :=
+  if d₁ < d₂ then a₁ else if d₂ < d₁ then a₂ else a₁ + a₂
+
+@[simp] theorem addA_of_lt {d₁ d₂ : D} (h : d₁ < d₂) (a₁ a₂ : A) : addA d₁ a₁ d₂ a₂ = a₁ := by
+  simp [addA, h]
+
+@[simp] theorem addA_of_gt {d₁ d₂ : D} (h : d₂ < d₁) (a₁ a₂ : A) : addA d₁ a₁ d₂ a₂ = a₂ := by
+  simp [addA, h, lt_asymm h]
+
+@[simp] theorem addA_self (d : D) (a₁ a₂ : A) : addA d a₁ d a₂ = a₁ + a₂ := by
+  simp [addA]
+
+theorem addA_comm (d₁ d₂ : D) (a₁ a₂ : A) : addA d₁ a₁ d₂ a₂ = addA d₂ a₂ d₁ a₁ := by
+  rcases lt_trichotomy d₁ d₂ with h | h | h <;> (try subst h) <;> simp [*, lt_asymm, add_comm]
+
+theorem addA_assoc (d₁ d₂ d₃ : D) (a₁ a₂ a₃ : A) :
+    addA (min d₁ d₂) (addA d₁ a₁ d₂ a₂) d₃ a₃ = addA d₁ a₁ (min d₂ d₃) (addA d₂ a₂ d₃ a₃) := by
+  rcases lt_trichotomy d₁ d₂ with h1 | h1 | h1 <;>
+  rcases lt_trichotomy d₂ d₃ with h2 | h2 | h2 <;>
+  rcases lt_trichotomy d₁ d₃ with h3 | h3 | h3 <;>
+  (try subst h1) <;> (try subst h2) <;> (try subst h3) <;>
+  first
+    | (exfalso; order)
+    | (simp [*, le_of_lt, lt_asymm, min_eq_left, min_eq_right, add_assoc]; done)
+
+/-- `add` keeps the `D`-minimum and the count of the argmin, summing counts on a tie. -/
+def add (x y : Delta D A) : Delta D A where
+  d := min x.d y.d
+  a := addA x.d x.a y.d y.a
+  inv := by
+    rcases lt_trichotomy x.d y.d with h | h | h
+    · rw [min_eq_left h.le, addA_of_lt h]; exact x.inv
+    · rw [h, min_self, addA_self]
+      rcases y.inv with hr | hz
+      · exact Or.inl hr
+      · rcases x.inv with hr' | hz'
+        · exact Or.inl (h ▸ hr')
+        · exact Or.inr (by rw [hz', hz, add_zero])
+    · rw [min_eq_right h.le, addA_of_gt h]; exact y.inv
+
+/-- `mul` is componentwise; the invariant survives because regular elements are closed under
+    products and a non-regular factor carries count `0`. -/
+def mul (x y : Delta D A) : Delta D A where
+  d := x.d * y.d
+  a := x.a * y.a
+  inv := by
+    by_cases hx : Dioid.regular x.d
+    · by_cases hy : Dioid.regular y.d
+      · exact Or.inl (Dioid.regular_mul hx hy)
+      · exact Or.inr (by rw [y.inv.resolve_left hy, mul_zero])
+    · exact Or.inr (by rw [x.inv.resolve_left hx, zero_mul])
+
+instance : Zero (Delta D A) := ⟨⟨0, 0, Or.inr rfl⟩⟩
+instance : One (Delta D A) := ⟨⟨1, 1, Or.inl Dioid.regular_one⟩⟩
+instance : Add (Delta D A) := ⟨add⟩
+instance : Mul (Delta D A) := ⟨mul⟩
+
+@[simp] theorem add_d (x y : Delta D A) : (x + y).d = min x.d y.d := rfl
+@[simp] theorem add_a (x y : Delta D A) : (x + y).a = addA x.d x.a y.d y.a := rfl
+@[simp] theorem mul_d (x y : Delta D A) : (x * y).d = x.d * y.d := rfl
+@[simp] theorem mul_a (x y : Delta D A) : (x * y).a = x.a * y.a := rfl
+@[simp] theorem zero_d : (0 : Delta D A).d = 0 := rfl
+@[simp] theorem zero_a : (0 : Delta D A).a = 0 := rfl
+@[simp] theorem one_d : (1 : Delta D A).d = 1 := rfl
+@[simp] theorem one_a : (1 : Delta D A).a = 1 := rfl
+
+theorem mul_comm' (x y : Delta D A) : x * y = y * x := by
+  ext <;> simp [mul_comm]
+
+/-- Distributivity is where the invariant is needed: if `x.d` does not separate `y.d` from
+    `z.d` then `x.d` is not regular, so `x.a = 0` and both sides vanish. -/
+theorem left_distrib' (x y z : Delta D A) : x * (y + z) = x * y + x * z := by
+  ext
+  · rcases le_total y.d z.d with h | h
+    · simp [min_eq_left h, min_eq_left (Dioid.mul_le_mul_left x.d h)]
+    · simp [min_eq_right h, min_eq_right (Dioid.mul_le_mul_left x.d h)]
+  · simp only [mul_a, add_a, mul_d]
+    rcases lt_trichotomy y.d z.d with h | h | h
+    · rcases (Dioid.mul_le_mul_left x.d h.le).lt_or_eq with h' | h'
+      · simp [h, h']
+      · have hx : x.a = 0 := by
+          rcases x.inv with hr | hz
+          · exact absurd (hr _ _ h') h.ne
+          · exact hz
+        simp [h, h', hx]
+    · simp [h, mul_add]
+    · rcases (Dioid.mul_le_mul_left x.d h.le).lt_or_eq with h' | h'
+      · simp [h, h']
+      · have hx : x.a = 0 := by
+          rcases x.inv with hr | hz
+          · exact absurd (hr _ _ h') h.ne
+          · exact hz
+        simp [h, h', hx]
+
 /-- Theorem 3: `D Δ A` is a commutative semiring. -/
-instance {D A : Type*} [Dioid D] [CommSemiring A] [DecidableEq D] : CommSemiring (Delta D A) := by
-  sorry
+instance : CommSemiring (Delta D A) where
+  add := (· + ·)
+  add_assoc x y z := by
+    ext
+    · simp [min_assoc]
+    · simp only [add_a, add_d]
+      exact addA_assoc _ _ _ _ _ _
+  zero := 0
+  zero_add x := by
+    ext
+    · simp [min_eq_right (Dioid.le_zero x.d)]
+    · simp [addA, not_lt.mpr (Dioid.le_zero x.d)]
+  add_zero x := by
+    ext
+    · simp [min_eq_left (Dioid.le_zero x.d)]
+    · simp [addA, not_lt.mpr (Dioid.le_zero x.d)]
+  add_comm x y := by
+    ext
+    · simp [min_comm]
+    · simp only [add_a]
+      exact addA_comm _ _ _ _
+  mul := (· * ·)
+  left_distrib := left_distrib'
+  right_distrib x y z := by
+    rw [mul_comm' (x + y) z, left_distrib', mul_comm' z x, mul_comm' z y]
+  zero_mul x := by ext <;> simp
+  mul_zero x := by ext <;> simp
+  mul_assoc x y z := by ext <;> simp [mul_assoc]
+  one := 1
+  one_mul x := by ext <;> simp
+  mul_one x := by ext <;> simp
+  mul_comm := mul_comm'
+
+end Delta
 
 /-! ## The generic trace DP (Remark 3) -/
 
