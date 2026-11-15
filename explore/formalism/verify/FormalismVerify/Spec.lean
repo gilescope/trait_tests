@@ -1006,6 +1006,16 @@ theorem forall₂_zipWith_of_forall₂ {α β γ : Type*} (g : α → β → γ)
     rw [List.zipWith_cons_cons]
     exact List.Forall₂.cons (hQ a b h.1) (forall₂_zipWith_of_forall₂ g hQ h.2)
 
+theorem mem_foldr_union {α : Type*} [DecidableEq α] :
+    ∀ (l : List (Finset α)) {x : α}, x ∈ l.foldr (· ∪ ·) ∅ → ∃ A ∈ l, x ∈ A
+  | [], _, h => absurd h (Finset.notMem_empty _)
+  | A :: l, x, h => by
+    rw [List.foldr_cons, Finset.mem_union] at h
+    rcases h with h | h
+    · exact ⟨A, List.mem_cons_self .., h⟩
+    · obtain ⟨B, hB, hx⟩ := mem_foldr_union l h
+      exact ⟨B, List.mem_cons_of_mem _ hB, hx⟩
+
 theorem forall₂_mem_left {α β : Type*} {R : α → β → Prop} :
     ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs → ∀ {a}, a ∈ as → ∃ b ∈ bs, R a b
   | [], [], _, _, h => nomatch h
@@ -1104,6 +1114,79 @@ theorem restrict_joinAll {fs : List Assign} {cs : List (Node Op)}
     List.Forall₂ (fun f c => (Assign.joinAll fs).restrict (I.nodeDom c) = f) fs cs :=
   I.restrict_foldl_join_cand hF (I.children_pairwise op cs) Assign.empty
     (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _)
+
+/-- The children's tables, as the induction hypothesis provides them. -/
+def TablesSem (tables : List (Table Tau)) (cs : List (Node Op)) : Prop :=
+  List.Forall₂ (fun T c => TableSem T (I.rowSet c) ∧ (T.map Prod.fst).Nodup) tables cs
+
+/-- One row from each child denotes that child's candidates with the row's trace. -/
+theorem rows_sem :
+    ∀ {rows : List (Tau × Expr)} {tables : List (Table Tau)} {cs : List (Node Op)},
+      List.Forall₂ (· ∈ ·) rows tables → I.TablesSem tables cs →
+      List.Forall₂ (fun r c => Sem r.2 (I.rowSet c r.1)) rows cs
+  | [], [], [], _, _ => List.Forall₂.nil
+  | [], [], _ :: _, _, hT => nomatch hT
+  | [], _ :: _, _, hr, _ => nomatch hr
+  | _ :: _, [], _, hr, _ => nomatch hr
+  | _ :: _, _ :: _, [], _, hT => nomatch hT
+  | r :: rows, T :: tables, c :: cs, hr, hT => by
+    rw [List.forall₂_cons] at hr hT
+    refine List.Forall₂.cons ?_ (I.rows_sem hr.2 hT.2)
+    have h := hT.1.1 r.1
+    rw [rowExpr_of_mem hT.1.2 (show (r.1, r.2) ∈ T from hr.1)] at h
+    exact h
+
+/-- The denotation of one item: one candidate per child with the rows' traces, joined with the
+    leaves of one `step` output. -/
+def itemSet (cs : List (Node Op)) (rows : List (Tau × Expr)) (out : Tau × List (Var × Val)) :
+    Finset Assign :=
+  (joinedSet (List.zipWith (fun r c => I.rowSet c r.1) rows cs)).image fun f =>
+    f.join (Assign.ofList out.2)
+
+theorem joined_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
+    (hT : I.TablesSem tables cs) {rows : List (Tau × Expr)}
+    (hrows : List.Forall₂ (· ∈ ·) rows tables) :
+    Sem (joined rows) (joinedSet (List.zipWith (fun r c => I.rowSet c r.1) rows cs)) := by
+  have hrs := I.rows_sem hrows hT
+  apply Sem.joined
+  · exact forall₂_zipWith_of_forall₂ _ (fun _ _ h => h) hrs
+  · apply pairwise_zipWith_right (P := fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) _ _
+      rows cs (I.children_pairwise op cs)
+    intro r r' c c' hcc' f hf g hg
+    rw [rowSet, Finset.mem_filter] at hf hg
+    rw [I.dom_eq c f hf.1, I.dom_eq c' g hg.1]
+    exact hcc'
+
+/-- A variable of a join of child candidates belongs to one of the children. -/
+theorem mem_dom_joinAll {cs : List (Node Op)} {rows : List (Tau × Expr)} {fs : List Assign}
+    (hfs : List.Forall₂ (· ∈ ·) fs (List.zipWith (fun r c => I.rowSet c r.1) rows cs)) {x : Var}
+    (hx : x ∈ (Assign.joinAll fs).dom) : ∃ c ∈ cs, x ∈ I.nodeDom c := by
+  unfold Assign.joinAll at hx
+  have hsub := Assign.dom_foldl_join_subset fs Assign.empty hx
+  rw [Assign.empty_dom, Finset.empty_union] at hsub
+  obtain ⟨D, hD, hxD⟩ := mem_foldr_union _ hsub
+  rw [List.mem_map] at hD
+  obtain ⟨g, hg, rfl⟩ := hD
+  obtain ⟨A, hA, hgA⟩ := forall₂_mem_left hfs hg
+  obtain ⟨r, c, hc, rfl⟩ := mem_zipWith_right _ rows cs hA
+  rw [rowSet, Finset.mem_filter] at hgA
+  exact ⟨c, hc, I.dom_eq c g hgA.1 ▸ hxD⟩
+
+theorem item_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
+    (hT : I.TablesSem tables cs) {rows : List (Tau × Expr)}
+    (hrows : List.Forall₂ (· ∈ ·) rows tables) {out : Tau × List (Var × Val)}
+    (hout : out ∈ I.step op (rows.map Prod.fst)) :
+    Sem (Expr.joinLeaves (joined rows) out.2) (I.itemSet cs rows out) := by
+  obtain ⟨hnd, hvars⟩ := I.step_leaves op _ out hout
+  apply Sem.joinLeaves (I.joined_sem (op := op) hT hrows) out.2 hnd
+  intro f hf q hq hqf
+  rw [mem_joinedSet] at hf
+  obtain ⟨fs, hfs, rfl⟩ := hf
+  obtain ⟨c, hc, hqc⟩ := I.mem_dom_joinAll hfs hqf
+  have hq_owned : q.1 ∈ I.owned op := by
+    rw [← hvars, List.mem_toFinset]
+    exact List.mem_map.mpr ⟨q, hq, rfl⟩
+  exact Finset.disjoint_left.mp (I.owned_disjoint op cs c hc) hq_owned hqc
 
 end Instance
 
