@@ -580,16 +580,126 @@ def unionInto : Table Tau → Tau → Expr → Table Tau
   | (t, e') :: rows, tau, e =>
     if t = tau then (t, Expr.union' e' e) :: rows else (t, e') :: unionInto rows tau e
 
+/-- The join of one row from each child (`joined` in `step_node`). -/
+def joined (rows : List (Tau × Expr)) : Expr :=
+  rows.foldl (fun acc r => Expr.join' acc r.2) Expr.unit
+
+/-- What one tuple of child rows contributes: a `(trace, expression)` per `step` output. -/
+def rowItems (I : Traced Op Tau) (op : Op) (rows : List (Tau × Expr)) : List (Tau × Expr) :=
+  (I.step op (rows.map Prod.fst)).map fun out => (out.1, Expr.joinLeaves (joined rows) out.2)
+
 /-- Mirrors `scheme::step_node`: one row from each child, every way (`List.sections`); each
     `(trace, leaves)` the step yields joins the leaves onto the children's expressions and goes
     into the row of that trace. -/
 def stepNode (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) : Table Tau :=
   tables.sections.foldl
-    (fun table rows =>
-      let joined := rows.foldl (fun acc r => Expr.join' acc r.2) Expr.unit
-      (I.step op (rows.map Prod.fst)).foldl
-        (fun table out => unionInto table out.1 (Expr.joinLeaves joined out.2)) table)
+    (fun table rows => (rowItems I op rows).foldl (fun table it => unionInto table it.1 it.2) table)
     []
+
+/-! ### Table semantics -/
+
+/-- The expression of the row of `tau`; `∅` when there is none. -/
+def rowExpr : Table Tau → Tau → Expr
+  | [], _ => .empty
+  | (t, e) :: rows, tau => if t = tau then e else rowExpr rows tau
+
+/-- Row `tau` denotes `S tau` (so `S tau = ∅` where there is no row). -/
+def TableSem (T : Table Tau) (S : Tau → Finset Assign) : Prop :=
+  ∀ tau, Sem (rowExpr T tau) (S tau)
+
+theorem rowExpr_unionInto (tau : Tau) (e : Expr) (τ : Tau) :
+    ∀ T : Table Tau,
+      rowExpr (unionInto T tau e) τ = if τ = tau then Expr.union' (rowExpr T tau) e else rowExpr T τ
+  | [] => by
+    simp only [unionInto, rowExpr]
+    by_cases h : τ = tau
+    · subst h; simp [Expr.union']
+    · rw [if_neg (Ne.symm h), if_neg h]
+  | (t, e') :: rows => by
+    by_cases ht : t = tau
+    · subst ht
+      by_cases h : τ = t
+      · subst h; simp [unionInto, rowExpr]
+      · simp [unionInto, rowExpr, h, Ne.symm h]
+    · by_cases h : t = τ
+      · subst h; simp [unionInto, rowExpr, ht]
+      · simp [unionInto, rowExpr, ht, h, rowExpr_unionInto tau e τ rows]
+
+/-- `union_into` adds a disjoint, same-domain set to the row of `tau`. -/
+theorem TableSem.unionInto {T : Table Tau} {S : Tau → Finset Assign} (hT : TableSem T S)
+    {tau : Tau} {e : Expr} {E : Finset Assign} (he : Sem e E) (hdisj : Disjoint (S tau) E)
+    (hdom : ∀ f ∈ S tau, ∀ g ∈ E, f.dom = g.dom) :
+    TableSem (unionInto T tau e) fun τ => if τ = tau then S tau ∪ E else S τ := by
+  intro τ
+  rw [rowExpr_unionInto]
+  by_cases h : τ = tau
+  · rw [if_pos h, if_pos h]
+    exact Sem.union' (hT tau) he hdisj hdom
+  · rw [if_neg h, if_neg h]
+    exact hT τ
+
+/-- The sets a list of items adds to row `τ`. -/
+def itemsSet (D : Tau × Expr → Finset Assign) (items : List (Tau × Expr)) (τ : Tau) :
+    Finset Assign :=
+  (items.filter fun it => it.1 = τ).foldr (fun it acc => D it ∪ acc) ∅
+
+/-- Folding `union_into` over items with pairwise disjoint denotations, all of one domain `Dn`,
+    disjoint from what the table already holds. -/
+theorem TableSem.foldl_unionInto {Dn : Finset Var} (D : Tau × Expr → Finset Assign) :
+    ∀ (items : List (Tau × Expr)) {T : Table Tau} {S : Tau → Finset Assign}, TableSem T S →
+      (∀ it ∈ items, Sem it.2 (D it)) →
+      items.Pairwise (fun a b => Disjoint (D a) (D b)) →
+      (∀ it ∈ items, Disjoint (S it.1) (D it)) →
+      (∀ it ∈ items, ∀ f ∈ D it, f.dom = Dn) →
+      (∀ τ, ∀ f ∈ S τ, f.dom = Dn) →
+      TableSem (items.foldl (fun T it => unionInto T it.1 it.2) T) fun τ => S τ ∪ itemsSet D items τ
+  | [], T, S, hT, _, _, _, _, _ => by
+    intro τ
+    simpa [itemsSet] using hT τ
+  | it :: items, T, S, hT, hD, hpair, hS, hdomD, hdomS => by
+    rw [List.pairwise_cons] at hpair
+    have hT' := TableSem.unionInto hT (hD it (List.mem_cons_self ..)) (hS it (List.mem_cons_self ..))
+      (fun f hf g hg => by rw [hdomS _ f hf, hdomD it (List.mem_cons_self ..) g hg])
+    have ih := TableSem.foldl_unionInto (Dn := Dn) D items hT'
+      (fun it' h => hD it' (List.mem_cons_of_mem _ h)) hpair.2
+      (fun it' h => by
+        by_cases heq : it'.1 = it.1
+        · simp only [heq, if_true]
+          exact Finset.disjoint_union_left.mpr
+            ⟨heq ▸ hS it' (List.mem_cons_of_mem _ h), hpair.1 it' h⟩
+        · simp only [heq, if_false]
+          exact hS it' (List.mem_cons_of_mem _ h))
+      (fun it' h => hdomD it' (List.mem_cons_of_mem _ h))
+      (fun τ f hf => by
+        by_cases heq : τ = it.1
+        · simp only [heq, if_true, Finset.mem_union] at hf
+          rcases hf with hf | hf
+          · exact hdomS _ f hf
+          · exact hdomD it (List.mem_cons_self ..) f hf
+        · simp only [heq, if_false] at hf
+          exact hdomS _ f hf)
+    intro τ
+    have := ih τ
+    simp only [List.foldl_cons]
+    by_cases heq : it.1 = τ
+    · subst heq
+      simpa [itemsSet, Finset.union_assoc] using this
+    · simpa [itemsSet, heq, Ne.symm heq] using this
+
+theorem foldl_unionInto_flatMap {α : Type*} (g : α → List (Tau × Expr)) :
+    ∀ (L : List α) (T : Table Tau),
+      L.foldl (fun T x => (g x).foldl (fun T it => unionInto T it.1 it.2) T) T =
+        (L.flatMap g).foldl (fun T it => unionInto T it.1 it.2) T
+  | [], _ => rfl
+  | x :: L, T => by
+    rw [List.foldl_cons, List.flatMap_cons, List.foldl_append]
+    exact foldl_unionInto_flatMap g L _
+
+/-- `step_node` as one flat fold over every `(tuple of rows, step output)` item. -/
+theorem stepNode_eq_foldl (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) :
+    stepNode I op tables =
+      (tables.sections.flatMap (rowItems I op)).foldl (fun T it => unionInto T it.1 it.2) [] :=
+  foldl_unionInto_flatMap (rowItems I op) tables.sections []
 
 mutual
 /-- Mirrors `scheme::run`: post-order fold of `stepNode` over the construction. -/
