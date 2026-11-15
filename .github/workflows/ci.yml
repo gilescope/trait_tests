@@ -46,9 +46,11 @@ jobs:
       # One cache image per Aeneas revision: the nix build and the mathlib fetch are layers in it,
       # so a second run against the same revision skips both. --push writes the cache; nothing
       # in the Earthfile is itself pushed.
-      EARTH_ARGS: >-
+      EARTH_FLAGS: >-
         --ci --push --max-remote-cache
         --remote-cache=ghcr.io/${{ github.repository }}/earth-cache:verify-${{ matrix.aeneas.rev }}
+      # build args go after the target
+      BUILD_ARGS: >-
         --AENEAS_REPO=${{ matrix.aeneas.repo }}
         --AENEAS_REV=${{ matrix.aeneas.rev }}
         --AENEAS_TARBALL_URL=${{ matrix.aeneas.tarball }}
@@ -61,7 +63,7 @@ jobs:
       # Default cache is 10% of the root disk (~7GB): the nix build of Aeneas alone exceeds that,
       # so every earth invocation in a job was rebuilding it from scratch.
       - run: earth config global.cache_size_mb 30000
-      - run: earth $EARTH_ARGS +probe
-      - run: earth $EARTH_ARGS +probe-gat
+      - run: earth $EARTH_FLAGS +probe $BUILD_ARGS
+      - run: earth $EARTH_FLAGS +probe-gat $BUILD_ARGS
         continue-on-error: true
-      - run: earth $EARTH_ARGS +verify
+      - run: earth $EARTH_FLAGS +verify $BUILD_ARGS
