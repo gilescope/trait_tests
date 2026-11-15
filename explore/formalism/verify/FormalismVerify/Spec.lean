@@ -181,33 +181,32 @@ theorem eval_eq_measure (M : Var → Val → A) {e : Expr} {F : Finset Assign}
     rw [iha, ihb]
     unfold measure
     exact (Finset.sum_union hdisj).symm
-  | join ha hb hdom iha ihb =>
+  | @join a b SA SB ha hb hdom iha ihb =>
     -- the join of two sets with disjoint domains is a product of sums
     simp only [eval]
     rw [iha, ihb]
     unfold measure
-    -- `(f, g) ↦ f.join g` is injective on `A ×ˢ B`: every `f ∈ A` has the same domain, so
-    -- restricting a join to that domain gives `f` back; likewise for `B`
-    have hinj : ∀ p ∈ _ ×ˢ _, ∀ q ∈ _ ×ˢ _,
+    -- `(f, g) ↦ f.join g` is injective on `SA ×ˢ SB`: every `f ∈ SA` has the same domain, so
+    -- restricting a join to that domain gives `f` back; likewise for `SB`
+    have hinj : ∀ p ∈ SA ×ˢ SB, ∀ q ∈ SA ×ˢ SB,
         (fun p : Assign × Assign => p.1.join p.2) p =
           (fun p : Assign × Assign => p.1.join p.2) q → p = q := by
       intro p hp q hq hpq
+      have hpq' : p.1.join p.2 = q.1.join q.2 := hpq
       rw [Finset.mem_product] at hp hq
-      have hdA := Sem.dom_eq ha _ hp.1 _ hq.1
-      have hdB := Sem.dom_eq hb _ hp.2 _ hq.2
+      have hdA : p.1.dom = q.1.dom := Sem.dom_eq ha _ hp.1 _ hq.1
+      have hdB : p.2.dom = q.2.dom := Sem.dom_eq hb _ hp.2 _ hq.2
       have h1 : p.1 = q.1 := by
-        rw [← Assign.join_restrict_left (hdom _ hp.1 _ hp.2), hpq, hdA,
+        rw [← Assign.join_restrict_left (hdom _ hp.1 _ hp.2), hpq', hdA,
           Assign.join_restrict_left (hdom _ hq.1 _ hq.2)]
       have h2 : p.2 = q.2 := by
-        rw [← Assign.join_restrict_right (hdom _ hp.1 _ hp.2), hpq, hdB,
+        rw [← Assign.join_restrict_right (hdom _ hp.1 _ hp.2), hpq', hdB,
           Assign.join_restrict_right (hdom _ hq.1 _ hq.2)]
       exact Prod.ext h1 h2
     rw [Finset.sum_image hinj, Finset.sum_product, Finset.sum_mul_sum]
-    apply Finset.sum_congr rfl
-    intro f hf
-    apply Finset.sum_congr rfl
-    intro g hg
+    refine Finset.sum_congr rfl fun f hf => Finset.sum_congr rfl fun g hg => ?_
     -- the product over `f.join g` splits, because the pair sets are disjoint
+    show (∏ p ∈ f.1, M p.1 p.2) * ∏ p ∈ g.1, M p.1 p.2 = ∏ p ∈ (f.join g).1, M p.1 p.2
     rw [Assign.join_val (hdom f hf g hg), Finset.prod_union (Assign.disjoint_val (hdom f hf g hg))]
 
 end Measure
