@@ -3,4 +3,4 @@ name = "probe_gat"
 version = "0.0.0"
 edition = "2021"
 publish = false
-description = "The GAT-encoded hylo. Aeneas upstream rejects it (GAT unimplemented; closure recursion is a mixed group): a canary for the fork."
+description = "GAT-lite acceptance test: a generic associated type with a type parameter, no bounds, no closures. Target of the Aeneas gat-lite branch."

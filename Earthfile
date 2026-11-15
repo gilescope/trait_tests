@@ -73,8 +73,8 @@ probe:
     RUN find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Probe
 
-# The GAT hylo. Known to fail on upstream Aeneas 0d21a9e: "Unimplemented" on `type Layer<X>` and
-# a mixed recursive group (hylo with its closure's FnMut impl). Run non-blocking to watch the fork.
+# GAT-lite acceptance test (explore/probe_gat). Fails on upstream Aeneas 0d21a9e ("Unimplemented"
+# on `type Layer<X>`); the gilescope/aeneas gat-lite branch is meant to pass it. Non-blocking.
 probe-gat:
     FROM +aeneas
     WORKDIR /src
