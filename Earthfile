@@ -69,7 +69,7 @@ probe:
     RUN cd explore/probe && charon cargo --preset=aeneas --dest-file=/src/probe.llbc || true; \
         [ -f /src/probe.llbc ] || cp "$(find / -name 'probe.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/probe.llbc; \
         ls -la /src/probe.llbc
-    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/probe.llbc
+    RUN mkdir -p /out && aeneas -backend lean -dest /out -print-error-emitters /src/probe.llbc
     RUN find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Probe
 
@@ -82,8 +82,7 @@ probe-gat:
     RUN cd explore/probe_gat && charon cargo --preset=aeneas --dest-file=/src/probe_gat.llbc || true; \
         [ -f /src/probe_gat.llbc ] || cp "$(find / -name 'probe_gat.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/probe_gat.llbc; \
         ls -la /src/probe_gat.llbc
-    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/probe_gat.llbc
-    RUN find /out -name '*.lean' -exec cat {} +
+    RUN mkdir -p /out && (aeneas -backend lean -dest /out -print-error-emitters /src/probe_gat.llbc; rc=$?; find /out -name '*.lean' -exec cat {} +; exit $rc)
     SAVE ARTIFACT /out /ProbeGat
 
 extract:
@@ -97,7 +96,7 @@ extract:
     RUN cd explore/hylo && charon cargo --preset=aeneas --start-from="$START_FROM" --dest-file=/src/hylo.llbc || true; \
         [ -f /src/hylo.llbc ] || cp "$(find / -name 'hylo.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/hylo.llbc; \
         ls -la /src/hylo.llbc
-    RUN mkdir -p /out && aeneas -backend lean -dest /out /src/hylo.llbc
+    RUN mkdir -p /out && aeneas -backend lean -dest /out -print-error-emitters /src/hylo.llbc
     RUN find /out -name '*.lean' | xargs wc -l && find /out -name '*.lean' -exec cat {} +
     SAVE ARTIFACT /out /Extracted AS LOCAL explore/formalism/verify/FormalismVerify/Extracted
 

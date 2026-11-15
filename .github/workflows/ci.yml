@@ -28,7 +28,7 @@ jobs:
           # the fork publishes static binaries: no nix build, minutes instead of a quarter hour
           - { repo: gilescope/aeneas,   rev: 7a8e1114293e89615bff16e23edd0593221c7495, tarball: "https://github.com/gilescope/aeneas/releases/download/build-7a8e111/aeneas-linux-x86_64.tar.gz" }
           # the GAT-lite branch, built with nix: +probe-gat is the acceptance test for it
-          - { repo: gilescope/aeneas,   rev: c6e28da47e149af20332387c946a0d372d2da255, tarball: "" }
+          - { repo: gilescope/aeneas,   rev: e3bef6de1393ed64ae5bb847c3fab8999bb54816, tarball: "" }
     steps:
       - uses: actions/checkout@v4
       - uses: earthbuild/actions-setup@f4d20223e70dbb43b5fc08c4d857ab9cf0dbf3ae # v2.2.0
