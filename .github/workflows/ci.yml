@@ -20,6 +20,9 @@ jobs:
         with:
           version: v0.8.19
       - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      # Default cache is 10% of the root disk (~7GB): the nix build of Aeneas alone exceeds that,
+      # so every earth invocation in a job was rebuilding it from scratch.
+      - run: earth config global.cache_size_mb 30000
       - run: earth --ci --push --remote-cache=ghcr.io/${{ github.repository }}/earth-cache:test --max-remote-cache +test
   verify:
     # Lean/Aeneas pipeline. Slow (mathlib) and not yet proven to pass; does not gate merges.
@@ -55,6 +58,9 @@ jobs:
         with:
           version: v0.8.19
       - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      # Default cache is 10% of the root disk (~7GB): the nix build of Aeneas alone exceeds that,
+      # so every earth invocation in a job was rebuilding it from scratch.
+      - run: earth config global.cache_size_mb 30000
       - run: earth $EARTH_ARGS +probe
       - run: earth $EARTH_ARGS +probe-gat
         continue-on-error: true
