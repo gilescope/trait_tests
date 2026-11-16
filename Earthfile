@@ -105,8 +105,13 @@ extract:
     # hylo (which depends on formalism) is the crate under verification; algo_std is not.
     # Extraction starts from the named algorithms, so the GAT-based generic API (which Aeneas
     # cannot translate) is never reached: only the per-shape core and what it uses.
+    # Charon keeps the bodies of dependency crates opaque by default, which left the trace DP
+    # (formalism::scheme::step_node, formalism::expr::union) as axioms in the Lean: the
+    # `--include` patterns translate those bodies too, so the refinement theorems have something
+    # to refine.
+    ARG INCLUDE="--include=formalism::expr::_ --include=formalism::scheme::_"
     ARG START_FROM=hylo::sort::insertion_sort,hylo::sort::selection_sort,hylo::sort::quicksort,hylo::sort::mergesort,hylo::seq::reduce_seq,hylo::seq::reduce_par,hylo::seq::scan,hylo::num::gcd,hylo::num::power,hylo::path::relax,hylo::path::relax_acyclic,hylo::path::closure,hylo::search::search,hylo::search::maximise,hylo::search::maximise_count,hylo::dp::trace_dp
-    RUN cd explore/hylo && charon cargo --preset=aeneas --start-from="$START_FROM" --dest-file=/src/hylo.llbc || true; \
+    RUN cd explore/hylo && charon cargo --preset=aeneas $INCLUDE --start-from="$START_FROM" --dest-file=/src/hylo.llbc || true; \
         [ -f /src/hylo.llbc ] || cp "$(find / -name 'hylo.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/hylo.llbc; \
         ls -la /src/hylo.llbc
     RUN mkdir -p /out && aeneas -backend lean -dest /out -print-error-emitters /src/hylo.llbc
