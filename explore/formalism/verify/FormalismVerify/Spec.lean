@@ -685,11 +685,55 @@ def joined (rows : List (Tau × Expr)) : Expr :=
 def rowItems (I : Traced Op Tau) (op : Op) (rows : List (Tau × Expr)) : List (Tau × Expr) :=
   (I.step op (rows.map Prod.fst)).map fun out => (out.1, Expr.joinLeaves (joined rows) out.2)
 
-/-- Mirrors `scheme::step_node`: one row from each child, every way (`List.sections`); each
-    `(trace, leaves)` the step yields joins the leaves onto the children's expressions and goes
-    into the row of that trace. -/
+/-- One element from each list, every way, in the order `scheme::step_node` visits them: the
+    first child varies slowest and the last fastest (its odometer carries from the end). -/
+def tuples {α : Type*} : List (List α) → List (List α)
+  | [] => [[]]
+  | l :: L => l.flatMap fun a => (tuples L).map (a :: ·)
+
+theorem mem_tuples {α : Type*} : ∀ {L : List (List α)} {s : List α},
+    s ∈ tuples L ↔ List.Forall₂ (· ∈ ·) s L
+  | [], s => by
+    simp only [tuples, List.mem_singleton]
+    constructor
+    · rintro rfl
+      exact List.Forall₂.nil
+    · intro h
+      cases h
+      rfl
+  | l :: L, s => by
+    simp only [tuples, List.mem_flatMap, List.mem_map]
+    constructor
+    · rintro ⟨a, ha, t, ht, rfl⟩
+      exact List.Forall₂.cons ha (mem_tuples.mp ht)
+    · intro h
+      cases h with
+      | cons ha ht => exact ⟨_, ha, _, mem_tuples.mpr ht, rfl⟩
+
+theorem nodup_tuples {α : Type*} :
+    ∀ L : List (List α), (∀ l ∈ L, l.Nodup) → (tuples L).Nodup
+  | [], _ => by simp [tuples]
+  | l :: L, h => by
+    rw [tuples, List.nodup_flatMap]
+    refine ⟨?_, ?_⟩
+    · intro a _
+      exact (nodup_tuples L fun l' hl' => h l' (List.mem_cons_of_mem _ hl')).map
+        fun s s' hss' => (List.cons.inj hss').2
+    · refine List.Pairwise.imp ?_ (h l (List.mem_cons_self ..))
+      intro a a' hne
+      show List.Disjoint _ _
+      rw [List.disjoint_left]
+      intro x hx hx'
+      rw [List.mem_map] at hx hx'
+      obtain ⟨s, _, rfl⟩ := hx
+      obtain ⟨s', _, hs'⟩ := hx'
+      exact hne (List.cons.inj hs').1
+
+/-- Mirrors `scheme::step_node`: one row from each child, every way (`tuples`, in the Rust's
+    order); each `(trace, leaves)` the step yields joins the leaves onto the children's
+    expressions and goes into the row of that trace. -/
 def stepNode (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) : Table Tau :=
-  tables.sections.foldl
+  (tuples tables).foldl
     (fun table rows => (rowItems I op rows).foldl (fun table it => unionInto table it.1 it.2) table)
     []
 
@@ -833,8 +877,8 @@ theorem mem_itemsSet (D : Tau × Expr → Finset Assign) :
 /-- `step_node` as one flat fold over every `(tuple of rows, step output)` item. -/
 theorem stepNode_eq_foldl (I : Traced Op Tau) (op : Op) (tables : List (Table Tau)) :
     stepNode I op tables =
-      (tables.sections.flatMap (rowItems I op)).foldl (fun T it => unionInto T it.1 it.2) [] :=
-  foldl_unionInto_flatMap (rowItems I op) tables.sections []
+      ((tuples tables).flatMap (rowItems I op)).foldl (fun T it => unionInto T it.1 it.2) [] :=
+  foldl_unionInto_flatMap (rowItems I op) (tuples tables) []
 
 /-! ### The join of one row from each child -/
 
@@ -1099,25 +1143,6 @@ theorem pairwise_flatMap_of {α β : Type*} {R : β → β → Prop} (g : α →
     rw [List.mem_flatMap] at hb
     obtain ⟨y, hy, hb⟩ := hb
     exact hout.1 y hy a ha b hb
-
-theorem nodup_sections {α : Type*} :
-    ∀ L : List (List α), (∀ l ∈ L, l.Nodup) → L.sections.Nodup
-  | [], _ => by simp [List.sections]
-  | l :: L, h => by
-    rw [List.sections, List.nodup_flatMap]
-    refine ⟨?_, ?_⟩
-    · intro s _
-      exact (h l (List.mem_cons_self ..)).map fun a b hab => (List.cons.inj hab).1
-    · have ih := nodup_sections L fun l' hl' => h l' (List.mem_cons_of_mem _ hl')
-      refine List.Pairwise.imp ?_ ih
-      intro s s' hne
-      show List.Disjoint _ _
-      rw [List.disjoint_left]
-      intro x hx hx'
-      rw [List.mem_map] at hx hx'
-      obtain ⟨a, _, rfl⟩ := hx
-      obtain ⟨a', _, h'⟩ := hx'
-      exact hne (List.cons.inj h').2.symm
 
 /-! ### Instances -/
 
@@ -1507,7 +1532,7 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
   rw [stepNode_eq_foldl]
   have hlen : tables.length = cs.length := List.Forall₂.length_eq hT
   -- every item comes from a tuple of rows and a step output
-  have hmem : ∀ it, it ∈ tables.sections.flatMap (rowItems I.toTraced op) ↔
+  have hmem : ∀ it, it ∈ (tuples tables).flatMap (rowItems I.toTraced op) ↔
       ∃ rows, List.Forall₂ (· ∈ ·) rows tables ∧
         ∃ out ∈ I.step op (rows.map Prod.fst),
           it = (out.1, Expr.joinLeaves (joined rows) out.2) := by
@@ -1517,9 +1542,9 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
     · rintro ⟨rows, hrows, hit⟩
       rw [rowItems, List.mem_map] at hit
       obtain ⟨out, hout, rfl⟩ := hit
-      exact ⟨rows, List.mem_sections.mp hrows, out, hout, rfl⟩
+      exact ⟨rows, mem_tuples.mp hrows, out, hout, rfl⟩
     · rintro ⟨rows, hrows, out, hout, rfl⟩
-      exact ⟨rows, List.mem_sections.mpr hrows, List.mem_map.mpr ⟨out, hout, rfl⟩⟩
+      exact ⟨rows, mem_tuples.mpr hrows, List.mem_map.mpr ⟨out, hout, rfl⟩⟩
   have hden : ∀ rows, List.Forall₂ (· ∈ ·) rows tables → ∀ out ∈ I.step op (rows.map Prod.fst),
       denot (Expr.joinLeaves (joined rows) out.2) = I.itemSet cs rows out :=
     fun rows hrows out hout => Sem.denot_eq (I.item_sem hwf hT hrows hout)
@@ -1537,7 +1562,7 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
     exact ⟨(I.cand_iff op cs hwf _).mpr ⟨fs, hc, out, hout, rfl⟩,
       I.trace_mk op cs fs out hwf hc hout⟩
   -- the rows' table is exactly the node's candidates by trace
-  have hset : ∀ τ, itemsSet (fun it => denot it.2) (tables.sections.flatMap (rowItems I.toTraced op)) τ
+  have hset : ∀ τ, itemsSet (fun it => denot it.2) ((tuples tables).flatMap (rowItems I.toTraced op)) τ
       = I.rowSet (.mk op cs) τ := by
     intro τ
     ext f
@@ -1562,7 +1587,7 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
         rw [hden rows hrows out hout', itemSet, Finset.mem_image]
         exact ⟨Assign.joinAll fs, (mem_joinedSet _ _).mpr ⟨fs, hfs, rfl⟩, rfl⟩
   have key := TableSem.foldl_unionInto (Dn := I.nodeDom (.mk op cs)) (fun it => denot it.2)
-    (tables.sections.flatMap (rowItems I.toTraced op)) (T := []) (S := fun _ => ∅)
+    ((tuples tables).flatMap (rowItems I.toTraced op)) (T := []) (S := fun _ => ∅)
     (fun _ => Sem.empty) ?_ ?_ ?_ ?_ ?_
   · intro τ
     have h := key τ
@@ -1579,7 +1604,7 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
   · -- items are pairwise disjoint
     apply pairwise_flatMap_of
     · intro rows hrows
-      have hrows' := List.mem_sections.mp hrows
+      have hrows' := mem_tuples.mp hrows
       rw [rowItems, List.pairwise_map]
       have hs : (I.step op (rows.map Prod.fst)).Pairwise
           (fun o o' => Assign.ofList o.2 ≠ Assign.ofList o'.2) :=
@@ -1590,8 +1615,8 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
         (denot (Expr.joinLeaves (joined rows) o'.2))
       rw [hden rows hrows' o ho, hden rows hrows' o' ho']
       exact I.itemSet_disjoint_of_ne_leaves hwf ho ho' hne
-    · have hnd : tables.sections.Pairwise (· ≠ ·) := by
-        apply nodup_sections
+    · have hnd : (tuples tables).Pairwise (· ≠ ·) := by
+        apply nodup_tuples
         intro T hT'
         obtain ⟨c, _, hc⟩ := forall₂_mem_left hT hT'
         exact hc.2.of_map Prod.fst
@@ -1602,9 +1627,9 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
       obtain ⟨o', ho', rfl⟩ := hb
       show Disjoint (denot (Expr.joinLeaves (joined rows) o.2))
         (denot (Expr.joinLeaves (joined rows') o'.2))
-      rw [hden rows (List.mem_sections.mp hr) o ho, hden rows' (List.mem_sections.mp hr') o' ho']
-      exact I.itemSet_disjoint_of_ne_rows hwf hT (List.mem_sections.mp hr)
-        (List.mem_sections.mp hr') hne ho ho'
+      rw [hden rows (mem_tuples.mp hr) o ho, hden rows' (mem_tuples.mp hr') o' ho']
+      exact I.itemSet_disjoint_of_ne_rows hwf hT (mem_tuples.mp hr)
+        (mem_tuples.mp hr') hne ho ho'
   · intro it _
     exact Finset.disjoint_empty_left _
   · intro it hit f hf
