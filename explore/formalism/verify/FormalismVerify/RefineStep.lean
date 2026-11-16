@@ -80,15 +80,39 @@ theorem rowItems_eq (I : Traced Op Tau) (op : Op) (cur : List (Tau × Expr))
   rw [Traced.rowItems, ← hstep, List.map_map]
   rfl
 
-theorem length_le_foldl_rowItems (I : Traced Op Tau) (op : Op) :
+/-- What one tuple of rows adds to the table: `stepNode` is its fold over `tuples`. -/
+def stepFold (I : Traced Op Tau) (op : Op) (T : List (Tau × Expr)) (rows : List (Tau × Expr)) :
+    List (Tau × Expr) :=
+  (Traced.rowItems I op rows).foldl (fun T it => Traced.unionInto T it.1 it.2) T
+
+theorem stepNode_eq (I : Traced Op Tau) (op : Op) (L : List (List (Tau × Expr))) :
+    Traced.stepNode I op L = (tuples L).foldl (stepFold I op) [] := rfl
+
+theorem length_le_foldl_stepFold (I : Traced Op Tau) (op : Op) :
     ∀ (rows : List (List (Tau × Expr))) (T : List (Tau × Expr)),
-      T.length ≤ (rows.foldl (fun T r =>
-        (Traced.rowItems I op r).foldl (fun T it => Traced.unionInto T it.1 it.2) T) T).length
+      T.length ≤ (rows.foldl (stepFold I op) T).length
   | [], _ => le_rfl
   | r :: rows, T => by
     rw [List.foldl_cons]
     exact (length_le_foldl_unionInto (Traced.rowItems I op r) T).trans
-      (length_le_foldl_rowItems I op rows _)
+      (length_le_foldl_stepFold I op rows _)
+
+/-- The children's table lengths: the odometer's radices. -/
+def lensOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) : List ℕ :=
+  cts.val.map fun t => t.length
+
+theorem lens_tablesOf' (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) :
+    (tablesOf cts).map List.length = lensOf cts :=
+  lens_tablesOf cts
+
+theorem set_take_append {α : Type*} :
+    ∀ (l : List α) (k : ℕ), k < l.length → ∀ (rest : List α) (x : α),
+      (l.take (k + 1) ++ rest).set k x = l.take k ++ x :: rest
+  | [], _, hk, _, _ => absurd hk (Nat.not_lt_zero _)
+  | _ :: _, 0, _, _, _ => by simp
+  | a :: l, k + 1, hk, rest, x => by
+    rw [List.take_succ_cons, List.take_succ_cons, List.cons_append, List.set_cons_succ,
+      List.cons_append, set_take_append l k (by simpa using hk) rest x]
 
 /-! ## Loop 0: the digit vector starts at zero, and is any child table empty -/
 
@@ -379,6 +403,344 @@ theorem step_node_loop1_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p 
       simp only [WP.spec_ok]
       rw [htab1, htake]
   · exact ⟨ho, htab⟩
+
+/-! ## Loop 1.2: the odometer -/
+
+theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau)))
+    (idx₀ : alloc.vec.Vec Usize) (hlen₀ : idx₀.length = cts.length)
+    (hvalid : ∀ j, (hj : j < cts.length) →
+      (idx₀.val[j]'(by rw [hlen₀]; exact hj)).val < (cts.val[j]).length)
+    (idx : alloc.vec.Vec Usize) (k : Usize) (carry : Bool) (hk : k.val ≤ cts.length)
+    (hlen : idx.length = cts.length)
+    (hidx : idxN idx = (idxN idx₀).take k.val ++
+      (incr ((lensOf cts).drop k.val) ((idxN idx₀).drop k.val)).1)
+    (hcarry : carry = (incr ((lensOf cts).drop k.val) ((idxN idx₀).drop k.val)).2) :
+    formalism.scheme.step_node_loop1_loop2 cts idx k carry
+      ⦃ (idx' : alloc.vec.Vec Usize) (carry' : Bool) =>
+        idx'.length = cts.length ∧ idxN idx' = (incr (lensOf cts) (idxN idx₀)).1 ∧
+        carry' = (incr (lensOf cts) (idxN idx₀)).2 ⦄ := by
+  have hlens : (lensOf cts).length = cts.length := by simp [lensOf]
+  have hidxs : (idxN idx₀).length = cts.length := by simp [idxN, hlen₀]
+  unfold formalism.scheme.step_node_loop1_loop2
+  apply loop.spec_decr_nat (measure := fun s => s.2.1.val)
+    (inv := fun s => s.2.1.val ≤ cts.length ∧ s.1.length = cts.length ∧
+      idxN s.1 = (idxN idx₀).take s.2.1.val ++
+        (incr ((lensOf cts).drop s.2.1.val) ((idxN idx₀).drop s.2.1.val)).1 ∧
+      s.2.2 = (incr ((lensOf cts).drop s.2.1.val) ((idxN idx₀).drop s.2.1.val)).2)
+  · rintro ⟨idx1, k1, carry1⟩ ⟨hk1, hlen1, hidx1, hcarry1⟩
+    replace hk1 : k1.val ≤ cts.length := hk1
+    replace hlen1 : idx1.length = cts.length := hlen1
+    replace hidx1 : idxN idx1 = (idxN idx₀).take k1.val ++
+      (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).1 := hidx1
+    replace hcarry1 : carry1 = (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).2 :=
+      hcarry1
+    beta_reduce
+    unfold formalism.scheme.step_node_loop1_loop2.body
+    simp only [alloc.vec.Vec.index_slice_index, alloc.vec.Vec.index_mut_slice_index]
+    split
+    · -- still carrying
+      rename_i hc
+      split
+      · -- a digit is left
+        rename_i hpos
+        have hpos' : 0 < k1.val := by scalar_tac
+        apply WP.spec_bind (Usize.sub_spec (x := k1) (y := 1#usize) (by scalar_tac))
+        intro k2 hk2
+        try simp only at hk2
+        have hk2' : k2.val = k1.val - 1 := by scalar_tac
+        have hk2lt : k2.val < cts.length := by scalar_tac
+        have hk1eq : k1.val = k2.val + 1 := by scalar_tac
+        have hk2idx : k2.val < idx1.length := by rw [hlen1]; exact hk2lt
+        apply WP.spec_bind (alloc.vec.Vec.index_mut_usize_spec idx1 k2 hk2idx)
+        rintro ⟨i, back⟩ hp
+        have hp' : i = idx1.val[k2.val] ∧ back = idx1.set k2 := hp
+        obtain ⟨hi, hback⟩ := hp'
+        subst hback
+        try dsimp only
+        -- the digit is the original one, below its radix
+        have hi0 : i.val = (idx₀.val[k2.val]'(by rw [hlen₀]; exact hk2lt)).val := by
+          have h1 : (idxN idx1)[k2.val]'(by simp [idxN, hlen1]; exact hk2lt) = i.val := by
+            simp only [idxN, List.getElem_map, hi]
+          rw [hidx1] at h1
+          rw [List.getElem_append_left (by simp [List.length_take, hidxs]; omega),
+            List.getElem_take] at h1
+          simp only [idxN, List.getElem_map] at h1
+          exact h1.symm
+        have hi_lt : i.val < (cts.val[k2.val]).length := by
+          rw [hi0]
+          exact hvalid k2.val hk2lt
+        apply WP.spec_bind (Usize.add_spec (x := i) (y := 1#usize) (by scalar_tac))
+        intro i1 hi1
+        try simp only at hi1
+        have hi1' : i1.val = i.val + 1 := by scalar_tac
+        try dsimp only
+        have hk2set : k2.val < (idx1.set k2 i1).length := by simp [hk2idx]
+        apply WP.spec_bind (alloc.vec.Vec.index_usize_spec (idx1.set k2 i1) k2 hk2set)
+        intro i2 hi2
+        replace hi2 : i2 = (idx1.set k2 i1).val[k2.val] := hi2
+        have hi2' : i2 = i1 := by
+          rw [hi2]
+          simp [alloc.vec.Vec.set_val_eq, hk2idx]
+        subst hi2'
+        apply WP.spec_bind (alloc.vec.Vec.index_usize_spec cts k2 hk2lt)
+        intro v hv
+        replace hv : v = cts.val[k2.val] := hv
+        -- the model's step at this digit
+        have hdropl : (lensOf cts).drop k2.val =
+            (cts.val[k2.val]).length :: (lensOf cts).drop k1.val := by
+          rw [List.drop_eq_getElem_cons (by rw [hlens]; exact hk2lt), hk1eq]
+          simp [lensOf]
+        have hdropi : (idxN idx₀).drop k2.val =
+            (idx₀.val[k2.val]'(by rw [hlen₀]; exact hk2lt)).val :: (idxN idx₀).drop k1.val := by
+          rw [List.drop_eq_getElem_cons (by rw [hidxs]; exact hk2lt), hk1eq]
+          simp [idxN]
+        have hcarry_true : (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).2 = true := by
+          rw [← hcarry1]
+          simpa using hc
+        have htake : (idxN idx₀).take k1.val =
+            (idxN idx₀).take k2.val ++ [(idx₀.val[k2.val]'(by rw [hlen₀]; exact hk2lt)).val] := by
+          rw [hk1eq, List.take_succ_eq_append_getElem (by rw [hidxs]; exact hk2lt)]
+          simp [idxN]
+        have hset1 : idxN (idx1.set k2 i1) = (idxN idx₀).take k2.val ++ i1.val ::
+            (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).1 := by
+          rw [idxN, alloc.vec.Vec.set_val_eq, List.map_set]
+          show (idxN idx1).set k2.val i1.val = _
+          rw [hidx1, hk1eq, set_take_append _ _ (by rw [hidxs]; exact hk2lt)]
+        split
+        · -- the digit advances: no carry
+          rename_i hlt
+          have hlt' : i.val + 1 < (cts.val[k2.val]).length := by
+            rw [← hi1', hv] at hlt
+            simpa using hlt
+          simp only [WP.spec_ok]
+          refine ⟨⟨by scalar_tac, by simp [hk2idx], ?_, ?_⟩, by scalar_tac⟩
+          · rw [hset1, hdropl, hdropi, hi1', hi0]
+            simp only [incr, hcarry_true, ite_true]
+            rw [ite_eq_left hlt']
+          · rw [hdropl, hdropi]
+            simp only [incr, hcarry_true, ite_true]
+            rw [← hi0, ite_eq_left hlt']
+        · -- the digit wraps: carry on
+          rename_i hge
+          have hge' : ¬ i.val + 1 < (cts.val[k2.val]).length := by
+            rw [← hi1', hv] at hge
+            simpa using hge
+          have hk2set' : k2.val < (idx1.set k2 i1).length := hk2set
+          apply WP.spec_bind (alloc.vec.Vec.index_mut_usize_spec (idx1.set k2 i1) k2 hk2set')
+          rintro ⟨_, back1⟩ hp
+          have hp' : back1 = (idx1.set k2 i1).set k2 := hp.2
+          subst hp'
+          try dsimp only
+          simp only [WP.spec_ok]
+          refine ⟨⟨by scalar_tac, by simp [hk2idx], ?_, ?_⟩, by scalar_tac⟩
+          · rw [idxN, alloc.vec.Vec.set_val_eq, List.map_set, alloc.vec.Vec.set_val_eq,
+              List.set_set]
+            show (idxN idx1).set k2.val (0#usize).val = _
+            rw [hidx1, hk1eq, set_take_append _ _ (by rw [hidxs]; exact hk2lt), hdropl, hdropi]
+            simp only [incr, hcarry_true, ite_true]
+            rw [← hi0, ite_eq_right hge']
+            simp
+          · rw [hdropl, hdropi]
+            simp only [incr, hcarry_true, ite_true]
+            rw [← hi0, ite_eq_right hge']
+            simpa using hc
+      · -- no digit left: the whole vector wrapped
+        rename_i hzero
+        have hzero' : k1.val = 0 := by scalar_tac
+        simp only [WP.spec_ok]
+        rw [hzero', List.drop_zero, List.drop_zero, List.take_zero, List.nil_append] at hidx1 hcarry1
+        exact ⟨hlen1, hidx1, hcarry1⟩
+    · -- the carry stopped: digits below were left alone
+      rename_i hnc
+      have hnc' : carry1 = false := by simpa using hnc
+      rw [hnc'] at hcarry1
+      simp only [WP.spec_ok]
+      have h := incr_append_of_not_carry ((lensOf cts).take k1.val) ((idxN idx₀).take k1.val)
+        ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)
+        (by simp [List.length_take, hlens, hidxs]) hcarry1.symm
+      rw [List.take_append_drop, List.take_append_drop] at h
+      rw [h]
+      exact ⟨hlen1, hidx1, hnc'⟩
+  · exact ⟨hk, hlen, hidx, hcarry⟩
+
+/-! ## Loop 1: the outer loop walks `tuples` -/
+
+theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
+    (I : Traced Op Tau) (hI : TracedSpec inst p I) (op : Op)
+    (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) (n : Usize)
+    (hn : n.val = cts.length)
+    (hfin : (Traced.stepNode I op (tablesOf cts)).length < Usize.max)
+    (table : alloc.vec.Vec (formalism.scheme.Row Tau)) (idx : alloc.vec.Vec Usize) (done1 : Bool)
+    (hinv : if done1 then tableOf table = Traced.stepNode I op (tablesOf cts)
+      else Valid (tablesOf cts) (idxN idx) ∧ idx.length = cts.length ∧
+        ∃ pre, tuples (tablesOf cts) = pre ++ rest (tablesOf cts) (idxN idx) ∧
+          tableOf table = pre.foldl (stepFold I op) []) :
+    formalism.scheme.step_node_loop1 inst p op cts table n idx done1
+      ⦃ (table' : alloc.vec.Vec (formalism.scheme.Row Tau)) =>
+        tableOf table' = Traced.stepNode I op (tablesOf cts) ⦄ := by
+  unfold formalism.scheme.step_node_loop1
+  apply loop.spec_decr_nat
+    (measure := fun s => if s.2.2 then 0 else (rest (tablesOf cts) (idxN s.2.1)).length)
+    (inv := fun s => if s.2.2 then tableOf s.1 = Traced.stepNode I op (tablesOf cts)
+      else Valid (tablesOf cts) (idxN s.2.1) ∧ s.2.1.length = cts.length ∧
+        ∃ pre, tuples (tablesOf cts) = pre ++ rest (tablesOf cts) (idxN s.2.1) ∧
+          tableOf s.1 = pre.foldl (stepFold I op) [])
+  · rintro ⟨table1, idx1, done2⟩ hinv1
+    try simp only at hinv1
+    beta_reduce
+    unfold formalism.scheme.step_node_loop1.body
+    cases done2 with
+    | true =>
+      rw [ite_eq_left rfl] at hinv1
+      simp only [ite_eq_left rfl, WP.spec_ok]
+      exact hinv1
+    | false =>
+      rw [ite_eq_right Bool.false_ne_true] at hinv1
+      obtain ⟨hvalid, hlen1, pre, hsplit, htab1⟩ := hinv1
+      simp only [ite_eq_right Bool.false_ne_true]
+      obtain ⟨cur, hcur, hrest⟩ := rest_incr (tablesOf cts) (idxN idx1) hvalid
+      rw [lens_tablesOf'] at hrest
+      have hcur' : CurOf cts idx1 cur := hcur
+      -- the tuple just visited sits at the head of the rest, whichever way it ends
+      have htail : ∃ tail, rest (tablesOf cts) (idxN idx1) = cur :: tail := by
+        rcases hc : (incr (lensOf cts) (idxN idx1)).2
+        · rw [hc, ite_eq_right Bool.false_ne_true] at hrest
+          exact ⟨_, hrest.1⟩
+        · rw [hc, ite_eq_left rfl] at hrest
+          exact ⟨[], hrest⟩
+      obtain ⟨tail, htail⟩ := htail
+      -- the target is the fold of the rest from here, so every intermediate table is shorter
+      have htarget : Traced.stepNode I op (tablesOf cts) =
+          tail.foldl (stepFold I op) (stepFold I op (tableOf table1) cur) := by
+        rw [stepNode_eq, hsplit, htail, List.foldl_append, List.foldl_cons, htab1]
+      have hfin' : (stepFold I op (tableOf table1) cur).length < Usize.max := by
+        refine lt_of_le_of_lt ?_ hfin
+        rw [htarget]
+        exact length_le_foldl_stepFold I op tail _
+      apply WP.spec_bind (step_node_loop1_loop0_spec inst p I hI cts n hn idx1 hlen1 cur hcur'
+        (alloc.vec.Vec.new Tau) formalism.expr.Expr.Unit 0#usize (by scalar_tac)
+        (by simp [alloc.vec.Vec.new]) (by simp [ofExt]))
+      rintro ⟨traces, joined⟩ hp
+      have hp' : traces.val = cur.map Prod.fst ∧ ofExt joined = Traced.joined cur := hp
+      obtain ⟨htr, hj⟩ := hp'
+      try dsimp only
+      have hs : (alloc.vec.Vec.deref traces).val = cur.map Prod.fst := by
+        simp [alloc.vec.Vec.deref, htr]
+      apply WP.spec_bind (hI.step op (alloc.vec.Vec.deref traces))
+      intro outs houts
+      replace houts : outs.val.map (fun o => (o.1, ofPairs o.2.val)) =
+        I.step op (alloc.vec.Vec.deref traces).val := houts
+      rw [hs] at houts
+      have hitems := rowItems_eq I op cur outs houts
+      have hfold : (outs.val.map fun o =>
+          (o.1, Expr.joinLeaves (Traced.joined cur) (ofPairs o.2.val))).foldl
+            (fun T it => Traced.unionInto T it.1 it.2) (tableOf table1) =
+          stepFold I op (tableOf table1) cur := by
+        rw [stepFold, hitems]
+      apply WP.spec_bind (step_node_loop1_loop1_spec inst p I hI table1 joined
+        (Traced.joined cur) hj outs (tableOf table1) (by rw [hfold]; exact hfin') 0#usize
+        (by scalar_tac) (by simp))
+      intro table2 htab2
+      replace htab2 : tableOf table2 = (outs.val.map fun o =>
+          (o.1, Expr.joinLeaves (Traced.joined cur) (ofPairs o.2.val))).foldl
+            (fun T it => Traced.unionInto T it.1 it.2) (tableOf table1) := htab2
+      rw [hfold] at htab2
+      -- the odometer
+      have hvalid' : ∀ j, (hj : j < cts.length) →
+          (idx1.val[j]'(by rw [hlen1]; exact hj)).val < (cts.val[j]).length := by
+        intro j hj
+        have h := forall₂_getElem hvalid j (by simp [idxN, hlen1]; exact hj)
+          (by simp [tablesOf]; exact hj)
+        simp only [idxN, tablesOf, List.getElem_map, length_tableOf] at h
+        exact h
+      have hlens : (lensOf cts).length = cts.length := by simp [lensOf]
+      have hidxs : (idxN idx1).length = cts.length := by simp [idxN, hlen1]
+      apply WP.spec_bind (step_node_loop1_loop2_spec cts idx1 hlen1 hvalid' idx1 n true
+        (by rw [hn]) hlen1 (by rw [hn, List.drop_eq_nil_of_le hlens.le,
+          List.drop_eq_nil_of_le hidxs.le, List.take_of_length_le hidxs.le]; rfl)
+        (by rw [hn, List.drop_eq_nil_of_le hlens.le, List.drop_eq_nil_of_le hidxs.le]; rfl))
+      rintro ⟨idx2, carry⟩ hp
+      have hp' : idx2.length = cts.length ∧ idxN idx2 = (incr (lensOf cts) (idxN idx1)).1 ∧
+        carry = (incr (lensOf cts) (idxN idx1)).2 := hp
+      obtain ⟨hlen2, hidx2, hcarry⟩ := hp'
+      try dsimp only
+      simp only [WP.spec_ok]
+      cases carry with
+      | true =>
+        rw [← hcarry, ite_eq_left rfl] at hrest
+        simp only [ite_eq_left rfl, ite_eq_right Bool.false_ne_true]
+        refine ⟨?_, ?_⟩
+        · rw [htarget, htail] at *
+          have : tail = [] := by
+            have h := hrest
+            rw [htail] at h
+            exact (List.cons.inj h).2
+          rw [this, List.foldl_nil]
+          exact htab2
+        · rw [htail]
+          exact Nat.succ_pos _
+      | false =>
+        rw [← hcarry, ite_eq_right Bool.false_ne_true] at hrest
+        obtain ⟨hrest, hvalid2⟩ := hrest
+        simp only [ite_eq_right Bool.false_ne_true]
+        rw [← hidx2] at hrest hvalid2
+        refine ⟨⟨hvalid2, hlen2, pre ++ [cur], ?_, ?_⟩, ?_⟩
+        · rw [hsplit, hrest, List.append_assoc, List.singleton_append]
+        · rw [List.foldl_append, List.foldl_cons, List.foldl_nil, ← htab1]
+          exact htab2
+        · rw [htail, hrest]
+          exact Nat.lt_succ_self _
+  · exact hinv
+
+/-! ## `step_node` -/
+
+/-- `scheme::step_node` computes the model's `stepNode`, when the table it builds fits. -/
+theorem step_node_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
+    (I : Traced Op Tau) (hI : TracedSpec inst p I) (op : Op)
+    (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau)))
+    (hfin : (Traced.stepNode I op (tablesOf cts)).length < Usize.max) :
+    formalism.scheme.step_node inst p op cts
+      ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau)) =>
+        tableOf t = Traced.stepNode I op (tablesOf cts) ⦄ := by
+  unfold formalism.scheme.step_node
+  try dsimp only
+  have hn : (alloc.vec.Vec.len cts).val = cts.length := by simp
+  apply WP.spec_bind (step_node_loop0_spec cts (alloc.vec.Vec.len cts) hn
+    (alloc.vec.Vec.new Usize) false 0#usize (by scalar_tac) (by simp [idxN, alloc.vec.Vec.new])
+    (by simp))
+  rintro ⟨idx, any_empty⟩ hp
+  have hp' : idxN idx = List.replicate (alloc.vec.Vec.len cts).val 0 ∧
+    (any_empty = true ↔ ∃ t ∈ cts.val, t.length = 0) := hp
+  obtain ⟨hidx, hany⟩ := hp'
+  rw [hn] at hidx
+  try dsimp only
+  have hlen : idx.length = cts.length := by
+    have := congrArg List.length hidx
+    simp only [idxN, List.length_map, List.length_replicate] at this
+    exact this
+  apply step_node_loop1_spec inst p I hI op cts (alloc.vec.Vec.len cts) hn hfin
+    (alloc.vec.Vec.new (formalism.scheme.Row Tau)) idx any_empty
+  cases any_empty with
+  | true =>
+    rw [ite_eq_left rfl]
+    obtain ⟨t, ht, ht0⟩ := hany.mp rfl
+    have hnil : tuples (tablesOf cts) = [] :=
+      tuples_eq_nil _ ⟨tableOf t, List.mem_map.mpr ⟨t, ht, rfl⟩,
+        List.eq_nil_of_length_eq_zero (by rw [length_tableOf]; exact ht0)⟩
+    rw [stepNode_eq, hnil, List.foldl_nil]
+    simp [tableOf, alloc.vec.Vec.new]
+  | false =>
+    rw [ite_eq_right Bool.false_ne_true]
+    have hne : ∀ l ∈ tablesOf cts, l ≠ [] := by
+      intro l hl hnil
+      obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hl
+      exact absurd (hany.mpr ⟨t, ht, by rw [← length_tableOf, hnil]; rfl⟩) (by simp)
+    have hL : (tablesOf cts).length = cts.length := by simp [tablesOf]
+    refine ⟨?_, hlen, [], ?_, ?_⟩
+    · rw [hidx, ← hL]
+      exact valid_zeros _ hne
+    · rw [hidx, ← hL, rest_zeros _ hne, List.nil_append]
+    · simp [tableOf, alloc.vec.Vec.new]
 
 end Step
 
