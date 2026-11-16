@@ -530,7 +530,6 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
           rintro ⟨_, back1⟩ hp
           have hp' : back1 = (idx1.set k2 i1).set k2 := hp.2
           subst hp'
-          try dsimp only
           simp only [WP.spec_ok]
           refine ⟨⟨by scalar_tac, by simp [hk2idx], ?_, ?_⟩, by scalar_tac⟩
           · rw [idxN, alloc.vec.Vec.set_val_eq, List.map_set, alloc.vec.Vec.set_val_eq,
@@ -663,7 +662,6 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       have hp' : idx2.length = cts.length ∧ idxN idx2 = (incr (lensOf cts) (idxN idx1)).1 ∧
         carry = (incr (lensOf cts) (idxN idx1)).2 := hp
       obtain ⟨hlen2, hidx2, hcarry⟩ := hp'
-      try dsimp only
       simp only [WP.spec_ok]
       cases carry with
       | true =>
