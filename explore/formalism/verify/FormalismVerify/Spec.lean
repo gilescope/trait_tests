@@ -657,7 +657,7 @@ noncomputable def denot (e : Expr) : Finset Assign := if h : ∃ A, Sem e A then
 
 theorem Sem.denot_eq {e : Expr} {A : Finset Assign} (h : Sem e A) : denot e = A := by
   unfold denot
-  rw [dif_pos (⟨A, h⟩ : ∃ A, Sem e A)]
+  rw [dite_eq_left (⟨A, h⟩ : ∃ A, Sem e A)]
   exact Sem.unique (Exists.choose_spec (⟨A, h⟩ : ∃ A, Sem e A)) h
 
 theorem Sem.ne_empty {e : Expr} {A : Finset Assign} (h : Sem e A) (hA : A.Nonempty) : e ≠ .empty := by
@@ -711,7 +711,7 @@ theorem rowExpr_unionInto (tau : Tau) (e : Expr) (τ : Tau) :
     simp only [unionInto, rowExpr]
     by_cases h : τ = tau
     · subst h; simp [Expr.union']
-    · rw [if_neg (Ne.symm h), if_neg h]
+    · rw [ite_eq_right (Ne.symm h), ite_eq_right h]
   | (t, e') :: rows => by
     by_cases ht : t = tau
     · subst ht
@@ -731,9 +731,9 @@ theorem TableSem.unionInto_sem {T : Table Tau} {S : Tau → Finset Assign} (hT :
   dsimp only
   rw [rowExpr_unionInto]
   by_cases h : τ = tau
-  · rw [if_pos h, if_pos h]
+  · rw [ite_eq_left h, ite_eq_left h]
     exact Sem.union' (hT tau) he hdisj hdom
-  · rw [if_neg h, if_neg h]
+  · rw [ite_eq_right h, ite_eq_right h]
     exact hT τ
 
 /-- The sets a list of items adds to row `τ`. -/
@@ -763,19 +763,19 @@ theorem TableSem.foldl_unionInto {Dn : Finset Var} (D : Tau × Expr → Finset A
       (fun it' h => hD it' (List.mem_cons_of_mem _ h)) hpair.2
       (fun it' h => by
         by_cases heq : it'.1 = it.1
-        · simp only [heq, if_true]
+        · simp only [heq, ite_true]
           exact Finset.disjoint_union_left.mpr
             ⟨heq ▸ hS it' (List.mem_cons_of_mem _ h), hpair.1 it' h⟩
-        · simp only [heq, if_false]
+        · simp only [heq, ite_false]
           exact hS it' (List.mem_cons_of_mem _ h))
       (fun it' h => hdomD it' (List.mem_cons_of_mem _ h))
       (fun τ f hf => by
         by_cases heq : τ = it.1
-        · simp only [heq, if_true, Finset.mem_union] at hf
+        · simp only [heq, ite_true, Finset.mem_union] at hf
           rcases hf with hf | hf
           · exact hdomS _ f hf
           · exact hdomD it (List.mem_cons_self ..) f hf
-        · simp only [heq, if_false] at hf
+        · simp only [heq, ite_false] at hf
           exact hdomS _ f hf)
     intro τ
     have := ih τ
@@ -810,7 +810,7 @@ theorem mem_itemsSet (D : Tau × Expr → Finset Assign) :
   | it :: items, τ, f => by
     rw [itemsSet_cons]
     by_cases h : it.1 = τ
-    · rw [if_pos h, Finset.mem_union, mem_itemsSet D items]
+    · rw [ite_eq_left h, Finset.mem_union, mem_itemsSet D items]
       constructor
       · rintro (hf | ⟨it', hit', hτ, hf⟩)
         · exact ⟨it, List.mem_cons_self .., h, hf⟩
@@ -820,7 +820,7 @@ theorem mem_itemsSet (D : Tau × Expr → Finset Assign) :
         rcases hit' with rfl | hit'
         · exact Or.inl hf
         · exact Or.inr ⟨it', hit', hτ, hf⟩
-    · rw [if_neg h, mem_itemsSet D items]
+    · rw [ite_eq_right h, mem_itemsSet D items]
       constructor
       · rintro ⟨it', hit', hτ, hf⟩
         exact ⟨it', List.mem_cons_of_mem _ hit', hτ, hf⟩
@@ -931,7 +931,7 @@ theorem rowExpr_of_mem :
     · have hne : t' ≠ t := by
         rintro rfl
         exact hnd.1 (List.mem_map.mpr ⟨(t', e), h, rfl⟩)
-      rw [rowExpr, if_neg hne]
+      rw [rowExpr, ite_eq_right hne]
       exact rowExpr_of_mem hnd.2 h
 
 theorem eq_of_mem_of_fst_eq {T : Table Tau} (hnd : (T.map Prod.fst).Nodup) {r r' : Tau × Expr}
@@ -948,7 +948,7 @@ theorem mem_of_rowExpr_ne :
     by_cases ht : t' = t
     · subst ht
       simp [rowExpr]
-    · rw [rowExpr, if_neg ht] at h ⊢
+    · rw [rowExpr, ite_eq_right ht] at h ⊢
       exact List.mem_cons_of_mem _ (mem_of_rowExpr_ne h)
 
 theorem mem_map_fst_unionInto :
@@ -959,10 +959,10 @@ theorem mem_map_fst_unionInto :
     exact Or.inr h
   | (t, e') :: rows, tau, e, x, h => by
     by_cases ht : t = tau
-    · rw [unionInto, if_pos ht] at h
+    · rw [unionInto, ite_eq_left ht] at h
       simp only [List.map_cons] at h ⊢
       exact Or.inl h
-    · rw [unionInto, if_neg ht, List.map_cons, List.mem_cons] at h
+    · rw [unionInto, ite_eq_right ht, List.map_cons, List.mem_cons] at h
       rw [List.map_cons, List.mem_cons]
       rcases h with h | h
       · exact Or.inl (Or.inl h)
@@ -977,9 +977,9 @@ theorem nodup_unionInto :
   | (t, e') :: rows, tau, e, hnd => by
     rw [List.map_cons, List.nodup_cons] at hnd
     by_cases ht : t = tau
-    · rw [unionInto, if_pos ht, List.map_cons, List.nodup_cons]
+    · rw [unionInto, ite_eq_left ht, List.map_cons, List.nodup_cons]
       exact hnd
-    · rw [unionInto, if_neg ht, List.map_cons, List.nodup_cons]
+    · rw [unionInto, ite_eq_right ht, List.map_cons, List.nodup_cons]
       refine ⟨?_, nodup_unionInto rows tau e hnd.2⟩
       intro hmem
       rcases mem_map_fst_unionInto rows tau e hmem with h | h
@@ -1670,7 +1670,7 @@ theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
   | row :: L, f => by
     rw [acceptedSet_cons]
     by_cases h : I.accept row.1 = true
-    · rw [if_pos h, Finset.mem_union, mem_acceptedSet I S L]
+    · rw [ite_eq_left h, Finset.mem_union, mem_acceptedSet I S L]
       constructor
       · rintro (hf | ⟨r, hr, ha, hf⟩)
         · exact ⟨row, List.mem_cons_self .., h, hf⟩
@@ -1680,7 +1680,7 @@ theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
         rcases hr with rfl | hr
         · exact Or.inl hf
         · exact Or.inr ⟨r, hr, ha, hf⟩
-    · rw [if_neg h, mem_acceptedSet I S L]
+    · rw [ite_eq_right h, mem_acceptedSet I S L]
       constructor
       · rintro ⟨r, hr, ha, hf⟩
         exact ⟨r, List.mem_cons_of_mem _ hr, ha, hf⟩
@@ -1710,7 +1710,7 @@ theorem Sem.foldl_accept {Dn : Finset Var} (I : Traced Op Tau) (S : Tau → Fins
       intro heq
       exact hnd.1 (heq ▸ List.mem_map.mpr ⟨r, hr, rfl⟩)
     by_cases h : I.accept row.1 = true
-    · rw [if_pos h]
+    · rw [ite_eq_left h]
       have ih := Sem.foldl_accept (Dn := Dn) I S hS hdom L (Expr.union' e row.2) (A ∪ S row.1)
         (Sem.union' he (hL row (List.mem_cons_self ..)) (hA row (List.mem_cons_self ..))
           (fun f hf g hg => by rw [hAd f hf, hdom _ g hg]))
@@ -1722,10 +1722,10 @@ theorem Sem.foldl_accept {Dn : Finset Var} (I : Traced Op Tau) (S : Tau → Fins
           rcases hf with hf | hf
           · exact hAd f hf
           · exact hdom _ f hf)
-      rw [acceptedSet_cons, if_pos h, ← Finset.union_assoc]
+      rw [acceptedSet_cons, ite_eq_left h, ← Finset.union_assoc]
       exact ih
-    · rw [if_neg h]
-      rw [acceptedSet_cons, if_neg h]
+    · rw [ite_eq_right h]
+      rw [acceptedSet_cons, ite_eq_right h]
       exact Sem.foldl_accept (Dn := Dn) I S hS hdom L e A he hnd.2
         (fun r hr => hL r (List.mem_cons_of_mem _ hr))
         (fun r hr => hA r (List.mem_cons_of_mem _ hr)) hAd
