@@ -148,13 +148,33 @@ theorem tracedSpec (p : formalism.instances.bits.Bits) :
     TracedSpec R inst p (model p).toTraced :=
   ⟨eq_spec, clone_spec, step_spec p, accept_spec p⟩
 
+/-- A vector's list is smaller than the vector (for recursion through `Vec`-nested trees). -/
+theorem sizeOf_val_lt {T : Type} [SizeOf T] (v : alloc.vec.Vec T) : sizeOf v.val < sizeOf v := by
+  rcases v with ⟨⟨l, h⟩⟩
+  show sizeOf l < sizeOf (alloc.vec.Vec.mk ⟨l, h⟩)
+  simp only [alloc.vec.Vec.mk.sizeOf_spec, Subtype.mk.sizeOf_spec]
+  omega
+
 mutual
 /-- The extracted construction, read as the model's. -/
 def toModel : formalism.scheme.Node formalism.instances.bits.Op → Node Bits.Op
   | .mk op cs => .mk (opOf op) (toModelList cs.val)
+termination_by n => sizeOf n
+decreasing_by
+  all_goals
+    have h := sizeOf_val_lt cs
+    simp_wf
+    try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
+    omega
 def toModelList : List (formalism.scheme.Node formalism.instances.bits.Op) → List (Node Bits.Op)
   | [] => []
   | c :: cs => toModel c :: toModelList cs
+termination_by l => sizeOf l
+decreasing_by
+  all_goals
+    simp_wf
+    try simp only [List.cons.sizeOf_spec] at *
+    omega
 end
 
 mutual
@@ -163,6 +183,13 @@ theorem nodeRel_toModel : ∀ n : formalism.scheme.Node formalism.instances.bits
   | .mk op cs => by
     rw [toModel, NodeRel]
     exact ⟨rfl, nodeRelList_toModelList cs.val⟩
+termination_by n => sizeOf n
+decreasing_by
+  all_goals
+    have h := sizeOf_val_lt cs
+    simp_wf
+    try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
+    omega
 theorem nodeRelList_toModelList :
     ∀ cs : List (formalism.scheme.Node formalism.instances.bits.Op),
       NodeRelList R cs (toModelList cs)
@@ -172,6 +199,12 @@ theorem nodeRelList_toModelList :
   | c :: cs => by
     rw [toModelList, NodeRelList]
     exact ⟨nodeRel_toModel c, nodeRelList_toModelList cs⟩
+termination_by l => sizeOf l
+decreasing_by
+  all_goals
+    simp_wf
+    try simp only [List.cons.sizeOf_spec] at *
+    omega
 end
 
 /-- Claim 1 for the extracted `hylo::dp::solve_bits`: the expression denotes exactly the
