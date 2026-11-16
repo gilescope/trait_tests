@@ -23,7 +23,7 @@ def incr : List ℕ → List ℕ → List ℕ × Bool
   | _ :: _, [] => ([], true)
   | m :: ms, i :: is =>
     if (incr ms is).2 then
-      if i + 1 < m then (i + 1 :: (incr ms is).1, false) else (0 :: (incr ms is).1, true)
+      if i + 1 < m then ((i + 1) :: (incr ms is).1, false) else (0 :: (incr ms is).1, true)
     else (i :: (incr ms is).1, false)
 
 /-- The tuples still to visit from a digit vector, the current one first. -/
@@ -148,7 +148,7 @@ theorem rest_incr : ∀ (L : List (List α)) (idx : List ℕ), Valid L idx →
           have := incr_carry (L.map List.length) is hlen (by simp [hinc])
           rw [hinc, List.length_map] at this
           exact this
-        have hne : ∀ l' ∈ L, l' ≠ [] := his.ne_nil
+        have hne : ∀ l' ∈ L, l' ≠ [] := Valid.ne_nil his
         by_cases hlt : i + 1 < l.length
         · -- this digit can still advance: the rest restarts in full
           rw [ite_eq_left hlt]
