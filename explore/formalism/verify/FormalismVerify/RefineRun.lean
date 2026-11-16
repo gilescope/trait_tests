@@ -99,7 +99,6 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
   · rintro ⟨cts1, c1⟩ ⟨hc1, htabs1⟩
     replace hc1 : c1.val ≤ ncs.val.length := hc1
     replace htabs1 : tablesOf cts1 = Traced.runList I (ms.take c1.val) := htabs1
-    beta_reduce
     unfold formalism.scheme.run_loop.body
     simp only [alloc.vec.Vec.index_slice_index, formalism.scheme.Node.children._simpLemma_,
       formalism.scheme.Node.op._simpLemma_]
@@ -176,6 +175,7 @@ end
 
 /-! ## `solve`: the accepted root rows -/
 
+omit [DecidableEq Tau] in
 theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     (I : Traced Op Tau) (hI : TracedSpec inst p I)
     (table : alloc.vec.Vec (formalism.scheme.Row Tau)) (e : formalism.expr.Expr) (i : Usize)
@@ -193,7 +193,6 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     replace hi1 : i1.val ≤ table.val.length := hi1
     replace he1 : ofExt e1 = ((tableOf table).take i1.val).foldl
       (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty := he1
-    beta_reduce
     unfold formalism.scheme.solve_loop.body
     simp only [alloc.vec.Vec.index_slice_index]
     split

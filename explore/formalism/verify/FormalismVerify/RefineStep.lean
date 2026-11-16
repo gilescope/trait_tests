@@ -103,6 +103,7 @@ theorem length_idxN (idx : alloc.vec.Vec Usize) : (idxN idx).length = idx.val.le
 def lensOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) : List ℕ :=
   cts.val.map fun t => t.val.length
 
+omit [DecidableEq Tau] in
 theorem lens_tablesOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) :
     (tablesOf cts).map List.length = lensOf cts := by
   simp [tablesOf, lensOf, length_tableOf]
@@ -255,6 +256,7 @@ def CurOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau)))
   List.Forall₂ (fun (r : Tau × Expr) (p : List (Tau × Expr) × ℕ) => p.1[p.2]? = some r) cur
     ((tablesOf cts).zip (idxN idx))
 
+omit [DecidableEq Tau] in
 theorem CurOf.length {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))}
     {idx : alloc.vec.Vec Usize} {cur : List (Tau × Expr)} (h : CurOf cts idx cur)
     (hlen : idx.val.length = cts.val.length) : cur.length = cts.val.length := by
@@ -448,6 +450,7 @@ theorem step_node_loop1_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p 
 
 /-! ## Loop 1.2: the odometer -/
 
+omit [DecidableEq Tau] in
 theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau)))
     (idx₀ : alloc.vec.Vec Usize) (hlen₀ : idx₀.val.length = cts.val.length)
     (hvalid : ∀ j, (hj : j < cts.val.length) →

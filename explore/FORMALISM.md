@@ -97,6 +97,14 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    DP output denotes exactly the solution set, given an `Instance` that discharges the trace
    obligations. `Bits.lean` discharges them for one instance (bit assignments with `k` ones),
    so there `Bits.solve_sound` holds with no hypothesis beyond well-formedness.
+4. `solve_sound_extracted` (`RefineRun.lean`): the same, about the Rust. The Aeneas extraction
+   of `expr.rs` and `scheme.rs` computes the model function by function (`Refine.lean`:
+   `union`, `join`, `join_leaves`, `union_into`; `RefineStep.lean` with `Odometer.lean`:
+   `step_node` and its odometer over the children's rows; `RefineRun.lean`: `run`, `solve`),
+   so `scheme::solve` succeeds and its expression denotes the solution set, given that the
+   extracted construction is the model's (`NodeRel`), every table built fits a `Vec` (`Fits`,
+   the one way `step_node` can fail) and the instance's extracted `step`/`accept` compute the
+   model's (`TracedSpec`).
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -116,7 +124,10 @@ Everything else is inherited.
 
 `earthly +verify`: `charon cargo --preset=aeneas` turns the crate into LLBC,
 `aeneas -backend lean` turns LLBC into `Extracted/*.lean`, `lake build` checks
-`Spec.lean` against it. The core modules are written in Aeneas's subset: `no_std` +
+`Spec.lean` and the refinement against it. Charon translates only the signatures of a
+dependency crate unless told otherwise, so the `formalism` bodies are asked for with
+`--include=formalism::expr::_ --include=formalism::scheme::_`, and `scheme::solve` is reached
+through `hylo::dp::solve_scheme` (a start item in a dependency is dropped). The core modules are written in Aeneas's subset: `no_std` +
 `alloc`, no closures, no iterator adaptors, no hash maps, index loops, no `&mut` through
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
@@ -136,10 +147,16 @@ construction): one domain per well-formed node, children own disjoint variables,
 each output's leaves once, `cand_iff` and `trace_mk`. `Bits.lean` discharges every obligation
 for a concrete instance (leaves assign one bit each, the trace is the number of ones, a solution
 has exactly `k` ones, `WF` = distinct leaves), so `Bits.solve_sound` is an unconditional
-corollary for well-formed trees.
-Upstream Aeneas main (1dc8ad3) extracts the same crate but its newer loop encoding produces
-Lean that does not compile (universe mismatch on the generic `hylo_rose_loop0`, duplicate
-pattern binders); the fork does not have that problem. GAT-lite (`gilescope/aeneas` PR #7,
+corollary for well-formed trees. The refinement (`Refine.lean`, `Odometer.lean`,
+`RefineStep.lean`, `RefineRun.lean`, all proved) relates the extracted `expr.rs` and `scheme.rs`
+to the model and transfers Claim 1 to the Rust (`solve_sound_extracted`); until this step the
+extracted `step_node` and `union` were axioms, because Charon keeps a dependency's bodies opaque
+by default. `Spec.stepNode` enumerates child-row tuples in the Rust's odometer order (`tuples`)
+so that the refinement is syntactic.
+Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
+its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
+produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,
+duplicate pattern binders). The fork does not have that problem. GAT-lite (`gilescope/aeneas` PR #7,
 draft) is green on the fork's full test suite, including the GAT test's generated Lean.
 
 A push to this branch gets its Lean verdict in about four minutes: the Earthfile layers for

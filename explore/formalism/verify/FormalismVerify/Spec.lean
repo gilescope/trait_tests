@@ -10,7 +10,8 @@ are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 Checked by `lake build` in CI (`+verify` in the Earthfile). Proved, with no `sorry`: Lemma 1
 (`eval_eq_measure`), Theorem 3 (`D Δ A` is a commutative semiring) and Claim 1 (`solve_sound`:
 on a well-formed construction the trace DP's output denotes exactly the solution set, given the
-`Instance` obligations; `Bits.lean` discharges them for a concrete instance).
+`Instance` obligations; `Bits.lean` discharges them for a concrete instance). `Refine*.lean`
+relate the Aeneas extraction to this model and transfer Claim 1 to the Rust.
 -/
 
 namespace Formalism
