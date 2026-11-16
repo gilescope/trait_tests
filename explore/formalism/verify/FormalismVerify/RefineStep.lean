@@ -368,7 +368,7 @@ theorem step_node_loop1_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p 
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec outs o1 hlt')
       rintro ⟨t, v⟩ htv
       replace htv : (t, v) = outs.val[o1.val] := htv
-      dsimp only
+      try dsimp only
       apply WP.spec_bind (join_leaves_spec joined (alloc.vec.Vec.deref v))
       intro e1 he1
       replace he1 : ofExt e1 =
@@ -530,6 +530,7 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
           rintro ⟨_, back1⟩ hp
           have hp' : back1 = (idx1.set k2 i1).set k2 := hp.2
           subst hp'
+          show WP.spec (ok (ControlFlow.cont _)) _
           simp only [WP.spec_ok]
           refine ⟨⟨by scalar_tac, by simp [hk2idx], ?_, ?_⟩, by scalar_tac⟩
           · rw [idxN, alloc.vec.Vec.set_val_eq, List.map_set, alloc.vec.Vec.set_val_eq,
@@ -662,6 +663,7 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       have hp' : idx2.length = cts.length ∧ idxN idx2 = (incr (lensOf cts) (idxN idx1)).1 ∧
         carry = (incr (lensOf cts) (idxN idx1)).2 := hp
       obtain ⟨hlen2, hidx2, hcarry⟩ := hp'
+      show WP.spec (ok (ControlFlow.cont _)) _
       simp only [WP.spec_ok]
       cases carry with
       | true =>

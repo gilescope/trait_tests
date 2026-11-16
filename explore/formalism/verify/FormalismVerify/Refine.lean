@@ -387,7 +387,7 @@ theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec
             back1 = (table.set k { r1 with expr := .Empty }).set k := hp
         obtain ⟨hr2, hback1⟩ := hp'
         subst hback1
-        trace_state
+        show WP.spec (ok (ControlFlow.done _)) _
         simp only [WP.spec_ok]
         -- the rows before `k` do not match, the row at `k` does
         have hpre' : ∀ j, (hj : j < (tableOf table).length) → j < k.val →
