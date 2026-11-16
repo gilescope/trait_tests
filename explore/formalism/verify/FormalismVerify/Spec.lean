@@ -1107,6 +1107,7 @@ theorem nodup_sections {α : Type*} :
     · have ih := nodup_sections L fun l' hl' => h l' (List.mem_cons_of_mem _ hl')
       refine List.Pairwise.imp ?_ ih
       intro s s' hne
+      show List.Disjoint _ _
       rw [List.disjoint_left]
       intro x hx hx'
       rw [List.mem_map] at hx hx'
@@ -1191,7 +1192,7 @@ theorem restrict_foldl_join_cand :
         obtain ⟨c', hc', hgc'⟩ := forall₂_mem_left hF.2 hg
         rw [I.dom_eq c' g hgc']
         exact hpair.1 c' hc'
-    · apply I.restrict_foldl_join_cand hF.2 hpair.2 (e.join f)
+    · apply restrict_foldl_join_cand hF.2 hpair.2 (e.join f)
       intro c' hc'
       apply Finset.disjoint_of_subset_left (Assign.join_dom_subset e f)
       rw [Finset.disjoint_union_left]
@@ -1218,8 +1219,9 @@ theorem rows_sem :
   | _ :: _, [], _, hr, _ => nomatch hr
   | _ :: _, _ :: _, [], _, hT => nomatch hT
   | r :: rows, T :: tables, c :: cs, hr, hT => by
-    rw [List.forall₂_cons] at hr hT
-    refine List.Forall₂.cons ?_ (I.rows_sem hr.2 hT.2)
+    rw [List.forall₂_cons] at hr
+    rw [TablesSem, List.forall₂_cons] at hT
+    refine List.Forall₂.cons ?_ (rows_sem hr.2 hT.2)
     have h := hT.1.1 r.1
     rw [rowExpr_of_mem hT.1.2 (show (r.1, r.2) ∈ T from hr.1)] at h
     exact h
@@ -1237,7 +1239,7 @@ theorem joined_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
     Sem (joined rows) (joinedSet (List.zipWith (fun r c => I.rowSet c r.1) rows cs)) := by
   have hrs := I.rows_sem hrows hT
   apply Sem.joined
-  · exact forall₂_zipWith_of_forall₂ _ (fun _ _ h => h) hrs
+  · exact forall₂_zipWith_of_forall₂ (fun r c => I.rowSet c r.1) (fun _ _ h => h) hrs
   · apply pairwise_zipWith_right (P := fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) _ _
       rows cs (I.children_pairwise cs)
     intro r r' c c' hcc' f hf g hg
@@ -1333,7 +1335,7 @@ theorem restrict_foldl_join_rows :
           rw [rowSet, Finset.mem_filter] at hgA
           rw [I.dom_eq c' g hgA.1]
           exact hpair.1 c' hc'
-      · apply I.restrict_foldl_join_rows rows cs fs hfs hlen hpair.2 (e.join f)
+      · apply restrict_foldl_join_rows rows cs fs hfs hlen hpair.2 (e.join f)
         intro c' hc'
         apply Finset.disjoint_of_subset_left (Assign.join_dom_subset e f)
         rw [Finset.disjoint_union_left]
@@ -1434,7 +1436,7 @@ theorem cand_of_zip :
       rename_i f fs
       simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
       rw [rowSet, Finset.mem_filter] at hf
-      obtain ⟨ih1, ih2⟩ := I.cand_of_zip rows cs fs hlen hfs
+      obtain ⟨ih1, ih2⟩ := cand_of_zip rows cs fs hlen hfs
       refine ⟨List.Forall₂.cons hf.1 ih1, ?_⟩
       rw [List.map_cons, List.zipWith_cons_cons, ih2, hf.2]
 
@@ -1450,11 +1452,10 @@ theorem exists_rows {tables : List (Table Tau)} {cs : List (Node Op)} (hT : I.Ta
     intro fs hfs
     cases hfs
     exact ⟨[], List.Forall₂.nil, rfl, List.Forall₂.nil⟩
-  | cons hTc _ ih =>
+  | @cons T c tables cs hTc _ ih =>
     intro fs hfs
     cases hfs with
-    | cons hf hfs =>
-      rename_i T c tables cs f fs
+    | @cons f _ fs _ hf hfs =>
       obtain ⟨rows, h1, h2, h3⟩ := ih hfs
       have hfr : f ∈ I.rowSet c (I.trace c f) := by
         rw [rowSet, Finset.mem_filter]
@@ -1615,25 +1616,34 @@ def acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) (L : List (Tau �
     Finset Assign :=
   (L.filter fun row => I.accept row.1).foldr (fun row acc => S row.1 ∪ acc) ∅
 
+theorem acceptedSet_cons (I : Traced Op Tau) (S : Tau → Finset Assign) (row : Tau × Expr)
+    (L : List (Tau × Expr)) :
+    acceptedSet I S (row :: L) =
+      if I.accept row.1 = true then S row.1 ∪ acceptedSet I S L else acceptedSet I S L := by
+  unfold acceptedSet
+  rw [List.filter_cons]
+  by_cases h : I.accept row.1 = true
+  · simp [h]
+  · simp [h]
+
 theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
     ∀ (L : List (Tau × Expr)) (f : Assign),
       f ∈ acceptedSet I S L ↔ ∃ row ∈ L, I.accept row.1 = true ∧ f ∈ S row.1
   | [], f => by simp [acceptedSet]
   | row :: L, f => by
-    unfold acceptedSet
-    rw [List.filter_cons]
+    rw [acceptedSet_cons]
     by_cases h : I.accept row.1 = true
-    · simp only [h, decide_true, List.foldr_cons, Finset.mem_union, List.mem_cons]
-      rw [← acceptedSet, mem_acceptedSet I S L]
+    · rw [if_pos h, Finset.mem_union, mem_acceptedSet I S L]
       constructor
       · rintro (hf | ⟨r, hr, ha, hf⟩)
-        · exact ⟨row, Or.inl rfl, h, hf⟩
-        · exact ⟨r, Or.inr hr, ha, hf⟩
-      · rintro ⟨r, hr | hr, ha, hf⟩
-        · exact Or.inl (hr ▸ hf)
+        · exact ⟨row, List.mem_cons_self .., h, hf⟩
+        · exact ⟨r, List.mem_cons_of_mem _ hr, ha, hf⟩
+      · rintro ⟨r, hr, ha, hf⟩
+        rw [List.mem_cons] at hr
+        rcases hr with rfl | hr
+        · exact Or.inl hf
         · exact Or.inr ⟨r, hr, ha, hf⟩
-    · simp only [h, decide_false]
-      rw [← acceptedSet, mem_acceptedSet I S L]
+    · rw [if_neg h, mem_acceptedSet I S L]
       constructor
       · rintro ⟨r, hr, ha, hf⟩
         exact ⟨r, List.mem_cons_of_mem _ hr, ha, hf⟩
@@ -1674,18 +1684,10 @@ theorem Sem.foldl_accept {Dn : Finset Var} (I : Traced Op Tau) (S : Tau → Fins
           rcases hf with hf | hf
           · exact hAd f hf
           · exact hdom _ f hf)
-      have hacc : acceptedSet I S (row :: L) = S row.1 ∪ acceptedSet I S L := by
-        unfold acceptedSet
-        rw [List.filter_cons]
-        simp [h]
-      rw [hacc, ← Finset.union_assoc]
+      rw [acceptedSet_cons, if_pos h, ← Finset.union_assoc]
       exact ih
     · rw [if_neg h]
-      have hacc : acceptedSet I S (row :: L) = acceptedSet I S L := by
-        unfold acceptedSet
-        rw [List.filter_cons]
-        simp [h]
-      rw [hacc]
+      rw [acceptedSet_cons, if_neg h]
       exact Sem.foldl_accept (Dn := Dn) I S hS hdom L e A he hnd.2
         (fun r hr => hL r (List.mem_cons_of_mem _ hr))
         (fun r hr => hA r (List.mem_cons_of_mem _ hr)) hAd
