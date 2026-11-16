@@ -727,7 +727,7 @@ theorem nodup_tuples {α : Type*} :
       rw [List.mem_map] at hx hx'
       obtain ⟨s, _, rfl⟩ := hx
       obtain ⟨s', _, hs'⟩ := hx'
-      exact hne (List.cons.inj hs').1
+      exact hne (List.cons.inj hs').1.symm
 
 /-- Mirrors `scheme::step_node`: one row from each child, every way (`tuples`, in the Rust's
     order); each `(trace, leaves)` the step yields joins the leaves onto the children's
