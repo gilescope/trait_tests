@@ -264,6 +264,7 @@ theorem CurOf.length {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row T
   rw [List.length_zip, length_tablesOf, length_idxN, hlen, Nat.min_self] at this
   exact this
 
+omit [DecidableEq Tau] in
 theorem CurOf.getElem {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))}
     {idx : alloc.vec.Vec Usize} {cur : List (Tau × Expr)} (h : CurOf cts idx cur)
     (hlen : idx.val.length = cts.val.length) (k : ℕ) (hk : k < cts.val.length) :
