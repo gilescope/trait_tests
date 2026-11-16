@@ -47,6 +47,7 @@ theorem sum_loop_spec (s : Slice U64) (acc : U64) (i : Usize) (hi : i.val ≤ s.
       (acc.val + ((s.val.drop i.val).map fun t => t.val).sum) % U64.size := hinv
     show formalism.instances.bits.sum_loop.body s acc1 i1 ⦃ _ ⦄
     unfold formalism.instances.bits.sum_loop.body
+    dsimp only
     split
     · rename_i hlt
       have hlt' : i1.val < s.val.length := by scalar_tac
