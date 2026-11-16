@@ -88,13 +88,15 @@ size is the same bound; `expr::eval` is linear in it (Lemma 1).
 
 ## What is proved once, for every instance
 
-In `formalism/verify/FormalismVerify/Spec.lean` (statements only so far):
+In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
 
 1. `eval_eq_measure` (Lemma 1): evaluation in any commutative semiring equals the measure
    of the expression's semantics.
 2. `Delta` is a `CommSemiring` (Theorem 3), `Delta D1 D2` is a `Dioid` (Theorem 4).
-3. `solve_sound` (Claim 1 at the root): the DP output denotes exactly the solution set,
-   given an `Instance` that discharges the trace obligations.
+3. `solve_sound` (Claim 1 at the root): on a well-formed construction (`Instance.WF`), the
+   DP output denotes exactly the solution set, given an `Instance` that discharges the trace
+   obligations. `Bits.lean` discharges them for one instance (bit assignments with `k` ones),
+   so there `Bits.solve_sound` holds with no hypothesis beyond well-formedness.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -127,9 +129,14 @@ Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_e
 homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
 semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
 trace DP, modelled constructor for constructor after `scheme.rs`, denotes exactly the solution
-set). Claim 1 is conditional on the `Instance` obligations stated in `Spec.lean` (one domain per
-node, children own disjoint variables, `step` yields each output's leaves once, `cand_iff` and
-`trace_mk`); no concrete instance has discharged them in Lean yet, that is the next layer.
+set). Claim 1 is conditional on the `Instance` obligations stated in `Spec.lean`, which are
+relative to a well-formedness predicate `WF` (quantifying them over every list of children was
+unsatisfiable, since a tree may repeat a variable; the paper's decompositions are well formed by
+construction): one domain per well-formed node, children own disjoint variables, `step` yields
+each output's leaves once, `cand_iff` and `trace_mk`. `Bits.lean` discharges every obligation
+for a concrete instance (leaves assign one bit each, the trace is the number of ones, a solution
+has exactly `k` ones, `WF` = distinct leaves), so `Bits.solve_sound` is an unconditional
+corollary for well-formed trees.
 Upstream Aeneas main (1dc8ad3) extracts the same crate but its newer loop encoding produces
 Lean that does not compile (universe mismatch on the generic `hylo_rose_loop0`, duplicate
 pattern binders); the fork does not have that problem. GAT-lite (`gilescope/aeneas` PR #7,

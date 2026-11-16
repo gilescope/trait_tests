@@ -29,10 +29,12 @@ def IsRecursive (c : α → F α) : Prop :=
 noncomputable def hylo (a : F β → β) (c : α → F α) (hc : IsRecursive c) : α → β :=
   Classical.choose (hc β a)
 
+omit [LawfulFunctor F] in
 theorem hylo_solves (a : F β → β) (c : α → F α) (hc : IsRecursive c) :
     Solves a c (hylo a c hc) :=
   (Classical.choose_spec (hc β a)).1
 
+omit [LawfulFunctor F] in
 theorem hylo_unique (a : F β → β) (c : α → F α) (hc : IsRecursive c) {h : α → β}
     (hh : Solves a c h) : h = hylo a c hc :=
   (Classical.choose_spec (hc β a)).2 h hh

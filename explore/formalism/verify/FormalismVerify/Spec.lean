@@ -9,7 +9,8 @@ are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 
 Checked by `lake build` in CI (`+verify` in the Earthfile). Proved, with no `sorry`: Lemma 1
 (`eval_eq_measure`), Theorem 3 (`D Δ A` is a commutative semiring) and Claim 1 (`solve_sound`:
-the trace DP's output denotes exactly the solution set, given the `Instance` obligations).
+on a well-formed construction the trace DP's output denotes exactly the solution set, given the
+`Instance` obligations; `Bits.lean` discharges them for a concrete instance).
 -/
 
 namespace Formalism
@@ -379,7 +380,7 @@ def addA (d₁ : D) (a₁ : A) (d₂ : D) (a₂ : A) : A :=
   simp [addA]
 
 theorem addA_comm (d₁ d₂ : D) (a₁ a₂ : A) : addA d₁ a₁ d₂ a₂ = addA d₂ a₂ d₁ a₁ := by
-  rcases lt_trichotomy d₁ d₂ with h | h | h <;> (try subst h) <;> simp [*, lt_asymm, add_comm]
+  rcases lt_trichotomy d₁ d₂ with h | h | h <;> (try subst h) <;> simp [*, add_comm]
 
 set_option linter.unusedSimpArgs false in
 theorem addA_assoc (d₁ d₂ d₃ : D) (a₁ a₂ a₃ : A) :
@@ -878,6 +879,7 @@ theorem mem_joinedSet (R : List (Finset Assign)) (f : Assign) :
   · rintro ⟨fs, hfs, rfl⟩
     exact ⟨Assign.empty, Finset.mem_singleton_self _, fs, hfs, rfl⟩
 
+omit [DecidableEq Tau] in
 theorem Sem.joined_aux :
     ∀ (rows : List (Tau × Expr)) (R : List (Finset Assign)) (e : Expr) (E : Finset Assign),
       Sem e E → List.Forall₂ (fun r A => Sem r.2 A) rows R →
@@ -1175,6 +1177,7 @@ theorem rowSet_disjoint (n : Node Op) {τ τ' : Tau} (h : τ ≠ τ') :
   rw [rowSet, Finset.mem_filter] at hf hf'
   exact h (hf.2.symm.trans hf'.2)
 
+omit [DecidableEq Tau] in
 theorem children_pairwise {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs)) :
     cs.Pairwise fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c') :=
   List.pairwise_map.mp (I.children_disjoint op cs hwf)
@@ -1185,6 +1188,7 @@ theorem children_pairwise_wf {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op
     (fun {c c'} hc hc' h => ⟨I.wf_children op cs hwf c hc, I.wf_children op cs hwf c' hc', h⟩)
     (I.children_pairwise hwf)
 
+omit [DecidableEq Tau] in
 /-- Restricting a join of one candidate per child to a child's variables recovers that
     candidate. -/
 theorem restrict_foldl_join_cand :
@@ -1297,6 +1301,7 @@ theorem item_sem {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
     exact List.mem_map.mpr ⟨q, hq, rfl⟩
   exact Finset.disjoint_left.mp (I.owned_disjoint op cs hwf c hc) hq_owned hqc
 
+omit [DecidableEq Tau] in
 /-- The leaves of an output, as an assignment, assign exactly the owned variables. -/
 theorem ofList_dom_owned {op : Op} {taus : List Tau} {out : Tau × List (Var × Val)}
     (hout : out ∈ I.step op taus) : (Assign.ofList out.2).dom = I.owned op := by
@@ -1643,6 +1648,7 @@ def acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) (L : List (Tau �
     Finset Assign :=
   (L.filter fun row => I.accept row.1).foldr (fun row acc => S row.1 ∪ acc) ∅
 
+omit [DecidableEq Tau] in
 theorem acceptedSet_cons (I : Traced Op Tau) (S : Tau → Finset Assign) (row : Tau × Expr)
     (L : List (Tau × Expr)) :
     acceptedSet I S (row :: L) =
