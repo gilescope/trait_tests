@@ -271,12 +271,12 @@ theorem CurOf.getElem {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row 
     {idx : alloc.vec.Vec Usize} {cur : List (Tau × Expr)} (h : CurOf R cts idx cur)
     (hlen : idx.val.length = cts.val.length) (k : ℕ) (hk : k < cts.val.length) :
     ∃ (hi : (idx.val[k]'(by rw [hlen]; exact hk)).val < (cts.val[k]).val.length),
-      cur[k]'(by rw [h.length hlen]; exact hk) =
+      cur[k]'(by rw [CurOf.length R h hlen]; exact hk) =
         rowOf R ((cts.val[k]).val[(idx.val[k]'(by rw [hlen]; exact hk)).val]'hi) := by
   have hz : k < ((tablesOf R cts).zip (idxN idx)).length := by
     rw [List.length_zip, length_tablesOf, length_idxN, hlen, Nat.min_self]
     exact hk
-  have hr := forall₂_getElem h k (by rw [h.length hlen]; exact hk) hz
+  have hr := forall₂_getElem h k (by rw [CurOf.length R h hlen]; exact hk) hz
   simp only [List.getElem_zip, tablesOf, idxN, List.getElem_map, tableOf] at hr
   rw [List.getElem?_map] at hr
   rcases hget : (cts.val[k]).val[(idx.val[k]'(by rw [hlen]; exact hk)).val]? with _ | row
@@ -314,8 +314,8 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
     · rename_i hlt
       have hlt' : k1.val < cts.val.length := by scalar_tac
       have hlt'' : k1.val < idx.val.length := by rw [hlen]; exact hlt'
-      have hcurlen : k1.val < cur.length := by rw [hcur.length hlen]; exact hlt'
-      obtain ⟨hi, hcurk⟩ := hcur.getElem hlen k1.val hlt'
+      have hcurlen : k1.val < cur.length := by rw [CurOf.length R hcur hlen]; exact hlt'
+      obtain ⟨hi, hcurk⟩ := CurOf.getElem R hcur hlen k1.val hlt'
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec cts k1 hlt')
       intro v hv
       replace hv : v = cts.val[k1.val] := hv
@@ -335,7 +335,7 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
         have : traces1.val.length ≤ cur.length := by
           rw [← List.length_map traces1.val R.tauOf, htr1, List.length_map, List.length_take]
           exact Nat.min_le_right _ _
-        rw [hcur.length hlen] at this
+        rw [CurOf.length R hcur hlen] at this
         scalar_tac
       apply WP.spec_bind (alloc.vec.Vec.push_spec traces1 row.tau htrlen)
       intro traces2 htr2
@@ -364,7 +364,7 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
     · rename_i hge
       have hkn : k1.val = n.val := by scalar_tac
       have htake : cur.take k1.val = cur :=
-        List.take_of_length_le (by rw [hcur.length hlen, ← hn, hkn])
+        List.take_of_length_le (by rw [CurOf.length R hcur hlen, ← hn, hkn])
       simp only [WP.spec_ok, WP.uncurry'_pair]
       rw [htr1, hj1, htake]
       exact ⟨rfl, rfl⟩

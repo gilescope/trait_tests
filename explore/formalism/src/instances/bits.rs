@@ -36,6 +36,9 @@ impl Traced for Bits {
     type Op = Op;
     type Tau = u64;
 
+    // `Vec::new` + `push` rather than `vec![..]`: the macro goes through `Box<[T]>`, which
+    // Aeneas does not translate.
+    #[allow(clippy::vec_init_then_push)]
     fn step(&self, op: &Op, child_traces: &[u64]) -> Step<u64> {
         let s = sum(child_traces);
         let mut out: Step<u64> = Vec::new();
