@@ -39,6 +39,22 @@ theorem incr_append_of_not_carry :
     simp only [List.cons_append, incr, ih]
     simp
 
+theorem map_drop' {α β : Type*} (f : α → β) :
+    ∀ (l : List α) (n : ℕ), (l.map f).drop n = (l.drop n).map f
+  | [], _ => by simp
+  | _ :: _, 0 => rfl
+  | _ :: l, n + 1 => by
+    rw [List.map_cons, List.drop_succ_cons, List.drop_succ_cons, map_drop' f l n]
+
+theorem getElem?_take_of_lt' {α : Type*} :
+    ∀ (l : List α) (n m : ℕ), m < n → (l.take n)[m]? = l[m]?
+  | [], _, _, _ => by simp
+  | _ :: _, 0, _, h => absurd h (Nat.not_lt_zero _)
+  | _ :: _, _ + 1, 0, _ => by simp
+  | _ :: l, n + 1, m + 1, h => by
+    rw [List.take_succ_cons, List.getElem?_cons_succ, List.getElem?_cons_succ,
+      getElem?_take_of_lt' l n m (by omega)]
+
 theorem set_take_append {α : Type*} :
     ∀ (l : List α) (k : ℕ), k < l.length → ∀ (rest : List α) (x : α),
       (l.take (k + 1) ++ rest).set k x = l.take k ++ x :: rest
@@ -260,7 +276,7 @@ theorem CurOf.getElem {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row 
   · rw [hget] at hr
     simp only [Option.map_some, Option.some.injEq] at hr
     obtain ⟨hi, hrow⟩ := List.getElem?_eq_some_iff.mp hget
-    exact ⟨hi, by rw [hr, hrow]⟩
+    exact ⟨hi, by rw [← hr, hrow]⟩
 
 theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     (I : Traced Op Tau) (hI : TracedSpec inst p I)
@@ -295,13 +311,14 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op Tau) (p 
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec cts k1 hlt')
       intro v hv
       replace hv : v = cts.val[k1.val] := hv
+      subst v
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec idx k1 hlt'')
       intro i hi'
       replace hi' : i = idx.val[k1.val] := hi'
-      have hiv : i.val < v.val.length := by rw [hv, hi']; exact hi
-      apply WP.spec_bind (alloc.vec.Vec.index_usize_spec v i hiv)
+      subst i
+      apply WP.spec_bind (alloc.vec.Vec.index_usize_spec _ _ hi)
       intro row hrow
-      replace hrow : row = v.val[i.val] := hrow
+      replace hrow : row = (cts.val[k1.val]).val[(idx.val[k1.val]).val] := hrow
       apply WP.spec_bind (hI.clone row.tau)
       intro t ht
       replace ht : t = row.tau := ht
@@ -328,7 +345,7 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op Tau) (p 
       have hk2' : k2.val = k1.val + 1 := by scalar_tac
       simp only [WP.spec_ok]
       have hrowk : cur[k1.val]'hcurlen = rowOf row := by
-        rw [hcurk, hrow, hv, hi']
+        rw [hcurk, hrow]
       have htake : cur.take (k1.val + 1) = cur.take k1.val ++ [cur[k1.val]'hcurlen] :=
         List.take_succ_eq_append_getElem hcurlen
       refine ⟨⟨by scalar_tac, ?_, ?_⟩, by scalar_tac⟩
@@ -469,9 +486,9 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
         have hpos' : 0 < k1.val := by scalar_tac
         apply WP.spec_bind (Usize.sub_spec (x := k1) (y := 1#usize) (by scalar_tac))
         intro k2 hk2
-        have hk2' : k2.val = k1.val - 1 := by scalar_tac
-        have hk2lt : k2.val < cts.val.length := by scalar_tac
         have hk1eq : k1.val = k2.val + 1 := by scalar_tac
+        clear hk2
+        have hk2lt : k2.val < cts.val.length := by omega
         have hk2idx : k2.val < idx1.val.length := by rw [hlen1]; exact hk2lt
         have hk2idx₀ : k2.val < idx₀.val.length := by rw [hlen₀]; exact hk2lt
         apply WP.spec_bind (alloc.vec.Vec.index_mut_usize_spec idx1 k2 hk2idx)
@@ -482,12 +499,11 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
         try dsimp only
         -- the digit is the original one, below its radix
         have hi0 : i.val = (idx₀.val[k2.val]'hk2idx₀).val := by
-          have h1 : (idxN idx1)[k2.val]'(by rw [length_idxN]; exact hk2idx) = i.val := by
-            simp only [idxN, List.getElem_map, hi]
-          rw [hidx1] at h1
-          rw [List.getElem_append_left (by rw [List.length_take, hidxs]; omega),
-            List.getElem_take] at h1
-          simp only [idxN, List.getElem_map] at h1
+          have h1 : (idxN idx1)[k2.val]? = some i.val := by
+            rw [idxN, List.getElem?_map, List.getElem?_eq_getElem hk2idx, Option.map_some, ← hi]
+          rw [hidx1, List.getElem?_append_left (by rw [List.length_take, hidxs]; omega),
+            getElem?_take_of_lt' _ _ _ (by omega), idxN, List.getElem?_map,
+            List.getElem?_eq_getElem hk2idx₀, Option.map_some, Option.some.injEq] at h1
           exact h1.symm
         have hi_lt : i.val < (cts.val[k2.val]).val.length := by
           rw [hi0]
@@ -505,8 +521,8 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
         intro i2 hi2
         replace hi2 : i2 = (idx1.set k2 i1).val[k2.val] := hi2
         have hi2' : i2 = i1 := by
-          rw [hi2, alloc.vec.Vec.set_val_eq]
-          exact List.getElem_set_self hk2idx
+          rw [hi2]
+          simp [alloc.vec.Vec.set_val_eq, hk2idx]
         subst i2
         apply WP.spec_bind (alloc.vec.Vec.index_usize_spec cts k2 hk2lt)
         intro v hv
@@ -514,12 +530,10 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
         -- the model's step at this digit
         have hdropl : (lensOf cts).drop k2.val =
             (cts.val[k2.val]).val.length :: (lensOf cts).drop k1.val := by
-          rw [List.drop_eq_getElem_cons (by rw [hlens]; exact hk2lt), hk1eq]
-          simp [lensOf]
+          rw [lensOf, map_drop', map_drop', List.drop_eq_getElem_cons hk2lt, hk1eq, List.map_cons]
         have hdropi : (idxN idx₀).drop k2.val =
             (idx₀.val[k2.val]'hk2idx₀).val :: (idxN idx₀).drop k1.val := by
-          rw [List.drop_eq_getElem_cons (by rw [hidxs]; exact hk2lt), hk1eq]
-          simp [idxN]
+          rw [idxN, map_drop', map_drop', List.drop_eq_getElem_cons hk2idx₀, hk1eq, List.map_cons]
         have hcarry_true :
             (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).2 = true := by
           rw [← hcarry1]
@@ -535,6 +549,7 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
           have hlt' : i.val + 1 < (cts.val[k2.val]).val.length := by
             rw [← hi1', ← hv]
             scalar_tac
+          rw [hi0] at hlt'
           simp only [WP.spec_ok]
           refine ⟨⟨by scalar_tac, ?_, ?_, ?_⟩, by scalar_tac⟩
           · show (idx1.set k2 i1).val.length = cts.val.length
@@ -544,12 +559,14 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
             rw [ite_eq_left hlt']
           · rw [hdropl, hdropi]
             simp only [incr, hcarry_true, ite_true]
-            rw [← hi0, ite_eq_left hlt']
+            rw [ite_eq_left hlt']
         · -- the digit wraps: carry on
           rename_i hge
           have hge' : ¬ i.val + 1 < (cts.val[k2.val]).val.length := by
             rw [← hi1', ← hv]
             scalar_tac
+          rw [hi0] at hge'
+          have h0 : (0#usize).val = 0 := by scalar_tac
           apply WP.spec_bind (alloc.vec.Vec.index_mut_usize_spec (idx1.set k2 i1) k2 hk2set)
           rintro ⟨_, back1⟩ hp
           have hp' : back1 = (idx1.set k2 i1).set k2 := hp.2
@@ -563,13 +580,12 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
           · rw [idxN, alloc.vec.Vec.set_val_eq, List.map_set, alloc.vec.Vec.set_val_eq,
               List.map_set, List.set_set]
             show (idxN idx1).set k2.val (0#usize).val = _
-            rw [hidx1, hk1eq, set_take_append _ _ (by rw [hidxs]; exact hk2lt), hdropl, hdropi]
+            rw [hidx1, hk1eq, set_take_append _ _ (by rw [hidxs]; exact hk2lt), hdropl, hdropi, h0]
             simp only [incr, hcarry_true, ite_true]
-            rw [← hi0, ite_eq_right hge']
-            simp
+            rw [ite_eq_right hge']
           · rw [hdropl, hdropi]
             simp only [incr, hcarry_true, ite_true]
-            rw [← hi0, ite_eq_right hge']
+            rw [ite_eq_right hge']
             simpa using hc
       · -- no digit left: the whole vector wrapped
         rename_i hzero
@@ -620,12 +636,12 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     cases done2 with
     | true =>
       rw [ite_eq_left rfl] at hinv1
-      simp only [ite_eq_left rfl, WP.spec_ok]
+      simp only [eq_self_iff_true, ite_true, WP.spec_ok]
       exact hinv1
     | false =>
       rw [ite_eq_right Bool.false_ne_true] at hinv1
       obtain ⟨hvalid, hlen1, pre, hsplit, htab1⟩ := hinv1
-      simp only [ite_eq_right Bool.false_ne_true]
+      simp only [Bool.false_eq_true, ite_false]
       obtain ⟨cur, hcur, hrest⟩ := rest_incr (tablesOf cts) (idxN idx1) hvalid
       rw [lens_tablesOf] at hrest
       have hcur' : CurOf cts idx1 cur := hcur
@@ -698,7 +714,7 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       | true =>
         rw [← hcarry, ite_eq_left rfl] at hrest
         have htail0 : tail = [] := (List.cons.inj (htail.symm.trans hrest)).2
-        simp only [ite_eq_left rfl, ite_eq_right Bool.false_ne_true]
+        simp only [Bool.false_eq_true, ite_false, eq_self_iff_true, ite_true]
         refine ⟨?_, ?_⟩
         · rw [htarget, htail0, List.foldl_nil]
           exact htab2
@@ -707,7 +723,7 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       | false =>
         rw [← hcarry, ite_eq_right Bool.false_ne_true] at hrest
         obtain ⟨hrest, hvalid2⟩ := hrest
-        simp only [ite_eq_right Bool.false_ne_true]
+        simp only [Bool.false_eq_true, ite_false]
         rw [← hidx2] at hrest hvalid2
         refine ⟨⟨hvalid2, hlen2, pre ++ [cur], ?_, ?_⟩, ?_⟩
         · rw [hsplit, hrest, List.append_assoc, List.singleton_append]
