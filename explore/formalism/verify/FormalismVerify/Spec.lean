@@ -904,6 +904,7 @@ theorem Sem.joined_aux :
         ⟨hdisj B (List.mem_cons_of_mem _ hB) f hfg.1 g' hg', hpair.1 B hB g hfg.2 g' hg'⟩
     · exact hpair.2
 
+omit [DecidableEq Tau] in
 /-- `joined` denotes the joins of one assignment per child, when the children's domains are
     pairwise disjoint. -/
 theorem Sem.joined (rows : List (Tau × Expr)) (R : List (Finset Assign))
@@ -1182,6 +1183,7 @@ theorem children_pairwise {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs
     cs.Pairwise fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c') :=
   List.pairwise_map.mp (I.children_disjoint op cs hwf)
 
+omit [DecidableEq Tau] in
 theorem children_pairwise_wf {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs)) :
     cs.Pairwise fun c c' => I.WF c ∧ I.WF c' ∧ Disjoint (I.nodeDom c) (I.nodeDom c') :=
   List.Pairwise.imp_of_mem
@@ -1218,6 +1220,7 @@ theorem restrict_foldl_join_cand :
       rw [Finset.disjoint_union_left]
       exact ⟨he c' (List.mem_cons_of_mem _ hc'), hfd ▸ hpair.1 c' hc'⟩
 
+omit [DecidableEq Tau] in
 theorem restrict_joinAll {op : Op} {fs : List Assign} {cs : List (Node Op)}
     (hwf : I.WF (.mk op cs)) (hF : List.Forall₂ (fun f c => f ∈ I.candidates c) fs cs) :
     List.Forall₂ (fun f c => (Assign.joinAll fs).restrict (I.nodeDom c) = f) fs cs :=
@@ -1659,6 +1662,7 @@ theorem acceptedSet_cons (I : Traced Op Tau) (S : Tau → Finset Assign) (row : 
   · simp [h]
   · simp [h]
 
+omit [DecidableEq Tau] in
 theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
     ∀ (L : List (Tau × Expr)) (f : Assign),
       f ∈ acceptedSet I S L ↔ ∃ row ∈ L, I.accept row.1 = true ∧ f ∈ S row.1
@@ -1686,6 +1690,7 @@ theorem mem_acceptedSet (I : Traced Op Tau) (S : Tau → Finset Assign) :
         · exact absurd ha h
         · exact ⟨r, hr, ha, hf⟩
 
+omit [DecidableEq Tau] in
 /-- Folding `union'` over the accepted rows of a table whose rows denote pairwise disjoint sets
     of one domain. -/
 theorem Sem.foldl_accept {Dn : Finset Var} (I : Traced Op Tau) (S : Tau → Finset Assign)
