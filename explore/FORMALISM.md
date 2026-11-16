@@ -119,17 +119,25 @@ Everything else is inherited.
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
 
-Status (15 November 2026): green end to end on the gilescope/aeneas release tarballs
-(`build-7a8e111` and the GAT-lite build `build-1977b47`, Lean 4.34.0). `earth +verify` extracts
+Status (16 November 2026): green end to end on the gilescope/aeneas release tarballs
+(`build-7a8e111` and the GAT-lite build `build-74561b7`, Lean 4.34.0). `earth +verify` extracts
 `explore/hylo` from the sixteen named algorithms (3057 lines of Lean, snapshot in
 `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean` and the extracted module.
-Proved: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the homomorphism theorem for both sequence
-shapes), `eval_eq_measure` (Lemma 1, all cases) and the Δ-product semiring instance (Theorem 3,
-with `regular` = cancellative). Still `sorry`: `solve` and `solve_sound` (Claim 1, the trace DP).
-Upstream Aeneas main (1dc8ad3) extracts the same crate but its newer loop encoding produces Lean
-that does not compile (universe mismatch on the generic `hylo_rose_loop0`, duplicate pattern
-binders); the fork does not have that problem. GAT-lite (`gilescope/aeneas` PR #7, draft) is
-green on the fork's full test suite, including the GAT test's generated Lean.
+Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the
+homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
+semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
+trace DP, modelled constructor for constructor after `scheme.rs`, denotes exactly the solution
+set). Claim 1 is conditional on the `Instance` obligations stated in `Spec.lean` (one domain per
+node, children own disjoint variables, `step` yields each output's leaves once, `cand_iff` and
+`trace_mk`); no concrete instance has discharged them in Lean yet, that is the next layer.
+Upstream Aeneas main (1dc8ad3) extracts the same crate but its newer loop encoding produces
+Lean that does not compile (universe mismatch on the generic `hylo_rose_loop0`, duplicate
+pattern binders); the fork does not have that problem. GAT-lite (`gilescope/aeneas` PR #7,
+draft) is green on the fork's full test suite, including the GAT test's generated Lean.
+
+A push to this branch gets its Lean verdict in about four minutes: the Earthfile layers for
+Mathlib and the Aeneas backend are cached in GHCR per Aeneas revision, only the three proof
+files rebuild.
 
 ## What fits, what does not
 

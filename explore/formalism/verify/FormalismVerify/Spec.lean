@@ -7,8 +7,9 @@ Baril, Couceiro, Lagerkvist, *New perspectives on semiring applications to dynam
 programming* (arXiv:2512.03916). Aeneas-extracted definitions land in `Extracted/` and
 are related to this model by refinement theorems (see `FORMALISM.md`, layer 3).
 
-Checked by `lake build` in CI (`+verify` in the Earthfile). Lemma 1 (`eval_eq_measure`) is
-and Theorem 3 (`D Δ A` is a commutative semiring) are proved; the DP soundness claim is still `sorry`.
+Checked by `lake build` in CI (`+verify` in the Earthfile). Proved, with no `sorry`: Lemma 1
+(`eval_eq_measure`), Theorem 3 (`D Δ A` is a commutative semiring) and Claim 1 (`solve_sound`:
+the trace DP's output denotes exactly the solution set, given the `Instance` obligations).
 -/
 
 namespace Formalism
