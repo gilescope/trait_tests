@@ -45,6 +45,7 @@ theorem sum_loop_spec (s : Slice U64) (acc : U64) (i : Usize) (hi : i.val ≤ s.
     replace hi1 : i1.val ≤ s.length := hi1
     replace hinv : (acc1.val + ((s.val.drop i1.val).map fun t => t.val).sum) % U64.size =
       (acc.val + ((s.val.drop i.val).map fun t => t.val).sum) % U64.size := hinv
+    show formalism.instances.bits.sum_loop.body s acc1 i1 ⦃ _ ⦄
     unfold formalism.instances.bits.sum_loop.body
     split
     · rename_i hlt
@@ -52,7 +53,7 @@ theorem sum_loop_spec (s : Slice U64) (acc : U64) (i : Usize) (hi : i.val ≤ s.
       apply WP.spec_bind (Slice.index_usize_spec s i1 hlt')
       intro x hx
       replace hx : x = s.val[i1.val] := hx
-      unfold lift
+      try unfold lift
       apply WP.spec_bind ((WP.spec_ok (p := fun r => r = core.num.U64.wrapping_add acc1 x) _).mpr rfl)
       intro y hy
       apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
@@ -107,14 +108,14 @@ theorem step_spec (p : formalism.instances.bits.Bits) (op : formalism.instances.
     apply WP.spec_bind (alloc.vec.Vec.push_spec (alloc.vec.Vec.new _) (v, 1#u32) (hnew _))
     intro one hone
     replace hone : one.val = [(v, 1#u32)] := by rw [hone, new_val]; rfl
-    unfold lift
+    try unfold lift
     apply WP.spec_bind ((WP.spec_ok (p := fun r => r = core.num.U64.wrapping_add t 1#u64) _).mpr rfl)
     intro t1 ht1
     have hout1 : out.val.length < Usize.max := by rw [hout]; scalar_tac
     apply WP.spec_mono (alloc.vec.Vec.push_spec out (t1, one) hout1)
     intro outs houts
-    rw [houts, hout, hzero, hone, ht1]
-    simp [R, opOf, model, Bits.inst, Bits.step, Bits.modular, ofPairs, ht]
+    rw [houts, hout, ht1]
+    simp [hzero, hone, R, opOf, model, Bits.inst, Bits.step, Bits.modular, ofPairs, ht]
   | Node =>
     apply WP.spec_mono (alloc.vec.Vec.push_spec (alloc.vec.Vec.new _)
       (t, alloc.vec.Vec.new (U32 × U32)) (hnew _))
