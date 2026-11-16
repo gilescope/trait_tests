@@ -47,11 +47,9 @@ theorem join'_empty_left (b : Expr) : Expr.join' .empty b = .empty := by cases b
 
 theorem join'_empty_right (a : Expr) : Expr.join' a .empty = .empty := by cases a <;> rfl
 
-theorem join'_unit_left {b : Expr} (hb : b ≠ .empty) : Expr.join' .unit b = b := by
-  cases b <;> first | rfl | exact absurd rfl hb
+theorem join'_unit_left (b : Expr) : Expr.join' .unit b = b := by cases b <;> rfl
 
-theorem join'_unit_right {a : Expr} (ha : a ≠ .empty) : Expr.join' a .unit = a := by
-  cases a <;> first | rfl | exact absurd rfl ha
+theorem join'_unit_right (a : Expr) : Expr.join' a .unit = a := by cases a <;> rfl
 
 theorem join'_of_ne {a b : Expr} (ha : a ≠ .empty) (hb : b ≠ .empty) (ha' : a ≠ .unit)
     (hb' : b ≠ .unit) : Expr.join' a b = .join a b := by
@@ -70,49 +68,49 @@ theorem discr_Unit_ne_Empty :
     formalism.expr.Expr.read_discriminant formalism.expr.Expr.Unit ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Empty := by
   show (1#isize) ≠ 0#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Leaf_ne_Empty (s t : U32) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Leaf s t) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Empty := by
   show (2#isize) ≠ 0#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Union_ne_Empty (a b : formalism.expr.Expr) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Union a b) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Empty := by
   show (3#isize) ≠ 0#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Join_ne_Empty (a b : formalism.expr.Expr) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Join a b) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Empty := by
   show (4#isize) ≠ 0#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Empty_ne_Unit :
     formalism.expr.Expr.read_discriminant formalism.expr.Expr.Empty ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Unit := by
   show (0#isize) ≠ 1#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Leaf_ne_Unit (s t : U32) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Leaf s t) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Unit := by
   show (2#isize) ≠ 1#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Union_ne_Unit (a b : formalism.expr.Expr) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Union a b) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Unit := by
   show (3#isize) ≠ 1#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 theorem discr_Join_ne_Unit (a b : formalism.expr.Expr) :
     formalism.expr.Expr.read_discriminant (formalism.expr.Expr.Join a b) ≠
       formalism.expr.Expr.read_discriminant formalism.expr.Expr.Unit := by
   show (4#isize) ≠ 1#isize
-  first | scalar_tac | decide | simp
+  scalar_tac
 
 /-- `expr::{PartialEq}::eq` against `Empty` decides being `Empty`. -/
 theorem eq_Empty_spec (a : formalism.expr.Expr) :
@@ -229,7 +227,7 @@ theorem join_spec (a b : formalism.expr.Expr) :
       · rename_i h''
         obtain rfl := hb3.mp h''
         simp only [WP.spec_ok, ofExt]
-        rw [join'_unit_left ((ofExt_eq_empty_iff b).not.mpr hb)]
+        rw [join'_unit_left]
       · rename_i h''
         have ha' : a ≠ .Unit := fun e => h'' (hb3.mpr e)
         apply WP.spec_bind (eq_Unit_spec b)
@@ -239,7 +237,7 @@ theorem join_spec (a b : formalism.expr.Expr) :
         · rename_i h3
           obtain rfl := hb4.mp h3
           simp only [WP.spec_ok, ofExt]
-          rw [join'_unit_right ((ofExt_eq_empty_iff a).not.mpr ha)]
+          rw [join'_unit_right]
         · rename_i h3
           have hb' : b ≠ .Unit := fun e => h3 (hb4.mpr e)
           simp only [WP.spec_ok, ofExt]
@@ -263,7 +261,6 @@ theorem join_leaves_loop_spec (leaves : Slice (U32 × U32)) (e : formalism.expr.
     replace hi1 : i1.val ≤ leaves.length := hi1
     replace hacc : Expr.joinLeaves (ofExt e1) (ofPairs (leaves.val.drop i1.val)) =
       Expr.joinLeaves (ofExt e) (ofPairs (leaves.val.drop i.val)) := hacc
-    beta_reduce
     unfold formalism.expr.join_leaves_loop.body
     try dsimp only
     split
@@ -353,7 +350,6 @@ theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec
   · intro k ⟨hk, hkpre⟩
     replace hk : k.val ≤ table.length := hk
     replace hkpre : ∀ j, (hj : j < table.val.length) → j < k.val → (table.val[j]).tau ≠ tau := hkpre
-    beta_reduce
     unfold formalism.scheme.union_into_loop.body
     simp only [alloc.vec.Vec.index_slice_index, alloc.vec.Vec.index_mut_slice_index]
     split
@@ -404,7 +400,7 @@ theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec
         -- the result: row `k` replaced
         have hr2' : r2 = { r1 with expr := .Empty } := by
           rw [hr2]
-          simp [alloc.vec.Vec.set_val_eq, hlt']
+          simp [alloc.vec.Vec.set_val_eq]
         subst hr2'
         have hr1r : r1 = r := hr1.trans hr.symm
         subst hr1r

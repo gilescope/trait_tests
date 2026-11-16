@@ -86,10 +86,12 @@ def tablesOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) :
 /-- A digit vector, read back. -/
 def idxN (idx : alloc.vec.Vec Usize) : List ℕ := idx.val.map fun i => i.val
 
+omit [DecidableEq Tau] in
 theorem length_tableOf (t : alloc.vec.Vec (formalism.scheme.Row Tau)) :
     (tableOf t).length = t.val.length := by
   simp [tableOf]
 
+omit [DecidableEq Tau] in
 theorem length_tablesOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) :
     (tablesOf cts).length = cts.val.length := by
   simp [tablesOf]
@@ -105,10 +107,12 @@ theorem lens_tablesOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row 
     (tablesOf cts).map List.length = lensOf cts := by
   simp [tablesOf, lensOf, length_tableOf]
 
+omit [DecidableEq Tau] in
 theorem length_lensOf (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) :
     (lensOf cts).length = cts.val.length := by
   simp [lensOf]
 
+omit [DecidableEq Tau] in
 /-- The model's items at a tuple, in terms of what the extracted `step` returned. -/
 theorem rowItems_eq (I : Traced Op Tau) (op : Op) (cur : List (Tau × Expr))
     (outs : alloc.vec.Vec (Tau × alloc.vec.Vec (U32 × U32)))
@@ -137,6 +141,7 @@ theorem length_le_foldl_stepFold (I : Traced Op Tau) (op : Op) :
 
 /-! ## Loop 0: the digit vector starts at zero, and is any child table empty -/
 
+omit [DecidableEq Tau] in
 theorem step_node_loop0_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau)))
     (n : Usize) (hn : n.val = cts.val.length) (idx : alloc.vec.Vec Usize) (any_empty : Bool)
     (k : Usize) (hk : k.val ≤ n.val) (hidx : idxN idx = List.replicate k.val 0)
@@ -156,7 +161,6 @@ theorem step_node_loop0_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.sche
     replace hidx1 : idxN idx1 = List.replicate k1.val 0 := hidx1
     replace hany1 : any1 = true ↔
       ∃ j, ∃ (hj : j < cts.val.length), j < k1.val ∧ (cts.val[j]).val.length = 0 := hany1
-    beta_reduce
     unfold formalism.scheme.step_node_loop0.body
     simp only [alloc.vec.Vec.index_slice_index]
     split
@@ -299,7 +303,6 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op Tau) (p 
     replace htr1 : traces1.val = (cur.take k1.val).map Prod.fst := htr1
     replace hj1 : ofExt joined1 = (cur.take k1.val).foldl (fun acc r => Expr.join' acc r.2) .unit :=
       hj1
-    beta_reduce
     unfold formalism.scheme.step_node_loop1_loop0.body
     simp only [alloc.vec.Vec.index_slice_index]
     split
@@ -389,7 +392,6 @@ theorem step_node_loop1_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p 
     replace htab1 : tableOf table1 =
       ((outs.val.map fun o => (o.1, Expr.joinLeaves J (ofPairs o.2.val))).take o1.val).foldl
         (fun T it => Traced.unionInto T it.1 it.2) T0 := htab1
-    beta_reduce
     unfold formalism.scheme.step_node_loop1_loop1.body
     simp only [alloc.vec.Vec.index_slice_index]
     split
@@ -474,7 +476,6 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
       (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).1 := hidx1
     replace hcarry1 : carry1 = (incr ((lensOf cts).drop k1.val) ((idxN idx₀).drop k1.val)).2 :=
       hcarry1
-    beta_reduce
     unfold formalism.scheme.step_node_loop1_loop2.body
     simp only [alloc.vec.Vec.index_slice_index, alloc.vec.Vec.index_mut_slice_index]
     split
@@ -631,12 +632,11 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
           tableOf s.1 = pre.foldl (stepFold I op) [])
   · rintro ⟨table1, idx1, done2⟩ hinv1
     try simp only at hinv1
-    beta_reduce
     unfold formalism.scheme.step_node_loop1.body
     cases done2 with
     | true =>
       rw [ite_eq_left rfl] at hinv1
-      simp only [eq_self_iff_true, ite_true, WP.spec_ok]
+      simp only [ite_true, WP.spec_ok]
       exact hinv1
     | false =>
       rw [ite_eq_right Bool.false_ne_true] at hinv1
@@ -714,7 +714,7 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       | true =>
         rw [← hcarry, ite_eq_left rfl] at hrest
         have htail0 : tail = [] := (List.cons.inj (htail.symm.trans hrest)).2
-        simp only [Bool.false_eq_true, ite_false, eq_self_iff_true, ite_true]
+        simp only [ite_true]
         refine ⟨?_, ?_⟩
         · rw [htarget, htail0, List.foldl_nil]
           exact htab2
