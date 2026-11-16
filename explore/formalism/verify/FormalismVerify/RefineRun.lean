@@ -85,19 +85,19 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       formalism.scheme.run inst p n' ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau)) =>
         tableOf t = Traced.run I ms[j] ⦄)
     (child_tables : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) (c : Usize)
-    (hc : c.val ≤ ncs.length)
+    (hc : c.val ≤ ncs.val.length)
     (htabs : tablesOf child_tables = Traced.runList I (ms.take c.val)) :
     formalism.scheme.run_loop inst p (.mk nop ncs) child_tables c
       ⦃ (op' : Op) (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau))) =>
         op' = op ∧ tablesOf cts = Traced.runList I ms ⦄ := by
   rw [NodeRel] at hrel
   obtain ⟨hop, hrel⟩ := hrel
-  have hlen : ncs.length = ms.length := hrel.length_eq
+  have hlen : ncs.val.length = ms.length := hrel.length_eq
   unfold formalism.scheme.run_loop
-  apply loop.spec_decr_nat (measure := fun s => ncs.length - s.2.val)
-    (inv := fun s => s.2.val ≤ ncs.length ∧ tablesOf s.1 = Traced.runList I (ms.take s.2.val))
+  apply loop.spec_decr_nat (measure := fun s => ncs.val.length - s.2.val)
+    (inv := fun s => s.2.val ≤ ncs.val.length ∧ tablesOf s.1 = Traced.runList I (ms.take s.2.val))
   · rintro ⟨cts1, c1⟩ ⟨hc1, htabs1⟩
-    replace hc1 : c1.val ≤ ncs.length := hc1
+    replace hc1 : c1.val ≤ ncs.val.length := hc1
     replace htabs1 : tablesOf cts1 = Traced.runList I (ms.take c1.val) := htabs1
     beta_reduce
     unfold formalism.scheme.run_loop.body
@@ -105,7 +105,7 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       formalism.scheme.Node.op._simpLemma_]
     split
     · rename_i hlt
-      have hlt' : c1.val < ncs.length := by scalar_tac
+      have hlt' : c1.val < ncs.val.length := by scalar_tac
       have hlt'' : c1.val < ms.length := by rw [← hlen]; exact hlt'
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec ncs c1 hlt')
       intro n hn
@@ -113,11 +113,11 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       apply WP.spec_bind (hIH c1.val hlt'' n (by rw [hn]; exact hrel.getElem c1.val hlt' hlt''))
       intro v hv
       replace hv : tableOf v = Traced.run I ms[c1.val] := hv
-      have hcts1 : cts1.length < Usize.max := by
+      have hcts1 : cts1.val.length < Usize.max := by
         have : (tablesOf cts1).length = c1.val := by
           rw [htabs1, runList_length, List.length_take, hlen]
           exact Nat.min_eq_left hlt''.le
-        simp only [tablesOf, List.length_map] at this
+        rw [length_tablesOf] at this
         scalar_tac
       apply WP.spec_bind (alloc.vec.Vec.push_spec cts1 v hcts1)
       intro cts2 hcts2
@@ -156,9 +156,10 @@ theorem run_spec (inst : formalism.scheme.Traced P Op Tau) (p : P) (I : Traced O
       (alloc.vec.Vec.new _) 0#usize (by scalar_tac) (by simp [tablesOf, alloc.vec.Vec.new, Traced.runList]))
     rintro ⟨t, cts⟩ hp
     have hp' : t = op ∧ tablesOf cts = Traced.runList I ms := hp
-    obtain ⟨rfl, hcts⟩ := hp'
+    obtain ⟨ht, hcts⟩ := hp'
+    subst t
     try dsimp only
-    apply WP.spec_mono (step_node_spec inst p I hI t cts (by rw [hcts]; exact hfin))
+    apply WP.spec_mono (step_node_spec inst p I hI op cts (by rw [hcts]; exact hfin))
     intro t' ht'
     rw [ht', hcts, Traced.run]
 theorem run_specList (inst : formalism.scheme.Traced P Op Tau) (p : P) (I : Traced Op Tau)
@@ -178,18 +179,18 @@ end
 theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     (I : Traced Op Tau) (hI : TracedSpec inst p I)
     (table : alloc.vec.Vec (formalism.scheme.Row Tau)) (e : formalism.expr.Expr) (i : Usize)
-    (hi : i.val ≤ table.length)
+    (hi : i.val ≤ table.val.length)
     (he : ofExt e = ((tableOf table).take i.val).foldl
       (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty) :
     formalism.scheme.solve_loop inst p table e i ⦃ (e' : formalism.expr.Expr) =>
       ofExt e' = (tableOf table).foldl
         (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty ⦄ := by
   unfold formalism.scheme.solve_loop
-  apply loop.spec_decr_nat (measure := fun s => table.length - s.2.val)
-    (inv := fun s => s.2.val ≤ table.length ∧ ofExt s.1 = ((tableOf table).take s.2.val).foldl
+  apply loop.spec_decr_nat (measure := fun s => table.val.length - s.2.val)
+    (inv := fun s => s.2.val ≤ table.val.length ∧ ofExt s.1 = ((tableOf table).take s.2.val).foldl
       (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty)
   · rintro ⟨e1, i1⟩ ⟨hi1, he1⟩
-    replace hi1 : i1.val ≤ table.length := hi1
+    replace hi1 : i1.val ≤ table.val.length := hi1
     replace he1 : ofExt e1 = ((tableOf table).take i1.val).foldl
       (fun e row => if I.accept row.1 then Expr.union' e row.2 else e) .empty := he1
     beta_reduce
@@ -197,7 +198,7 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
     simp only [alloc.vec.Vec.index_slice_index]
     split
     · rename_i hlt
-      have hlt' : i1.val < table.length := by scalar_tac
+      have hlt' : i1.val < table.val.length := by scalar_tac
       have hlt'' : i1.val < (tableOf table).length := by rw [length_tableOf]; exact hlt'
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec table i1 hlt')
       intro r hr
@@ -239,7 +240,10 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
         rw [hacc] at hb
         subst hb
         rw [ite_eq_right Bool.false_ne_true]
-        simp only [bind_tc_ok]
+        apply WP.spec_bind ((WP.spec_ok (p := fun x => x = e1) _).mpr rfl)
+        intro e3 he3
+        replace he3 : e3 = e1 := he3
+        subst e3
         apply WP.spec_bind hadd
         intro i2 hi2
         replace hi2 : i2.val = i1.val + (1#usize).val := hi2
