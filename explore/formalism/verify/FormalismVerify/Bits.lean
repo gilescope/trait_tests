@@ -82,7 +82,13 @@ theorem ones_empty : ones Assign.empty = 0 := by simp [ones, Assign.empty]
 
 theorem ones_single_zero (v : Var) : ones (Assign.single v 0) = 0 := by simp [ones, Assign.single]
 
-theorem ones_single_one (v : Var) : ones (Assign.single v 1) = 1 := by simp [ones, Assign.single]
+theorem ones_single_one (v : Var) : ones (Assign.single v 1) = 1 := by
+  simp [ones, Assign.single, Finset.filter_singleton]
+
+theorem single_zero_ne_one (v : Var) : Assign.single v 0 ≠ Assign.single v 1 := by
+  intro h
+  have := congrArg Subtype.val h
+  simp [Assign.single] at this
 
 /-! ### Domains -/
 
@@ -142,6 +148,14 @@ theorem dom_joinAll_of_forall₂ {cs : List (Node Op)} {fs : List Assign} {op : 
     (fun _ _ => by rw [Assign.empty_dom]; exact Finset.disjoint_empty_left _),
     Assign.empty_dom, Finset.empty_union, hmap, foldr_union_toFinset]
 
+/-- Unfolding `Forall₂ (· ∈ ·) fs (cs.map cands)`; stated once so the right `map` function is
+    inferred (the elaborator otherwise unfolds `Finset` membership). -/
+theorem forall₂_cands {fs : List Assign} {cs : List (Node Op)}
+    (hfs : List.Forall₂ (· ∈ ·) fs (cs.map cands)) :
+    List.Forall₂ (fun f c => f ∈ cands c) fs cs := by
+  have h := List.forall₂_map_right_iff.mp hfs
+  exact h
+
 theorem leaf_not_mem {v : Var} {cs : List (Node Op)} (h : WF (.mk (.leaf v) cs)) :
     v ∉ cs.flatMap leaves := by
   rw [← leavesList_eq]
@@ -157,7 +171,7 @@ theorem dom_eq : ∀ n : Node Op, WF n → ∀ f ∈ cands n, f.dom = (leaves n)
     rw [mem_joinedSet, candsList_eq] at ha
     obtain ⟨fs, hfs, rfl⟩ := ha
     have hda := dom_joinAll_of_forall₂ h (dom_eq_list cs (wf_children h) fs
-      ((List.forall₂_map_right_iff).mp hfs))
+      (forall₂_cands hfs))
     have hbd : b.dom = {v} := by
       simp only [Finset.mem_insert, Finset.mem_singleton] at hb
       rcases hb with rfl | rfl <;> exact Assign.single_dom _ _
@@ -171,7 +185,7 @@ theorem dom_eq : ∀ n : Node Op, WF n → ∀ f ∈ cands n, f.dom = (leaves n)
     obtain ⟨fs, hfs, rfl⟩ := hf
     rw [leaves, leavesList_eq]
     exact dom_joinAll_of_forall₂ h (dom_eq_list cs (wf_children h) fs
-      ((List.forall₂_map_right_iff).mp hfs))
+      (forall₂_cands hfs))
 theorem dom_eq_list :
     ∀ cs : List (Node Op), (∀ c ∈ cs, WF c) → ∀ fs : List Assign,
       List.Forall₂ (fun f c => f ∈ cands c) fs cs →
@@ -255,7 +269,7 @@ def inst (k : ℕ) : Instance Op Tau where
     intro op taus out hout
     cases op with
     | leaf v =>
-      simp only [step, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hout
+      simp only [step, List.mem_cons, List.not_mem_nil, or_false] at hout
       rcases hout with rfl | rfl <;> simp
     | node =>
       simp only [step, List.mem_singleton] at hout
@@ -264,7 +278,7 @@ def inst (k : ℕ) : Instance Op Tau where
   step_nodup := by
     intro op taus
     cases op with
-    | leaf v => simp [step, ofList_leaf, Assign.single]
+    | leaf v => simp [step, ofList_leaf, single_zero_ne_one]
     | node => simp [step]
   cand_iff := by
     intro op cs h f
@@ -273,7 +287,7 @@ def inst (k : ℕ) : Instance Op Tau where
       rw [cands, mem_joinedSet, candsList_eq]
       constructor
       · rintro ⟨fs, hfs, rfl⟩
-        refine ⟨fs, List.forall₂_map_right_iff.mp hfs, _, List.mem_singleton_self _, ?_⟩
+        refine ⟨fs, forall₂_cands hfs, _, List.mem_singleton_self _, ?_⟩
         rw [Assign.ofList, Assign.join_empty]
       · rintro ⟨fs, hfs, out, hout, rfl⟩
         simp only [step, List.mem_singleton] at hout
@@ -288,13 +302,13 @@ def inst (k : ℕ) : Instance Op Tau where
         obtain ⟨ha, hb⟩ := hab
         rw [mem_joinedSet, candsList_eq] at ha
         obtain ⟨fs, hfs, rfl⟩ := ha
-        refine ⟨fs, List.forall₂_map_right_iff.mp hfs, ?_⟩
+        refine ⟨fs, forall₂_cands hfs, ?_⟩
         simp only [Finset.mem_insert, Finset.mem_singleton] at hb
         rcases hb with rfl | rfl
         · exact ⟨_, List.mem_cons_self .., by rw [ofList_leaf]⟩
         · exact ⟨_, List.mem_cons_of_mem _ (List.mem_singleton_self _), by rw [ofList_leaf]⟩
       · rintro ⟨fs, hfs, out, hout, rfl⟩
-        simp only [step, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hout
+        simp only [step, List.mem_cons, List.not_mem_nil, or_false] at hout
         have ha : Assign.joinAll fs ∈ joinedSet (candsList cs) := by
           rw [mem_joinedSet, candsList_eq]
           exact ⟨fs, List.forall₂_map_right_iff.mpr hfs, rfl⟩
@@ -320,10 +334,10 @@ def inst (k : ℕ) : Instance Op Tau where
         intro b
         rw [hdom, Assign.single_dom, Finset.disjoint_singleton_right, List.mem_toFinset]
         exact leaf_not_mem h
-      simp only [step, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hout
+      simp only [step, List.mem_cons, List.not_mem_nil, or_false] at hout
       rcases hout with rfl | rfl
       · show ones ((Assign.joinAll fs).join (Assign.ofList [(v, 0)])) = (fs.map ones).sum
-        rw [ofList_leaf, ones_join (hd 0), hsum, ones_single_zero]
+        rw [ofList_leaf, ones_join (hd 0), hsum, ones_single_zero, Nat.add_zero]
       · show ones ((Assign.joinAll fs).join (Assign.ofList [(v, 1)])) = (fs.map ones).sum + 1
         rw [ofList_leaf, ones_join (hd 1), hsum, ones_single_one]
   solution := fun _ f => ones f = k
@@ -339,7 +353,8 @@ theorem solve_sound (k : ℕ) {n : Node Op} (h : WF n) :
       (cands n).filter fun f => ones f = k := by
     apply Finset.filter_congr
     intro f _
-    simp [inst]
+    show decide (ones f = k) = true ↔ ones f = k
+    simp
   rw [heq] at hs
   exact hs
 
