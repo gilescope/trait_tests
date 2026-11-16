@@ -104,7 +104,16 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    so `scheme::solve` succeeds and its expression denotes the solution set, given that the
    extracted construction is the model's (`NodeRel`), every table built fits a `Vec` (`Fits`,
    the one way `step_node` can fail) and the instance's extracted `step`/`accept` compute the
-   model's (`TracedSpec`).
+   model's (`TracedSpec`, stated through a representation `Repr`: how the Rust's operation
+   and trace types read back as the model's).
+5. `BitsRust.solve_bits_sound` (`BitsRust.lean`): Claim 1 for a Rust instance end to end.
+   `instances/bits.rs` implements `Traced` with a `u64` count of ones summed by wrapping
+   addition; read through `Repr` (`U64.val` on traces), it is the model instance
+   `Bits.inst (Bits.modular U64.size)`, whose trace is the count modulo `2^64`.
+   `BitsRust.tracedSpec` proves its `TracedSpec` (the sum loop, `step`, `accept`, and `u64`'s
+   `PartialEq`/`Clone`), so the extracted `hylo::dp::solve_bits` denotes exactly the
+   assignments with `k` ones modulo `2^64`, for a tree with distinct leaves whose tables fit.
+   `Bits.lean`'s model is parameterised by a `Counter` (exact, or modular `M`) for this.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -114,9 +123,10 @@ Everything else is inherited.
 - Semiring and dioid laws: `laws.rs` via `trait_tests`, one `#[test]` per law per
   implementor. These are the executable twin of the Lean class axioms. An implementor with
   a Lean instance does not need them; one without does.
-- Oracle tests (`tests/hcol_oracle.rs`): for random valid decompositions, the expression's
-  set semantics equals brute force, and each semiring's evaluation equals the brute-force
-  answer to its question. These are the tests the Lean theorems will make redundant.
+- Oracle tests (`tests/hcol_oracle.rs`, `tests/bits_oracle.rs`): for random valid
+  decompositions (and small bit trees), the expression's set semantics equals brute force, and
+  each semiring's evaluation equals the brute-force answer to its question. These are the tests
+  the Lean theorems make redundant; for `Bits` they already are, up to the `Fits` hypothesis.
 - Tests still earn their place for what is not modelled: arithmetic overflow policy,
   the validator, and the bridge between extracted and hand-written definitions.
 
@@ -126,8 +136,9 @@ Everything else is inherited.
 `aeneas -backend lean` turns LLBC into `Extracted/*.lean`, `lake build` checks
 `Spec.lean` and the refinement against it. Charon translates only the signatures of a
 dependency crate unless told otherwise, so the `formalism` bodies are asked for with
-`--include=formalism::expr::_ --include=formalism::scheme::_`, and `scheme::solve` is reached
-through `hylo::dp::solve_scheme` (a start item in a dependency is dropped). The core modules are written in Aeneas's subset: `no_std` +
+`--include=formalism::expr::_ --include=formalism::scheme::_ --include=formalism::instances::bits::_`,
+and `scheme::solve` is reached through `hylo::dp::solve_scheme` and `hylo::dp::solve_bits` (a
+start item in a dependency is dropped). The core modules are written in Aeneas's subset: `no_std` +
 `alloc`, no closures, no iterator adaptors, no hash maps, index loops, no `&mut` through
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
@@ -152,7 +163,9 @@ corollary for well-formed trees. The refinement (`Refine.lean`, `Odometer.lean`,
 to the model and transfers Claim 1 to the Rust (`solve_sound_extracted`); until this step the
 extracted `step_node` and `union` were axioms, because Charon keeps a dependency's bodies opaque
 by default. `Spec.stepNode` enumerates child-row tuples in the Rust's odometer order (`tuples`)
-so that the refinement is syntactic.
+so that the refinement is syntactic. `BitsRust.lean` closes the loop for one Rust instance:
+`solve_bits_sound` is Claim 1 about the extracted `hylo::dp::solve_bits`, with the `u64`
+wrapping count read as the model's modular counter.
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,

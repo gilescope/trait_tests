@@ -332,12 +332,13 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
       replace ht : t = row.tau := ht
       subst t
       have htrlen : traces1.length < Usize.max := by
-        have : traces1.val.length ≤ cur.length := by
+        have h : traces1.val.length = k1.val := by
           have h := congrArg List.length htr1
-          rw [List.length_map, List.length_map, List.length_take] at h
-          rw [h]
-          exact Nat.min_le_right _ _
-        rw [CurOf.length R hcur hlen] at this
+          rw [List.length_map, List.length_map, List.length_take,
+            Nat.min_eq_left hcurlen.le] at h
+          exact h
+        show traces1.val.length < Usize.max
+        rw [h]
         scalar_tac
       apply WP.spec_bind (alloc.vec.Vec.push_spec traces1 row.tau htrlen)
       intro traces2 htr2
