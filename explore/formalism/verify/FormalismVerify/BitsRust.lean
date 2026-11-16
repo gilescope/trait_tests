@@ -148,6 +148,32 @@ theorem tracedSpec (p : formalism.instances.bits.Bits) :
     TracedSpec R inst p (model p).toTraced :=
   ⟨eq_spec, clone_spec, step_spec p, accept_spec p⟩
 
+mutual
+/-- The extracted construction, read as the model's. -/
+def toModel : formalism.scheme.Node formalism.instances.bits.Op → Node Bits.Op
+  | .mk op cs => .mk (opOf op) (toModelList cs.val)
+def toModelList : List (formalism.scheme.Node formalism.instances.bits.Op) → List (Node Bits.Op)
+  | [] => []
+  | c :: cs => toModel c :: toModelList cs
+end
+
+mutual
+theorem nodeRel_toModel : ∀ n : formalism.scheme.Node formalism.instances.bits.Op,
+    NodeRel R n (toModel n)
+  | .mk op cs => by
+    rw [toModel, NodeRel]
+    exact ⟨rfl, nodeRelList_toModelList cs.val⟩
+theorem nodeRelList_toModelList :
+    ∀ cs : List (formalism.scheme.Node formalism.instances.bits.Op),
+      NodeRelList R cs (toModelList cs)
+  | [] => by
+    rw [toModelList, NodeRelList]
+    trivial
+  | c :: cs => by
+    rw [toModelList, NodeRelList]
+    exact ⟨nodeRel_toModel c, nodeRelList_toModelList cs⟩
+end
+
 /-- Claim 1 for the extracted `hylo::dp::solve_bits`: the expression denotes exactly the
     assignments of the leaves whose number of ones is `k` modulo `2^64`. -/
 theorem solve_bits_sound (p : formalism.instances.bits.Bits) (m : Node Bits.Op)
@@ -166,5 +192,14 @@ theorem solve_bits_sound (p : formalism.instances.bits.Bits) (m : Node Bits.Op)
     simp [model, Bits.inst, Bits.modular]
   rw [heq] at he
   exact he
+
+/-- The same, for any extracted construction: its model is `toModel root`. -/
+theorem solve_bits_sound' (p : formalism.instances.bits.Bits)
+    (root : formalism.scheme.Node formalism.instances.bits.Op)
+    (hfit : Fits (model p).toTraced (toModel root)) (hwf : Bits.WF (toModel root)) :
+    hylo.dp.solve_bits p root ⦃ (e : formalism.expr.Expr) =>
+      Sem (ofExt e) ((Bits.cands (toModel root)).filter fun f =>
+        Bits.ones f % U64.size = p.k.val) ⦄ :=
+  solve_bits_sound p (toModel root) root (nodeRel_toModel root) hfit hwf
 
 end Formalism.BitsRust

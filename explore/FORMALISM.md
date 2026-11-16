@@ -145,8 +145,9 @@ are feature-gated out of extraction.
 
 Status (16 November 2026): green end to end on the gilescope/aeneas release tarballs
 (`build-7a8e111` and the GAT-lite build `build-74561b7`, Lean 4.34.0). `earth +verify` extracts
-`explore/hylo` from the sixteen named algorithms (3057 lines of Lean, snapshot in
-`hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean` and the extracted module.
+`explore/hylo` from the sixteen named algorithms and the two `solve` roots (3807 lines of Lean,
+snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the extracted
+module and the refinement.
 Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the
 homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
 semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
