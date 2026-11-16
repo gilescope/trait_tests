@@ -28,3 +28,7 @@ pub fn trace_dp<P: Traced>(p: &P, root: Node<P::Op>) -> Expr {
     while let Some(row) = table.pop() { if p.accept(&row.tau) { e = union(e, row.expr); } }
     e
 }
+
+/// `scheme::solve` as a root of this crate: the extraction (`earth +extract`) starts from named
+/// items of `hylo`, and Charon drops a start item that lives in a dependency.
+pub fn solve_scheme<P: Traced>(p: &P, root: &Node<P::Op>) -> Expr { formalism::scheme::solve(p, root) }
