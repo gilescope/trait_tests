@@ -522,7 +522,7 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
         replace hi2 : i2 = (idx1.set k2 i1).val[k2.val] := hi2
         have hi2' : i2 = i1 := by
           rw [hi2]
-          simp [alloc.vec.Vec.set_val_eq, hk2idx]
+          simp [alloc.vec.Vec.set_val_eq]
         subst i2
         apply WP.spec_bind (alloc.vec.Vec.index_usize_spec cts k2 hk2lt)
         intro v hv
@@ -582,7 +582,7 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
             show (idxN idx1).set k2.val (0#usize).val = _
             rw [hidx1, hk1eq, set_take_append _ _ (by rw [hidxs]; exact hk2lt), hdropl, hdropi, h0]
             simp only [incr, hcarry_true, ite_true]
-            rw [ite_eq_right hge']
+            rw [ite_eq_right hge', hk1eq]
           · rw [hdropl, hdropi]
             simp only [incr, hcarry_true, ite_true]
             rw [ite_eq_right hge']
