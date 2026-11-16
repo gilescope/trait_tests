@@ -115,7 +115,7 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       replace hv : tableOf v = Traced.run I ms[c1.val] := hv
       have hcts1 : cts1.val.length < Usize.max := by
         have : (tablesOf cts1).length = c1.val := by
-          rw [htabs1, runList_length, List.length_take, hlen]
+          rw [htabs1, runList_length, List.length_take]
           exact Nat.min_eq_left hlt''.le
         rw [length_tablesOf] at this
         scalar_tac
@@ -135,7 +135,7 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       rfl
     · rename_i hge
       have htake : ms.take c1.val = ms := List.take_of_length_le (by rw [← hlen]; scalar_tac)
-      simp only [WP.spec_ok]
+      simp only [WP.spec_ok, WP.uncurry'_pair]
       rw [htabs1, htake]
       exact ⟨hop, rfl⟩
   · exact ⟨hc, htabs⟩
@@ -207,9 +207,11 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op Tau) (p : P)
       intro b hb
       replace hb : b = I.accept r.tau := hb
       have hadd := Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac)
-      have hrow : (tableOf table)[i1.val] = (r.tau, ofExt r.expr) := by
-        rw [tableOf, List.getElem_map, ← hr]
+      have hrow? : (tableOf table)[i1.val]? = some (r.tau, ofExt r.expr) := by
+        rw [tableOf, List.getElem?_map, List.getElem?_eq_getElem hlt', Option.map_some, ← hr]
         rfl
+      have hrow : (tableOf table)[i1.val]'hlt'' = (r.tau, ofExt r.expr) :=
+        Option.some.inj ((List.getElem?_eq_getElem hlt'').symm.trans hrow?)
       have htake := List.take_succ_eq_append_getElem hlt''
       cases hacc : I.accept r.tau with
       | true =>
