@@ -110,7 +110,7 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec ncs c1 hlt')
       intro n hn
       replace hn : n = ncs.val[c1.val] := hn
-      apply WP.spec_bind (hIH c1.val hlt'' n (by rw [hn]; exact hrel.getElem c1.val hlt' hlt''))
+      apply WP.spec_bind (hIH c1.val hlt'' n (by rw [hn]; exact NodeRelList.getElem R hrel c1.val hlt' hlt''))
       intro v hv
       replace hv : tableOf R v = Traced.run I ms[c1.val] := hv
       have hcts1 : cts1.val.length < Usize.max := by
@@ -152,7 +152,7 @@ theorem run_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced
     obtain ⟨hfin, hfits⟩ := hfit
     unfold formalism.scheme.run
     apply WP.spec_bind (run_loop_spec R inst p I nop ncs op ms hrel
-      (fun j hj n' hrel' => run_specList R inst p I hI ms hfits j hj n' hrel')
+      (fun j hj n' hrel' => run_specList inst p I hI ms hfits j hj n' hrel')
       (alloc.vec.Vec.new _) 0#usize (by scalar_tac)
       (by simp [tablesOf, alloc.vec.Vec.new, Traced.runList]))
     rintro ⟨t, cts⟩ hp
@@ -170,9 +170,9 @@ theorem run_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Tr
         formalism.scheme.run inst p node ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
           tableOf R t = Traced.run I ms[j] ⦄
   | [], _, _, hj, _, _ => absurd hj (Nat.not_lt_zero _)
-  | m :: _, hfit, 0, _, node, hrel => run_spec R inst p I hI m node hrel hfit.1
+  | m :: _, hfit, 0, _, node, hrel => run_spec inst p I hI m node hrel hfit.1
   | _ :: ms, hfit, j + 1, hj, node, hrel =>
-    run_specList R inst p I hI ms hfit.2 j (by simpa using hj) node hrel
+    run_specList inst p I hI ms hfit.2 j (by simpa using hj) node hrel
 end
 
 /-! ## `solve`: the accepted root rows -/
