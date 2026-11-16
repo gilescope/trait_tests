@@ -1239,7 +1239,8 @@ theorem joined_sem {op : Op} {cs : List (Node Op)} {tables : List (Table Tau)}
     Sem (joined rows) (joinedSet (List.zipWith (fun r c => I.rowSet c r.1) rows cs)) := by
   have hrs := I.rows_sem hrows hT
   apply Sem.joined
-  · exact forall₂_zipWith_of_forall₂ (fun r c => I.rowSet c r.1) (fun _ _ h => h) hrs
+  · exact forall₂_zipWith_of_forall₂ (fun (r : Tau × Expr) (c : Node Op) => I.rowSet c r.1)
+      (fun _ _ h => h) hrs
   · apply pairwise_zipWith_right (P := fun c c' => Disjoint (I.nodeDom c) (I.nodeDom c')) _ _
       rows cs (I.children_pairwise cs)
     intro r r' c c' hcc' f hf g hg
