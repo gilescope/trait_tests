@@ -32,3 +32,8 @@ pub fn trace_dp<P: Traced>(p: &P, root: Node<P::Op>) -> Expr {
 /// `scheme::solve` as a root of this crate: the extraction (`earth +extract`) starts from named
 /// items of `hylo`, and Charon drops a start item that lives in a dependency.
 pub fn solve_scheme<P: Traced>(p: &P, root: &Node<P::Op>) -> Expr { formalism::scheme::solve(p, root) }
+
+/// The `Bits` instance as a root: its `Traced` impl is extracted with `solve` instantiated.
+pub fn solve_bits(p: &formalism::instances::bits::Bits, root: &Node<formalism::instances::bits::Op>) -> Expr {
+    formalism::scheme::solve(p, root)
+}

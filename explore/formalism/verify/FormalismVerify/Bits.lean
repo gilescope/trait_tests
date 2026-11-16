@@ -23,10 +23,34 @@ inductive Op where
 /-- Trace: the number of ones so far. -/
 abbrev Tau := ℕ
 
-/-- Mirrors `Traced::step`: a leaf tries both bits, a node sums its children's counts. -/
-def step : Op → List Tau → List (Tau × List (Var × Val))
-  | .leaf v, taus => [(taus.sum, [(v, 0)]), (taus.sum + 1, [(v, 1)])]
-  | .node, taus => [(taus.sum, [])]
+/-- How the count of ones is carried: exactly, or modulo some `M` (what a machine integer with
+    wrapping addition does). `tr` reads a count as a trace, `c` combines children's traces and
+    `s` adds one, compatibly. -/
+structure Counter where
+  tr : ℕ → ℕ
+  c : List ℕ → ℕ
+  s : ℕ → ℕ
+  c_tr : ∀ xs : List ℕ, c (xs.map tr) = tr xs.sum
+  s_tr : ∀ n, s (tr n) = tr (n + 1)
+
+/-- The exact count. -/
+def exact : Counter := ⟨id, List.sum, (· + 1), fun xs => by simp, fun _ => rfl⟩
+
+theorem sum_map_mod (M : ℕ) : ∀ xs : List ℕ, (xs.map (· % M)).sum % M = xs.sum % M
+  | [] => rfl
+  | x :: xs => by
+    rw [List.map_cons, List.sum_cons, List.sum_cons, Nat.add_mod, Nat.mod_mod, sum_map_mod M xs,
+      ← Nat.add_mod]
+
+/-- The count modulo `M`: a `u64` with wrapping addition counts modulo `2^64`. -/
+def modular (M : ℕ) : Counter :=
+  ⟨(· % M), fun xs => xs.sum % M, fun t => (t + 1) % M, fun xs => sum_map_mod M xs,
+    fun n => by rw [Nat.add_mod (n % M) 1 M, Nat.mod_mod, Nat.add_mod n 1 M]⟩
+
+/-- Mirrors `Traced::step`: a leaf tries both bits, a node combines its children's counts. -/
+def step (C : Counter) : Op → List Tau → List (Tau × List (Var × Val))
+  | .leaf v, taus => [(C.c taus, [(v, 0)]), (C.s (C.c taus), [(v, 1)])]
+  | .node, taus => [(C.c taus, [])]
 
 /-- The number of variables assigned `1`. -/
 def ones (f : Assign) : ℕ := (f.1.filter fun p => p.2 = 1).card
@@ -242,12 +266,12 @@ theorem ofList_leaf (v : Var) (b : Val) : Assign.ofList [(v, b)] = Assign.single
 
 /-! ### The instance -/
 
-/-- Bit assignments with exactly `k` ones. -/
-def inst (k : ℕ) : Instance Op Tau where
-  step := step
-  accept := fun t => decide (t = k)
+/-- Bit assignments whose count of ones, carried by `C`, is accepted by `acc`. -/
+def inst (C : Counter) (acc : Tau → Bool) : Instance Op Tau where
+  step := step C
+  accept := acc
   candidates := cands
-  trace := fun _ f => ones f
+  trace := fun _ f => C.tr (ones f)
   WF := WF
   wf_children := fun _ _ h => wf_children h
   nodeDom := fun n => (leaves n).toFinset
@@ -320,15 +344,19 @@ def inst (k : ℕ) : Instance Op Tau where
   trace_mk := by
     intro op cs fs out h hF hout
     have hlen : cs.length = fs.length := (List.Forall₂.length_eq hF).symm
-    rw [zipWith_const_right ones cs fs hlen] at hout
+    rw [zipWith_const_right (fun f => C.tr (ones f)) cs fs hlen] at hout
     have hsum := ones_joinAll h hF
     have hdom := dom_joinAll_of_forall₂ h (dom_eq_list cs (wf_children h) fs hF)
+    have hm : (fs.map fun f => C.tr (ones f)) = (fs.map ones).map C.tr := by
+      rw [List.map_map]
+      rfl
     cases op with
     | node =>
       simp only [step, List.mem_singleton] at hout
       subst hout
-      show ones ((Assign.joinAll fs).join (Assign.ofList [])) = (fs.map ones).sum
-      rw [Assign.ofList, Assign.join_empty, hsum]
+      show C.tr (ones ((Assign.joinAll fs).join (Assign.ofList []))) =
+        C.c (fs.map fun f => C.tr (ones f))
+      rw [Assign.ofList, Assign.join_empty, hsum, hm, C.c_tr]
     | leaf v =>
       have hd : ∀ b, Disjoint (Assign.joinAll fs).dom (Assign.single v b).dom := by
         intro b
@@ -336,20 +364,27 @@ def inst (k : ℕ) : Instance Op Tau where
         exact leaf_not_mem h
       simp only [step, List.mem_cons, List.not_mem_nil, or_false] at hout
       rcases hout with rfl | rfl
-      · show ones ((Assign.joinAll fs).join (Assign.ofList [(v, 0)])) = (fs.map ones).sum
-        rw [ofList_leaf, ones_join (hd 0), hsum, ones_single_zero, Nat.add_zero]
-      · show ones ((Assign.joinAll fs).join (Assign.ofList [(v, 1)])) = (fs.map ones).sum + 1
-        rw [ofList_leaf, ones_join (hd 1), hsum, ones_single_one]
-  solution := fun _ f => ones f = k
-  accept_iff := fun _ f _ => by simp
+      · show C.tr (ones ((Assign.joinAll fs).join (Assign.ofList [(v, 0)]))) =
+          C.c (fs.map fun f => C.tr (ones f))
+        rw [ofList_leaf, ones_join (hd 0), hsum, ones_single_zero, Nat.add_zero, hm, C.c_tr]
+      · show C.tr (ones ((Assign.joinAll fs).join (Assign.ofList [(v, 1)]))) =
+          C.s (C.c (fs.map fun f => C.tr (ones f)))
+        rw [ofList_leaf, ones_join (hd 1), hsum, ones_single_one, hm, C.c_tr, C.s_tr]
+  solution := fun _ f => acc (C.tr (ones f)) = true
+  accept_iff := fun _ _ _ => Iff.rfl
 
 /-- Claim 1 for this instance: on a well-formed construction, the DP's expression denotes exactly
-    the assignments of its variables with `k` ones. -/
-theorem solve_sound (k : ℕ) {n : Node Op} (h : WF n) :
-    Sem ((inst k).toTraced.solve n) ((cands n).filter fun f => ones f = k) := by
-  have hs := Formalism.solve_sound (inst k) (n := n) h
-  have heq : ((inst k).candidates n).filter
-      (fun f => (inst k).accept ((inst k).trace n f) = true) =
+    the assignments of its variables whose count of ones `acc` accepts. -/
+theorem solve_sound (C : Counter) (acc : Tau → Bool) {n : Node Op} (h : WF n) :
+    Sem ((inst C acc).toTraced.solve n) ((cands n).filter fun f => acc (C.tr (ones f)) = true) :=
+  Formalism.solve_sound (inst C acc) h
+
+/-- The exact count, accepted when it is `k`: the assignments with exactly `k` ones. -/
+theorem solve_sound_exact (k : ℕ) {n : Node Op} (h : WF n) :
+    Sem ((inst exact fun t => decide (t = k)).toTraced.solve n)
+      ((cands n).filter fun f => ones f = k) := by
+  have hs := solve_sound exact (fun t => decide (t = k)) h
+  have heq : ((cands n).filter fun f => decide (exact.tr (ones f) = k) = true) =
       (cands n).filter fun f => ones f = k := by
     apply Finset.filter_congr
     intro f _

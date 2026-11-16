@@ -300,19 +300,26 @@ theorem join_leaves_spec (e : formalism.expr.Expr) (leaves : Slice (U32 × U32))
 
 /-! ## Tables -/
 
+/-- How an extracted instance's types read back as the model's: operations by `opOf`, traces by
+    an injective `tauOf`. -/
+structure Repr (Op' Tau' Op Tau : Type) where
+  opOf : Op' → Op
+  tauOf : Tau' → Tau
+  tauOf_injective : Function.Injective tauOf
+
 section Table
-variable {Tau : Type} [DecidableEq Tau]
+variable {Op' Tau' Op Tau : Type} [DecidableEq Tau] (R : Repr Op' Tau' Op Tau)
 
 /-- A row, read back. -/
-def rowOf (r : formalism.scheme.Row Tau) : Tau × Expr := (r.tau, ofExt r.expr)
+def rowOf (r : formalism.scheme.Row Tau') : Tau × Expr := (R.tauOf r.tau, ofExt r.expr)
 
 /-- A table, read back. -/
-def tableOf (t : alloc.vec.Vec (formalism.scheme.Row Tau)) : List (Tau × Expr) :=
-  t.val.map rowOf
+def tableOf (t : alloc.vec.Vec (formalism.scheme.Row Tau')) : List (Tau × Expr) :=
+  t.val.map (rowOf R)
 
 /-- `PartialEq` on traces decides equality. -/
-def EqSpec (inst : core.cmp.PartialEq Tau Tau) : Prop :=
-  ∀ a b : Tau, inst.eq a b ⦃ (r : Bool) => r = true ↔ a = b ⦄
+def EqSpec (inst : core.cmp.PartialEq Tau' Tau') : Prop :=
+  ∀ a b : Tau', inst.eq a b ⦃ (r : Bool) => r = true ↔ a = b ⦄
 
 theorem set_eq_take_cons_drop' {α : Type*} :
     ∀ (l : List α) (n : ℕ) (a : α), n < l.length → l.set n a = l.take n ++ a :: l.drop (n + 1)
@@ -336,13 +343,13 @@ theorem unionInto_prefix (tau : Tau) (e : Expr) :
         (Nat.succ_lt_succ hji)]
 
 /-- The loop of `scheme::union_into`, from any index whose predecessors do not match. -/
-theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec inst)
-    (table : alloc.vec.Vec (formalism.scheme.Row Tau)) (tau : Tau) (e : formalism.expr.Expr)
+theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau' Tau') (hinst : EqSpec inst)
+    (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (tau : Tau') (e : formalism.expr.Expr)
     (hlen : table.length < Usize.max) (i : Usize) (hi : i.val ≤ table.length)
     (hpre : ∀ j, (hj : j < table.val.length) → j < i.val → (table.val[j]).tau ≠ tau) :
     formalism.scheme.union_into_loop inst table tau e i
-      ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau)) =>
-        tableOf t = Traced.unionInto (tableOf table) tau (ofExt e) ⦄ := by
+      ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
+        tableOf R t = Traced.unionInto (tableOf R table) (R.tauOf tau) (ofExt e) ⦄ := by
   unfold formalism.scheme.union_into_loop
   apply loop.spec_decr_nat (measure := fun k => table.length - k.val)
     (inv := fun k => k.val ≤ table.length ∧
@@ -386,17 +393,17 @@ theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec
         show WP.spec (ok (ControlFlow.done _)) _
         simp only [WP.spec_ok]
         -- the rows before `k` do not match, the row at `k` does
-        have hpre' : ∀ j, (hj : j < (tableOf table).length) → j < k.val →
-            ((tableOf table)[j]).1 ≠ tau := by
+        have hpre' : ∀ j, (hj : j < (tableOf R table).length) → j < k.val →
+            ((tableOf R table)[j]).1 ≠ R.tauOf tau := by
           intro j hj hjk
           simp only [tableOf, List.getElem_map, rowOf]
-          exact hkpre j (by simpa [tableOf] using hj) hjk
-        rw [unionInto_prefix tau (ofExt e) (tableOf table) k.val hpre']
-        have hdrop : (tableOf table).drop k.val =
-            (r.tau, ofExt r.expr) :: (tableOf table).drop (k.val + 1) := by
+          exact fun h => hkpre j (by simpa [tableOf] using hj) hjk (R.tauOf_injective h)
+        rw [unionInto_prefix (R.tauOf tau) (ofExt e) (tableOf R table) k.val hpre']
+        have hdrop : (tableOf R table).drop k.val =
+            (R.tauOf r.tau, ofExt r.expr) :: (tableOf R table).drop (k.val + 1) := by
           rw [tableOf, List.drop_eq_getElem_cons (by simpa using hlt'), List.getElem_map, ← hr]
           rfl
-        rw [hdrop, Traced.unionInto, ite_eq_left htau]
+        rw [hdrop, Traced.unionInto, ite_eq_left (congrArg R.tauOf htau)]
         -- the result: row `k` replaced
         have hr2' : r2 = { r1 with expr := .Empty } := by
           rw [hr2]
@@ -427,25 +434,26 @@ theorem union_into_loop_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec
       intro t1 ht1
       replace ht1 : t1.val = table.val ++ [{ tau, expr := e }] := ht1
       simp only [WP.spec_ok]
-      have hall : ∀ j, (hj : j < (tableOf table).length) → j < (tableOf table).length →
-          ((tableOf table)[j]).1 ≠ tau := by
+      have hall : ∀ j, (hj : j < (tableOf R table).length) → j < (tableOf R table).length →
+          ((tableOf R table)[j]).1 ≠ R.tauOf tau := by
         intro j hj _
         simp only [tableOf, List.getElem_map, rowOf]
-        exact hkpre j (by simpa [tableOf] using hj) (by simp [tableOf] at hj; scalar_tac)
-      rw [unionInto_prefix tau (ofExt e) (tableOf table) (tableOf table).length hall,
+        exact fun h => hkpre j (by simpa [tableOf] using hj) (by simp [tableOf] at hj; scalar_tac)
+          (R.tauOf_injective h)
+      rw [unionInto_prefix (R.tauOf tau) (ofExt e) (tableOf R table) (tableOf R table).length hall,
         List.take_length, List.drop_length]
       simp [tableOf, ht1, rowOf, Traced.unionInto]
   · exact ⟨hi, hpre⟩
 
 /-- `scheme::union_into` computes the model's `unionInto`. -/
-theorem union_into_spec (inst : core.cmp.PartialEq Tau Tau) (hinst : EqSpec inst)
-    (table : alloc.vec.Vec (formalism.scheme.Row Tau)) (tau : Tau) (e : formalism.expr.Expr)
+theorem union_into_spec (inst : core.cmp.PartialEq Tau' Tau') (hinst : EqSpec inst)
+    (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (tau : Tau') (e : formalism.expr.Expr)
     (hlen : table.length < Usize.max) :
     formalism.scheme.union_into inst table tau e
-      ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau)) =>
-        tableOf t = Traced.unionInto (tableOf table) tau (ofExt e) ⦄ := by
+      ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
+        tableOf R t = Traced.unionInto (tableOf R table) (R.tauOf tau) (ofExt e) ⦄ := by
   unfold formalism.scheme.union_into
-  exact union_into_loop_spec inst hinst table tau e hlen 0#usize (by scalar_tac)
+  exact union_into_loop_spec R inst hinst table tau e hlen 0#usize (by scalar_tac)
     (fun _ _ h => absurd h (by scalar_tac))
 
 end Table
