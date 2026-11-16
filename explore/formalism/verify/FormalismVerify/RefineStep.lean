@@ -333,7 +333,9 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
       subst t
       have htrlen : traces1.length < Usize.max := by
         have : traces1.val.length ≤ cur.length := by
-          rw [← List.length_map traces1.val R.tauOf, htr1, List.length_map, List.length_take]
+          have h := congrArg List.length htr1
+          rw [List.length_map, List.length_map, List.length_take] at h
+          rw [h]
           exact Nat.min_le_right _ _
         rw [CurOf.length R hcur hlen] at this
         scalar_tac
