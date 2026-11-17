@@ -148,14 +148,14 @@ theorem tracedSpec (p : formalism.instances.bits.Bits) :
     TracedSpec R inst p (model p).toTraced :=
   ⟨eq_spec, clone_spec, step_spec p, accept_spec p⟩
 
-theorem sizeOf_toList_le {α : Type} [SizeOf α] : ∀ {n : ℕ} (l : ListN α n),
+theorem sizeOf_toList_le {α : Type} [SizeOf α] : ∀ {n : ℕ} (l : Data.ListN.ListN α n),
     sizeOf l.toList ≤ sizeOf l
   | _, .nil => by
-    simp only [ListN.toList, List.nil.sizeOf_spec, ListN.nil.sizeOf_spec]
+    simp only [Data.ListN.ListN.toList, List.nil.sizeOf_spec, Data.ListN.ListN.nil.sizeOf_spec]
     all_goals omega
   | _, .cons a l' => by
     have ih := sizeOf_toList_le l'
-    simp only [ListN.toList, List.cons.sizeOf_spec, ListN.cons.sizeOf_spec]
+    simp only [Data.ListN.ListN.toList, List.cons.sizeOf_spec, Data.ListN.ListN.cons.sizeOf_spec]
     all_goals omega
 
 /-- A vector's list is smaller than the vector (for recursion through `Vec`-nested trees). -/
