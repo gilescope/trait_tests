@@ -148,11 +148,22 @@ theorem tracedSpec (p : formalism.instances.bits.Bits) :
     TracedSpec R inst p (model p).toTraced :=
   ⟨eq_spec, clone_spec, step_spec p, accept_spec p⟩
 
+theorem sizeOf_toList_le {α : Type} [SizeOf α] : ∀ {n : ℕ} (l : ListN α n),
+    sizeOf l.toList ≤ sizeOf l
+  | _, .nil => by
+    simp only [ListN.toList, List.nil.sizeOf_spec, ListN.nil.sizeOf_spec]
+    all_goals omega
+  | _, .cons a l' => by
+    have ih := sizeOf_toList_le l'
+    simp only [ListN.toList, List.cons.sizeOf_spec, ListN.cons.sizeOf_spec]
+    all_goals omega
+
 /-- A vector's list is smaller than the vector (for recursion through `Vec`-nested trees). -/
 theorem sizeOf_val_lt {T : Type} [SizeOf T] (v : alloc.vec.Vec T) : sizeOf v.val < sizeOf v := by
-  rcases v with ⟨⟨l, h⟩⟩
-  show sizeOf l < sizeOf (alloc.vec.Vec.mk ⟨l, h⟩)
-  simp only [alloc.vec.Vec.mk.sizeOf_spec, Subtype.mk.sizeOf_spec]
+  rcases v with ⟨⟨n, l, hb⟩⟩
+  show sizeOf l.toList < sizeOf (alloc.vec.Vec.mk ⟨n, l, hb⟩)
+  have := sizeOf_toList_le l
+  simp only [alloc.vec.Vec.mk.sizeOf_spec, Slice.mk.sizeOf_spec]
   omega
 
 mutual
@@ -164,8 +175,8 @@ decreasing_by
   all_goals
     have h := sizeOf_val_lt cs
     simp_wf
-    try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
-    omega
+    all_goals try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
+    all_goals omega
 def toModelList : List (formalism.scheme.Node formalism.instances.bits.Op) → List (Node Bits.Op)
   | [] => []
   | c :: cs => toModel c :: toModelList cs
@@ -173,8 +184,8 @@ termination_by l => sizeOf l
 decreasing_by
   all_goals
     simp_wf
-    try simp only [List.cons.sizeOf_spec] at *
-    omega
+    all_goals try simp only [List.cons.sizeOf_spec] at *
+    all_goals omega
 end
 
 mutual
@@ -188,8 +199,8 @@ decreasing_by
   all_goals
     have h := sizeOf_val_lt cs
     simp_wf
-    try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
-    omega
+    all_goals try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *
+    all_goals omega
 theorem nodeRelList_toModelList :
     ∀ cs : List (formalism.scheme.Node formalism.instances.bits.Op),
       NodeRelList R cs (toModelList cs)
@@ -203,8 +214,8 @@ termination_by l => sizeOf l
 decreasing_by
   all_goals
     simp_wf
-    try simp only [List.cons.sizeOf_spec] at *
-    omega
+    all_goals try simp only [List.cons.sizeOf_spec] at *
+    all_goals omega
 end
 
 /-- Claim 1 for the extracted `hylo::dp::solve_bits`: the expression denotes exactly the

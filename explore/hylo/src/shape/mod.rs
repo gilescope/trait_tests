@@ -95,12 +95,10 @@ pub trait RosePlan<T> { type Seed; fn unfold(&mut self, seed: Self::Seed) -> (T,
 pub trait RoseAlgebra<T> { type Out; fn fold(&mut self, layer: (T, Vec<Self::Out>)) -> Self::Out; }
 pub fn hylo_rose<T, P: RosePlan<T>, A: RoseAlgebra<T>>(plan: &mut P, alg: &mut A, seed: P::Seed) -> A::Out {
     let (t, mut kids) = plan.unfold(seed);
-    // children in order, without iterator adaptors: pop from the back, then reverse by swaps
+    // children in order, without iterator adaptors: pop from the back, then reverse
     let mut out: Vec<A::Out> = Vec::new();
     while let Some(k) = kids.pop() { out.push(hylo_rose(plan, alg, k)); }
-    let n = out.len();
-    let mut i = 0;
-    while i < n / 2 { out.swap(i, n - 1 - i); i += 1; }
+    out.reverse();
     alg.fold((t, out))
 }
 
