@@ -1,8 +1,9 @@
 # Extracted Lean (snapshot)
 
-`Hylo.lean` is what Aeneas produced for `explore/hylo` on 16 November 2026, via
-`earth +extract --AENEAS_TARBALL_URL=…/build-74561b7/aeneas-linux-x86_64.tar.gz`
-(gilescope/aeneas release `build-74561b7`; the `build-7a8e111` release produces the same file).
+`Hylo.lean` is what Aeneas produced for `explore/hylo` on 17 November 2026, via
+`earth +extract --AENEAS_TARBALL_URL=…/build-4797bb9/aeneas-linux-x86_64.tar.gz`
+(gilescope/aeneas release `build-4797bb9`: GAT-lite plus a model of `Vec::pop`, which earlier
+builds extracted as an axiom).
 Extraction starts from the sixteen named algorithms plus `hylo::dp::solve_scheme` and
 `hylo::dp::solve_bits` (`--start-from`), so this is the per-shape core and what it uses; the
 GAT-based generic API is not here by design. The bodies of the dependency crate's `expr.rs`,

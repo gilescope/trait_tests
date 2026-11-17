@@ -114,6 +114,14 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    `PartialEq`/`Clone`), so the extracted `hylo::dp::solve_bits` denotes exactly the
    assignments with `k` ones modulo `2^64`, for a tree with distinct leaves whose tables fit.
    `Bits.lean`'s model is parameterised by a `Counter` (exact, or modular `M`) for this.
+6. `trace_dp_sound_extracted` (`RefineHylo.lean`): Claim 1 for `hylo::dp::trace_dp`, the
+   trace DP written as the rose hylomorphism of `hylo` (`hylo_rose` pops the children off
+   the back, runs each, reverses the results and folds the layer with `step_node`;
+   `trace_dp` reverses the root table and pops its accepted rows into a union). Read through
+   `Repr` it computes `Traced.solve` too (`trace_dp_spec`), under the same hypotheses as
+   `scheme::solve`. This needed a model of `Vec::pop` in the Aeneas library (the fork has
+   one now); without it Aeneas emits an axiom for `pop` and nothing can be proved about a
+   function that calls it.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -143,11 +151,11 @@ start item in a dependency is dropped). The core modules are written in Aeneas's
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
 
-Status (16 November 2026): green end to end on the gilescope/aeneas release tarballs
-(`build-7a8e111` and the GAT-lite build `build-74561b7`, Lean 4.34.0). `earth +verify` extracts
-`explore/hylo` from the sixteen named algorithms and the two `solve` roots (3807 lines of Lean,
-snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the extracted
-module and the refinement.
+Status (17 November 2026): green end to end on the gilescope/aeneas release tarball
+`build-4797bb9` (GAT-lite plus the `Vec::pop` model, Lean 4.34.0). `earth +verify` extracts
+`explore/hylo` from the sixteen named algorithms and the `solve`/`trace_dp` roots (3766 lines of
+Lean, snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the
+extracted module and the refinement.
 Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the
 homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
 semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
@@ -166,7 +174,8 @@ extracted `step_node` and `union` were axioms, because Charon keeps a dependency
 by default. `Spec.stepNode` enumerates child-row tuples in the Rust's odometer order (`tuples`)
 so that the refinement is syntactic. `BitsRust.lean` closes the loop for one Rust instance:
 `solve_bits_sound` is Claim 1 about the extracted `hylo::dp::solve_bits`, with the `u64`
-wrapping count read as the model's modular counter.
+wrapping count read as the model's modular counter. `RefineHylo.lean` does the same for the
+hylomorphism form, `hylo::dp::trace_dp` (`trace_dp_sound_extracted`).
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,

@@ -51,14 +51,6 @@ axiom Box.Insts.CoreCmpPartialEqBox.ne
 axiom alloc.vec.Vec.remove
   {T : Type} (A : Type) :
   alloc.vec.Vec T → Std.Usize → Result (T × (alloc.vec.Vec T))
-/-- [alloc::vec::{alloc::vec::Vec<T>}::pop]:
-    Source: '/rustc/library/alloc/src/vec/mod.rs', lines 2901:4-2901:38
-    Name pattern: [alloc:xxxxx@T>}::pop]
-    Visibility: public -/
-@[rust_fun "alloc:xxxxx@T>}::pop"]
-axiom alloc.vec.Vec.pop
-  {T : Type} (A : Type) :
-  alloc.vec.Vec T → Result ((Option T) × (alloc.vec.Vec T))
 /-- [alloc::vec::{alloc::vec::Vec<T>}::split_off]:
     Source: '/rustc/library/alloc/src/vec/mod.rs', lines 3193:4-3195:17
     Name pattern: [alloc:xxxxx@T>}::split_off]
@@ -720,8 +712,7 @@ def formalism.scheme.step_node_loop1
   loop
     (fun (table1, idx1, done2) => formalism.scheme.step_node_loop1.body
       TracedInst p op child_tables n table1 idx1 done2)
-    (table
-[A    (table, idx, done1)
+    (table, idx, done1)
 /-- [formalism::scheme::step_node]:
     Source: 'formalism/src/scheme.rs', lines 62:0-62:97
     Name pattern: [formalism::scheme::step_node]
@@ -729,7 +720,8 @@ def formalism.scheme.step_node_loop1
 @[rust_fun "formalism::scheme::step_node"]
 def formalism.scheme.step_node
   {P : Type} {Clause0_Op : Type} {Clause0_Tau : Type} (TracedInst :
-  formalism.scheme.Traced P Clause0_Op Clause0_Tau) (p : P) (op : Clause0_Op)
+  formalism.scheme.Traced P Clause0_Op Clause
+[A  formalism.scheme.Traced P Clause0_Op Clause0_Tau) (p : P) (op : Clause0_Op)
   (child_tables : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row
   Clause0_Tau))) :
   Result (alloc.vec.Vec (formalism.scheme.Row Clause0_Tau))
@@ -1375,8 +1367,7 @@ def collections.MinHeap.pop_loop.body
           if b1
           then ok r
           else ok l
-     
-[A        else ok l
+        else ok l
       if m = i
       then ok (done v)
       else
@@ -1390,7 +1381,8 @@ def collections.MinHeap.pop_loop.body
         then
           do
           let (t2, _) ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (K ×
+            alloc.vec.Vec.index (co
+[A            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (K ×
               V)) v r
           let b1 : Bool ← corecmpOrdInst.partialOrdInst.lt t2 t1
           if b1
@@ -1458,7 +1450,7 @@ def collections.MinHeap.pop
     let i ← n - 1#usize
     let s1 ← core.slice.Slice.swap s 0#usize i
     let v := deref_mut_back s1
-    let (o, v1) ← alloc.vec.Vec.pop Global v
+    let (o, v1) ← alloc.vec.Vec.pop v
     let cf ←
       core.option.Option.Insts.CoreOpsTry_traitTryTOptionNeverOption.branch o
     match cf with
@@ -1534,45 +1526,12 @@ def dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow {P : Type}
   fold := dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow.fold
     formalismschemeTracedInst
 }
-/-- [hylo::shape::hylo_rose]: loop body 1:
-    Source: 'hylo/src/shape/mod.rs', lines 103:4-103:55
-    Visibility: public -/
-@[rust_loop_body]
-def shape.hylo_rose_loop1.body
-  {Clause1_Out : Type} (n : Std.Usize) (out : alloc.vec.Vec Clause1_Out)
-  (i : Std.Usize) :
-  Result (ControlFlow ((alloc.vec.Vec Clause1_Out) × Std.Usize) (alloc.vec.Vec
-    Clause1_Out))
-  := do
-  let i1 ← n / 2#usize
-  if i < i1
-  then
-    let (s, deref_mut_back) ← lift (alloc.vec.Vec.deref_mut out)
-    let i2 ← n - 1#usize
-    let i3 ← i2 - i
-    let s1 ← core.slice.Slice.swap s i i3
-    let i4 ← i + 1#usize
-    let out1 := deref_mut_back s1
-    ok (cont (out1, i4))
-  else ok (done out)
-/-- [hylo::shape::hylo_rose]: loop 1:
-    Source: 'hylo/src/shape/mod.rs', lines 103:4-103:55
-    Visibility: public -/
-@[rust_loop]
-def shape.hylo_rose_loop1
-  {Clause1_Out : Type} (out : alloc.vec.Vec Clause1_Out) (n : Std.Usize)
-  (i : Std.Usize) :
-  Result (alloc.vec.Vec Clause1_Out)
-  := do
-  loop
-    (fun (out1, i1) => shape.hylo_rose_loop1.body n out1 i1)
-    (out, i)
 mutual
 /-- [hylo::shape::hylo_rose]: loop 0:
     Source: 'hylo/src/shape/mod.rs', lines 100:4-100:73
     Visibility: public -/
 @[rust_loop]
-def shape.hylo_rose_loop0
+def shape.hylo_rose_loop
   {T : Type} {P : Type} {A : Type} {Clause0_Seed : Type} {Clause1_Out : Type}
   (RosePlanInst : shape.RosePlan P T Clause0_Seed) (RoseAlgebraInst :
   shape.RoseAlgebra A T Clause1_Out) (kids : alloc.vec.Vec Clause0_Seed)
@@ -1580,7 +1539,7 @@ def shape.hylo_rose_loop0
   Result (P × A × (alloc.vec.Vec Clause1_Out))
   := do
   loop
-    (fun (kids1, plan1, alg1, out1) => shape.hylo_rose_loop0.body RosePlanInst
+    (fun (kids1, plan1, alg1, out1) => shape.hylo_rose_loop.body RosePlanInst
       RoseAlgebraInst kids1 plan1 alg1 out1)
     (kids, plan, alg, out)
 partial_fixpoint
@@ -1588,7 +1547,7 @@ partial_fixpoint
     Source: 'hylo/src/shape/mod.rs', lines 100:4-100:73
     Visibility: public -/
 @[rust_loop_body]
-def shape.hylo_rose_loop0.body
+def shape.hylo_rose_loop.body
   {T : Type} {P : Type} {A : Type} {Clause0_Seed : Type} {Clause1_Out : Type}
   (RosePlanInst : shape.RosePlan P T Clause0_Seed) (RoseAlgebraInst :
   shape.RoseAlgebra A T Clause1_Out) (kids : alloc.vec.Vec Clause0_Seed)
@@ -1596,7 +1555,7 @@ def shape.hylo_rose_loop0.body
   Result (ControlFlow ((alloc.vec.Vec Clause0_Seed) × P × A × (alloc.vec.Vec
     Clause1_Out)) (P × A × (alloc.vec.Vec Clause1_Out)))
   := do
-  let (o, kids1) ← alloc.vec.Vec.pop Global kids
+  let (o, kids1) ← alloc.vec.Vec.pop kids
   match o with
   | none => ok (done (plan, alg, out))
   | some k =>
@@ -1606,7 +1565,7 @@ def shape.hylo_rose_loop0.body
     ok (cont (kids1, plan1, alg1, out1))
 partial_fixpoint
 /-- [hylo::shape::hylo_rose]:
-    Source: 'hylo/src/shape/mod.rs', lines 96:0-105:1
+    Source: 'hylo/src/shape/mod.rs', lines 96:0-103:1
     Visibility: public -/
 def shape.hylo_rose
   {T : Type} {P : Type} {A : Type} {Clause0_Seed : Type} {Clause1_Out : Type}
@@ -1617,10 +1576,11 @@ def shape.hylo_rose
   := do
   let ((t, kids), plan1) ← RosePlanInst.unfold plan seed
   let (plan2, alg1, out) ←
-    shape.hylo_rose_loop0 RosePlanInst RoseAlgebraInst kids plan1 alg
+    shape.hylo_rose_loop RosePlanInst RoseAlgebraInst kids plan1 alg
       (alloc.vec.Vec.new Clause1_Out)
-  let n := alloc.vec.Vec.len out
-  let out1 ← shape.hylo_rose_loop1 out n 0#usize
+  let (s, deref_mut_back) ← lift (alloc.vec.Vec.deref_mut out)
+  let s1 ← lift (core.slice.Slice.reverse s)
+  let out1 := deref_mut_back s1
   let (t1, alg2) ← RoseAlgebraInst.fold alg1 (t, out1)
   ok (t1, plan2, alg2)
 partial_fixpoint
@@ -1638,7 +1598,7 @@ def dp.trace_dp_loop.body
   Result (ControlFlow ((alloc.vec.Vec (formalism.scheme.Row Clause0_Tau)) ×
     formalism.expr.Expr) formalism.expr.Expr)
   := do
-  let (o, table1) ← alloc.vec.Vec.pop Global table
+  let (o, table1) ← alloc.vec.Vec.pop table
   match o with
   | none => ok (done e)
   | some row =>
@@ -1712,7 +1672,7 @@ inductive shape.Iter (D : Type) (X : Type) where
 | Done : D → shape.Iter D X
 | Step : X → shape.Iter D X
 /-- Trait declaration: [hylo::shape::IterPlan]
-    Source: 'hylo/src/shape/mod.rs', lines 107:0-107:99
+    Source: 'hylo/src/shape/mod.rs', lines 105:0-105:99
     Visibility: public -/
 structure shape.IterPlan (Self : Type) (D : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((shape.Iter D Self_Seed) × Self)
@@ -1740,12 +1700,12 @@ def num.Euclid.Insts.HyloShapeIterPlanTPair {T : Type} (algebraEuclideanInst :
   unfold := num.Euclid.Insts.HyloShapeIterPlanTPair.unfold algebraEuclideanInst
 }
 /-- Trait declaration: [hylo::shape::IterAlgebra]
-    Source: 'hylo/src/shape/mod.rs', lines 108:0-108:98
+    Source: 'hylo/src/shape/mod.rs', lines 106:0-106:98
     Visibility: public -/
 structure shape.IterAlgebra (Self : Type) (D : Type) (Self_Out : Type) where
   fold : Self → shape.Iter D Self_Out → Result (Self_Out × Self)
 /-- [hylo::shape::hylo_iter]:
-    Source: 'hylo/src/shape/mod.rs', lines 109:0-114:1
+    Source: 'hylo/src/shape/mod.rs', lines 107:0-112:1
     Visibility: public -/
 def shape.hylo_iter
   {D : Type} {P : Type} {A : Type} {Clause0_Seed : Type} {Clause1_Out : Type}
@@ -2197,8 +2157,7 @@ def path.Relax.Insts.HyloShapeIterPlanVecState.unfold_loop.body
 @[rust_loop]
 def path.Relax.Insts.HyloShapeIterPlanVecState.unfold_loop
   {S : Type} {Q : Type} (formalismsemiringSemiringInst :
-  formalism.semiring.
-[A  formalism.semiring.Semiring S) (QueueInst : path.Queue Q S)
+  formalism.semiring.Semiring S) (QueueInst : path.Queue Q S)
   (g : path.Graph S) (t : Q) (v : alloc.vec.Vec Bool) (v1 : alloc.vec.Vec S)
   (v2 : alloc.vec.Vec S) (q : Std.Usize) (rq : S) (j : Std.Usize) :
   Result ((alloc.vec.Vec (alloc.vec.Vec (Std.Usize × S))) × Q ×
@@ -2226,7 +2185,8 @@ def path.Relax.Insts.HyloShapeIterPlanVecState.unfold
       alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
         self.inq q
     let (t1, index_mut_back1) ←
-      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice S) st.r q
+      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice S
+[A      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice S) st.r q
     let t2 ← formalismsemiringSemiringInst.zero
     let (rq, t3) := core.mem.replace t1 t2
     let v := index_mut_back1 t3
@@ -2516,7 +2476,7 @@ def search.keep_filtered_loop.body
   Result (ControlFlow ((alloc.vec.Vec Clause0_Space) × (alloc.vec.Vec
     Clause0_Space)) (alloc.vec.Vec Clause0_Space))
   := do
-  let (o, kids1) ← alloc.vec.Vec.pop Global kids
+  let (o, kids1) ← alloc.vec.Vec.pop kids
   match o with
   | none => ok (done out)
   | some k =>
@@ -2911,8 +2871,7 @@ def
     let i2 ← i + 1#usize
     ok (cont (acc1, i2))
   else ok (done acc)
-/-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0
-[A/-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0:
+/-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0:
     Source: 'hylo/src/search/mod.rs', lines 168:8-168:64
     Visibility: public -/
 @[rust_loop]
@@ -2939,7 +2898,8 @@ def
   (BoundedInst : search.Bounded P Clause0_Clause0_Input Clause0_Clause0_Space)
   (self : search.BestCount P Clause0_Clause0_Input Clause0_Clause0_Space)
   (p : ((Clause0_Clause0_Space × Bool) × (alloc.vec.Vec
-  (formalism.semiring.Delta formalism.semiring.MaxPlus
+ 
+[A  (formalism.semiring.Delta formalism.semiring.MaxPlus
   formalism.semiring.Nat)))) :
   Result ((formalism.semiring.Delta formalism.semiring.MaxPlus
     formalism.semiring.Nat) × (search.BestCount P Clause0_Clause0_Input
@@ -3234,9 +3194,8 @@ def sort.Halve.Insts.HyloShapeLeafTreePlanTVec.unfold
   := do
   let i := alloc.vec.Vec.len v
   if i <= 1#usize
-  then
-    let (o, _) ← alloc.vec.Vec.pop Global v
-    ok (shape.LeafTree.Leaf o, self)
+  then let (o, _) ← alloc.vec.Vec.pop v
+       ok (shape.LeafTree.Leaf o, self)
   else
     let i1 := alloc.vec.Vec.len v
     let i2 ← i1 / 2#usize
@@ -3504,7 +3463,7 @@ def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
   Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T) × (alloc.vec.Vec
     T)) ((alloc.vec.Vec T) × (alloc.vec.Vec T)))
   := do
-  let (o, v1) ← alloc.vec.Vec.pop Global v
+  let (o, v1) ← alloc.vec.Vec.pop v
   match o with
   | none => ok (done (l, r))
   | some x =>
@@ -3536,7 +3495,7 @@ def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold
   (v : alloc.vec.Vec T) :
   Result ((Option (T × (alloc.vec.Vec T) × (alloc.vec.Vec T))) × sort.Pivot)
   := do
-  let (o, v1) ← alloc.vec.Vec.pop Global v
+  let (o, v1) ← alloc.vec.Vec.pop v
   let cf ←
     core.option.Option.Insts.CoreOpsTry_traitTryTOptionNeverOption.branch o
   match cf with
@@ -3571,7 +3530,7 @@ def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body
   Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
     T))
   := do
-  let (o, b1) ← alloc.vec.Vec.pop Global b
+  let (o, b1) ← alloc.vec.Vec.pop b
   match o with
   | none => ok (done a)
   | some x => let a1 ← alloc.vec.Vec.push a x
@@ -3647,12 +3606,12 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
       let take_a : Bool ← corecmpOrdInst.partialOrdInst.le t t1
       if take_a
       then
-        let (o, a1) ← alloc.vec.Vec.pop Global a
+        let (o, a1) ← alloc.vec.Vec.pop a
         let t2 ← core.option.Option.unwrap o
         let out1 ← alloc.vec.Vec.push out t2
         ok (cont (a1, b, out1))
       else
-        let (o, b3) ← alloc.vec.Vec.pop Global b
+        let (o, b3) ← alloc.vec.Vec.pop b
         let t2 ← core.option.Option.unwrap o
         let out1 ← alloc.vec.Vec.push out t2
         ok (cont (a, b3, out1))
@@ -3679,14 +3638,13 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body
   Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
     T))
   := do
-  let (o, a1) ← alloc.vec.Vec.pop Global a
+  let (o, a1) ← alloc.vec.Vec.pop a
   match o with
   | none => ok (done out)
   | some x => let out1 ← alloc.vec.Vec.push out x
               ok (cont (a1, out1))
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 1:
-    Sour
-[A    Source: 'hylo/src/sort/mod.rs', lines 102:16-102:59
+    Source: 'hylo/src/sort/mod.rs', lines 102:16-102:59
     Visibility: public -/
 @[rust_loop]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1
@@ -3706,7 +3664,7 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body
   Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
     T))
   := do
-  let (o, b1) ← alloc.vec.Vec.pop Global b
+  let (o, b1) ← alloc.vec.Vec.pop b
   match o with
   | none => ok (done out)
   | some y => let out1 ← alloc.vec.Vec.push out y
@@ -3722,7 +3680,8 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2
   loop
     (fun (b1, out1) =>
       sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body b1 out1)
-    (b, out)
+    (b, ou
+[A    (b, out)
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]:
     Source: 'hylo/src/sort/mod.rs', lines 89:4-107:5
     Visibility: public -/
