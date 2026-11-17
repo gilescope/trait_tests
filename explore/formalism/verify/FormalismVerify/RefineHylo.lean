@@ -260,6 +260,7 @@ theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       subst ho
       show WP.spec (ok (ControlFlow.done e1)) _
       rw [WP.spec_ok]
+      show ofExt e1 = _
       rw [he1, hj1', List.take_of_length_le (by rw [List.length_map])]
   · exact ⟨j, hj, htable, he⟩
 
