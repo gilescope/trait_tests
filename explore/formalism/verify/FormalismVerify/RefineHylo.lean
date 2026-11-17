@@ -52,7 +52,7 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     replace halg : alg1 = p := halg
     replace hkids1 : kids1.val = ks.take j1 := hkids1
     replace hout1 : tablesOf R out1 = (Traced.runList I (ms.drop j1)).reverse := hout1
-    subst halg
+    subst alg1
     show hylo.shape.hylo_rose_loop.body _ _ kids1 plan1 alg1 out1 ⦃ _ ⦄
     unfold hylo.shape.hylo_rose_loop.body
     apply WP.spec_bind (alloc.vec.Vec.pop_spec kids1)
@@ -63,9 +63,9 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     | zero =>
       rw [hkids1, List.take_zero, List.getLast?_nil] at ho
       subst ho
-      dsimp only
+      try dsimp only
       simp only [WP.spec_ok]
-      exact ⟨rfl, by rw [hout1, List.drop_zero]⟩
+      exact ⟨by trivial, by rw [hout1, List.drop_zero]⟩
     | succ j' =>
       have hj' : j' < ks.length := hj1
       have hj'' : j' < ms.length := by rw [← hlen]; exact hj'
@@ -73,12 +73,12 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       rw [hkids1, List.getLast?_concat] at ho
       rw [hkids1, List.dropLast_concat] at hkids2
       subst ho
-      dsimp only
+      try dsimp only
       apply WP.spec_bind (hIH j' hj'' ks[j'] plan1 (NodeRelList.getElem R hrel j' hj' hj''))
       rintro ⟨t, plan2, alg2⟩ hr
-      have hr' : tableOf R t = Traced.run I ms[j'] ∧ alg2 = alg1 := hr
+      have hr' : tableOf R t = Traced.run I ms[j'] ∧ alg2 = p := hr
       obtain ⟨ht, halg2⟩ := hr'
-      subst halg2
+      subst alg2
       have hlen1 : out1.val.length < Usize.max := by
         have h1 := length_tablesOf R out1
         rw [hout1, List.length_reverse, runList_length, List.length_drop] at h1
@@ -87,14 +87,14 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       intro out2 hout2
       replace hout2 : out2.val = out1.val ++ [t] := hout2
       simp only [WP.spec_ok]
-      refine ⟨⟨rfl, j', hj'.le, hkids2, ?_⟩, ?_⟩
+      refine ⟨⟨by trivial, j', hj'.le, hkids2, ?_⟩, ?_⟩
       · rw [tablesOf_append R out1 out2 t hout2, hout1, ht, List.drop_eq_getElem_cons hj'',
           Traced.runList, List.reverse_cons]
       · rw [hkids2, hkids1, List.length_append, List.length_singleton]
         omega
-  · exact ⟨rfl, j, hj, hkids, hout⟩
+  · exact ⟨by trivial, j, hj, hkids, hout⟩
 
-/-- The one way `hylo_rose` fails: a table that does not fit (`Fits`). -/
+-- `hylo_rose` computes `run`; the one way it fails is a table that does not fit (`Fits`).
 mutual
 theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
     (hI : TracedSpec R inst p I) :
@@ -120,15 +120,16 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
     have hu' : ((t, kids), plan1) = ((nop, ncs), plan) := hu
     simp only [Prod.mk.injEq] at hu'
     obtain ⟨⟨ht, hkids⟩, hplan1⟩ := hu'
-    subst ht hkids hplan1
+    subst t kids
+    try dsimp only
     apply WP.spec_bind (hylo_rose_loop_spec R inst p I ncs.val ms hrelL ncs.property
       (fun j hj n' plan' hrel' => hylo_rose_specList inst p I hI ms hfits j hj n' plan' hrel')
-      ncs plan (alloc.vec.Vec.new _) ncs.val.length le_rfl (List.take_length ncs.val).symm
+      ncs plan1 (alloc.vec.Vec.new _) ncs.val.length le_rfl (List.take_length ncs.val).symm
       (by simp [tablesOf, alloc.vec.Vec.new, hlen, Traced.runList]))
     rintro ⟨plan2, alg1, out⟩ hr
     have hr' : alg1 = p ∧ tablesOf R out = (Traced.runList I ms).reverse := hr
     obtain ⟨halg1, hout⟩ := hr'
-    subst halg1
+    subst alg1
     have hrev : ∀ v : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau')),
         v.val = out.val.reverse → tablesOf R v = Traced.runList I ms := by
       intro v hv
@@ -145,7 +146,7 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
       ((WP.spec_ok (p := fun r => r = core.slice.Slice.reverse out.slice) _).mpr rfl)
     intro s1 hs1
     subst hs1
-    dsimp only
+    try dsimp only
     have hout1 : tablesOf R { slice := core.slice.Slice.reverse out.slice } =
         Traced.runList I ms := by
       apply hrev
@@ -155,23 +156,23 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
     simp only [hylo.dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow,
       hylo.dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow.fold]
     have hinner : (do
-        let v ← formalism.scheme.step_node inst alg1 nop { slice := core.slice.Slice.reverse out.slice }
-        ok (v, alg1) : Result (alloc.vec.Vec (formalism.scheme.Row Tau') × P))
+        let v ← formalism.scheme.step_node inst p nop { slice := core.slice.Slice.reverse out.slice }
+        ok (v, p) : Result (alloc.vec.Vec (formalism.scheme.Row Tau') × P))
         ⦃ (r : alloc.vec.Vec (formalism.scheme.Row Tau') × P) =>
-          tableOf R r.1 = Traced.run I (.mk op ms) ∧ r.2 = alg1 ⦄ := by
-      apply WP.spec_bind (step_node_spec R inst alg1 I hI nop _ (by rw [hout1, hop]; exact hfin))
+          tableOf R r.1 = Traced.run I (.mk op ms) ∧ r.2 = p ⦄ := by
+      apply WP.spec_bind (step_node_spec R inst p I hI nop _ (by rw [hout1, hop]; exact hfin))
       intro v hv
       replace hv : tableOf R v = Traced.stepNode I (R.opOf nop)
         (tablesOf R { slice := core.slice.Slice.reverse out.slice }) := hv
       simp only [WP.spec_ok]
-      exact ⟨by rw [hv, hout1, hop, Traced.run], rfl⟩
+      exact ⟨by rw [hv, hout1, hop, Traced.run], by trivial⟩
     apply WP.spec_bind hinner
     rintro ⟨t1, alg2⟩ hr1
-    have hr1' : tableOf R t1 = Traced.run I (.mk op ms) ∧ alg2 = alg1 := hr1
+    have hr1' : tableOf R t1 = Traced.run I (.mk op ms) ∧ alg2 = p := hr1
     obtain ⟨ht1, halg2⟩ := hr1'
-    subst halg2
+    subst alg2
     simp only [WP.spec_ok]
-    exact ⟨ht1, rfl⟩
+    exact ⟨ht1, by trivial⟩
 theorem hylo_rose_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     (I : Traced Op Tau) (hI : TracedSpec R inst p I) :
     ∀ (ms : List (Node Op)), FitsList I ms →
@@ -219,7 +220,7 @@ theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       rw [htable1, List.getLast?_concat] at ho
       rw [htable1, List.dropLast_concat] at htable2
       subst ho
-      dsimp only
+      try dsimp only
       apply WP.spec_bind (hI.accept T[j1].tau)
       intro b hb
       replace hb : b = I.accept (R.tauOf T[j1].tau) := hb
@@ -254,7 +255,7 @@ theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       rw [hj1', List.drop_length, List.reverse_nil] at htable1
       rw [htable1, List.getLast?_nil] at ho
       subst ho
-      dsimp only
+      try dsimp only
       simp only [WP.spec_ok]
       rw [he1, hj1', List.take_of_length_le (by rw [List.length_map])]
   · exact ⟨j, hj, htable, he⟩
@@ -269,7 +270,7 @@ theorem trace_dp_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : T
   rintro ⟨table, plan, alg⟩ hr
   have hr' : tableOf R table = Traced.run I m ∧ alg = p := hr
   obtain ⟨htable, _⟩ := hr'
-  dsimp only
+  try dsimp only
   apply WP.spec_bind ((WP.spec_ok (p := fun r => r = alloc.vec.Vec.deref_mut table) _).mpr rfl)
   rintro ⟨s, back⟩ hsb
   have hsb' : (s, back) = alloc.vec.Vec.deref_mut table := hsb
@@ -280,7 +281,7 @@ theorem trace_dp_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : T
     ((WP.spec_ok (p := fun r => r = core.slice.Slice.reverse table.slice) _).mpr rfl)
   intro s1 hs1
   subst hs1
-  dsimp only
+  try dsimp only
   have hrev : ({ slice := core.slice.Slice.reverse table.slice } :
       alloc.vec.Vec (formalism.scheme.Row Tau')).val = (table.val.drop 0).reverse := by
     show (core.slice.Slice.reverse table.slice).val = _
