@@ -53,7 +53,7 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     replace hkids1 : kids1.val = ks.take j1 := hkids1
     replace hout1 : tablesOf R out1 = (Traced.runList I (ms.drop j1)).reverse := hout1
     subst alg1
-    show hylo.shape.hylo_rose_loop.body _ _ kids1 plan1 alg1 out1 ⦃ _ ⦄
+    show hylo.shape.hylo_rose_loop.body _ _ kids1 plan1 p out1 ⦃ _ ⦄
     unfold hylo.shape.hylo_rose_loop.body
     apply WP.spec_bind (alloc.vec.Vec.pop_spec kids1)
     rintro ⟨o, kids2⟩ hpop
@@ -63,9 +63,11 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     | zero =>
       rw [hkids1, List.take_zero, List.getLast?_nil] at ho
       subst ho
-      try dsimp only
-      simp only [WP.spec_ok]
-      exact ⟨by trivial, by rw [hout1, List.drop_zero]⟩
+      show WP.spec (ok (ControlFlow.done (plan1, p, out1))) _
+      rw [WP.spec_ok]
+      refine ⟨by trivial, ?_⟩
+      show tablesOf R out1 = _
+      rw [hout1, List.drop_zero]
     | succ j' =>
       have hj' : j' < ks.length := hj1
       have hj'' : j' < ms.length := by rw [← hlen]; exact hj'
@@ -124,7 +126,7 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
     try dsimp only
     apply WP.spec_bind (hylo_rose_loop_spec R inst p I ncs.val ms hrelL ncs.property
       (fun j hj n' plan' hrel' => hylo_rose_specList inst p I hI ms hfits j hj n' plan' hrel')
-      ncs plan1 (alloc.vec.Vec.new _) ncs.val.length le_rfl (List.take_length ncs.val).symm
+      ncs plan1 (alloc.vec.Vec.new _) ncs.val.length le_rfl List.take_length.symm
       (by simp [tablesOf, alloc.vec.Vec.new, hlen, Traced.runList]))
     rintro ⟨plan2, alg1, out⟩ hr
     have hr' : alg1 = p ∧ tablesOf R out = (Traced.runList I ms).reverse := hr
@@ -171,7 +173,8 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
     have hr1' : tableOf R t1 = Traced.run I (.mk op ms) ∧ alg2 = p := hr1
     obtain ⟨ht1, halg2⟩ := hr1'
     subst alg2
-    simp only [WP.spec_ok]
+    show WP.spec (ok (t1, plan2, p)) _
+    rw [WP.spec_ok]
     exact ⟨ht1, by trivial⟩
 theorem hylo_rose_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P)
     (I : Traced Op Tau) (hI : TracedSpec R inst p I) :
@@ -255,8 +258,8 @@ theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
       rw [hj1', List.drop_length, List.reverse_nil] at htable1
       rw [htable1, List.getLast?_nil] at ho
       subst ho
-      try dsimp only
-      simp only [WP.spec_ok]
+      show WP.spec (ok (ControlFlow.done e1)) _
+      rw [WP.spec_ok]
       rw [he1, hj1', List.take_of_length_le (by rw [List.length_map])]
   · exact ⟨j, hj, htable, he⟩
 
