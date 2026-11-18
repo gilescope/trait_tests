@@ -98,6 +98,17 @@ fork-test-gat:
     RUN echo '===== tests/lean/Gat.lean' && cat tests/lean/Gat.lean
     SAVE ARTIFACT tests/lean/Gat.lean /Gat.lean
 
+# The fork's known-failure test for a GAT with a trait bound: GAT-lite must reject it with an
+# error, not crash. Runs aeneas exactly as the fork's test runner does and prints the output,
+# which is the expected `.lean.out` of the test; the step does not fail on the (expected) error.
+fork-test-gat-bound:
+    FROM +aeneas
+    ARG GAT_BOUND_RS_URL=https://raw.githubusercontent.com/gilescope/aeneas/5c5be98ee3c6763eaf077e2a97ebd8e8b1b40922/tests/src/gat-bound.rs
+    WORKDIR /work
+    RUN mkdir -p tests/src tests/lean tests/llbc && curl -sSfL "$GAT_BOUND_RS_URL" -o tests/src/gat-bound.rs
+    RUN charon rustc --dest-file /work/tests/llbc/gat-bound.llbc --preset=aeneas -- tests/src/gat-bound.rs --crate-name=gat_bound --crate-type=rlib --allow=unused --allow=non_snake_case --edition=2021 > charon.out 2>&1; echo "charon exit $?"; cat charon.out
+    RUN aeneas tests/llbc/gat-bound.llbc -dest tests/lean -backend lean -abort-on-error -print-error-emitters -no-progress-bar -checks -color -sequential > aeneas.out 2>&1; echo "aeneas exit $?"; echo '===== gat-bound.lean.out'; cat aeneas.out; echo '===== end'
+
 extract:
     FROM +aeneas
     WORKDIR /src

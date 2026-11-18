@@ -70,5 +70,6 @@ jobs:
       - run: earth $EARTH_FLAGS --remote-cache=$CACHE:probe-gat-$REV +probe-gat $BUILD_ARGS
         continue-on-error: true
       - run: earth $EARTH_FLAGS --remote-cache=$CACHE:fork-test-gat-$REV +fork-test-gat $BUILD_ARGS
+      - run: earth $EARTH_FLAGS --remote-cache=$CACHE:fork-test-gat-bound-$REV +fork-test-gat-bound $BUILD_ARGS
         continue-on-error: true
       - run: earth $EARTH_FLAGS --remote-cache=$CACHE:verify-$REV +verify $BUILD_ARGS
