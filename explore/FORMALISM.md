@@ -122,6 +122,14 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    `scheme::solve`. This needed a model of `Vec::pop` in the Aeneas library (the fork has
    one now); without it Aeneas emits an axiom for `pop` and nothing can be proved about a
    function that calls it.
+7. `RefineSemiring.lean`: the extracted semirings compute the model's. `Nat` (wrapping `u64`)
+   is `ZMod (2^64)`; the generic `Delta` is the model's Δ-product (Theorem 3) for any extracted
+   dioid and semiring that compute model instances (`DioidSpec`, `SemiringSpec`), `Delta::new`
+   establishing the Δ-set invariant; and `expr::eval` computes the model's `eval`, so by Lemma 1
+   it computes the measure of the expression's semantics (`eval_measure_spec`). Over `Nat` with
+   the `Ones` measure that is the number of solutions modulo `2^64` (`eval_ones_card`). Not
+   done: a model dioid for `Tropical`/`MaxPlus`/`Boolean` (Theorem 4, `Dioid (Delta D1 D2)`, is
+   not formalised either), so those are related to no model yet.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -144,18 +152,19 @@ Everything else is inherited.
 `aeneas -backend lean` turns LLBC into `Extracted/*.lean`, `lake build` checks
 `Spec.lean` and the refinement against it. Charon translates only the signatures of a
 dependency crate unless told otherwise, so the `formalism` bodies are asked for with
-`--include=formalism::expr::_ --include=formalism::scheme::_ --include=formalism::instances::bits::_`,
-and `scheme::solve` is reached through `hylo::dp::solve_scheme` and `hylo::dp::solve_bits` (a
-start item in a dependency is dropped). The core modules are written in Aeneas's subset: `no_std` +
+`--include=formalism::expr::_ --include=formalism::scheme::_ --include=formalism::semiring::_
+--include=formalism::instances::bits::_`, and the dependency's entry points are reached through
+roots in `hylo::dp` (`solve_scheme`, `solve_bits`, `eval_ones`, `delta_*`: a start item in a
+dependency is dropped). The core modules are written in Aeneas's subset: `no_std` +
 `alloc`, no closures, no iterator adaptors, no hash maps, index loops, no `&mut` through
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
 
 Status (17 November 2026): green end to end on the gilescope/aeneas release tarball
 `build-4797bb9` (GAT-lite plus the `Vec::pop` model, Lean 4.34.0). `earth +verify` extracts
-`explore/hylo` from the sixteen named algorithms and the `solve`/`trace_dp` roots (3766 lines of
-Lean, snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the
-extracted module and the refinement.
+`explore/hylo` from the sixteen named algorithms and the `hylo::dp` roots (4391 lines of Lean,
+snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the extracted
+module and the refinement.
 Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the
 homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
 semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
@@ -175,7 +184,8 @@ by default. `Spec.stepNode` enumerates child-row tuples in the Rust's odometer o
 so that the refinement is syntactic. `BitsRust.lean` closes the loop for one Rust instance:
 `solve_bits_sound` is Claim 1 about the extracted `hylo::dp::solve_bits`, with the `u64`
 wrapping count read as the model's modular counter. `RefineHylo.lean` does the same for the
-hylomorphism form, `hylo::dp::trace_dp` (`trace_dp_sound_extracted`).
+hylomorphism form, `hylo::dp::trace_dp` (`trace_dp_sound_extracted`), and `RefineSemiring.lean`
+relates the extracted `Nat`, `Delta` and `eval` to the model, Lemma 1 included.
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,
