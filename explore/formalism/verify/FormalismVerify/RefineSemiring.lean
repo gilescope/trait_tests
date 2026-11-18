@@ -1,5 +1,5 @@
 import FormalismVerify.Spec
-import FormalismVerify.Extracted.Hylo
+import FormalismVerify.Refine
 
 /-!
 # The extracted semirings compute the model's
@@ -8,7 +8,10 @@ import FormalismVerify.Extracted.Hylo
 the model's Δ-product (Theorem 3) for any extracted dioid `D'` and semiring `A'` that compute
 model instances `D`, `A` through representations `rd`, `ra` (`DioidSpec`, `SemiringSpec`).
 `Delta::new` establishes the Δ-set invariant, `Delta::add` keeps the `D`-minimum and the count
-of the argmin, summing on ties: exactly `Delta.add`.
+of the argmin, summing on ties: exactly `Delta.add`. `expr::eval` computes the model's `eval`
+for any such semiring and measure, so by Lemma 1 it computes the measure of the expression's
+semantics (`eval_measure_spec`); with `Ones` over `Nat` that is the number of solutions modulo
+`2^64` (`eval_ones_card`).
 -/
 
 namespace Formalism.RefineSemiring
@@ -109,8 +112,8 @@ structure DeltaRel (rd : D' → D) (ra : A' → A) (x : formalism.semiring.Delta
 variable {DInst : formalism.semiring.Dioid D'} {AInst : formalism.semiring.Semiring A'}
   {rd : D' → D} {ra : A' → A}
 
-/-- `Delta::new` zeroes the count of an irregular cost. -/
 open Classical in
+/-- `Delta::new` zeroes the count of an irregular cost. -/
 theorem new_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra) (d : D') (a : A') :
     formalism.semiring.Delta.new DInst AInst d a ⦃ (r : formalism.semiring.Delta D' A') =>
       rd r.d = rd d ∧ ra r.a = if Dioid.regular (rd d) then ra a else 0 ⦄ := by
@@ -205,6 +208,146 @@ theorem add_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra)
       · rw [Delta.add_d, min_eq_right hlt.le, hyd]
       · rw [Delta.add_a, Delta.addA_of_gt hlt, hya]
 
+/-- `Delta::one` is the model's `1`. -/
+theorem one_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra) :
+    formalism.semiring.Delta.Insts.FormalismSemiringSemiring.one DInst AInst
+      ⦃ (r : formalism.semiring.Delta D' A') => DeltaRel rd ra r 1 ⦄ := by
+  unfold formalism.semiring.Delta.Insts.FormalismSemiringSemiring.one
+  apply WP.spec_bind hD.toSemiring.one
+  intro t ht
+  replace ht : rd t = 1 := ht
+  apply WP.spec_bind hA.one
+  intro t1 ht1
+  replace ht1 : ra t1 = 1 := ht1
+  apply WP.spec_mono (new_spec hD hA t t1)
+  intro r hr
+  obtain ⟨hrd, hra⟩ := hr
+  refine ⟨?_, ?_⟩
+  · rw [hrd, ht, Delta.one_d]
+  · rw [hra, ht, ite_eq_left Dioid.regular_one, ht1, Delta.one_a]
+
+/-- `Delta::mul` is the model's `*`: componentwise, the count zeroed when the cost turns
+    irregular. -/
+theorem mul_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra)
+    (x y : formalism.semiring.Delta D' A') (mx my : Delta D A)
+    (hx : DeltaRel rd ra x mx) (hy : DeltaRel rd ra y my) :
+    formalism.semiring.Delta.Insts.FormalismSemiringSemiring.mul DInst AInst x y
+      ⦃ (r : formalism.semiring.Delta D' A') => DeltaRel rd ra r (mx * my) ⦄ := by
+  obtain ⟨hxd, hxa⟩ := hx
+  obtain ⟨hyd, hya⟩ := hy
+  unfold formalism.semiring.Delta.Insts.FormalismSemiringSemiring.mul
+  apply WP.spec_bind (hD.toSemiring.mul x.d y.d)
+  intro t ht
+  replace ht : rd t = rd x.d * rd y.d := ht
+  apply WP.spec_bind (hA.mul x.a y.a)
+  intro t1 ht1
+  replace ht1 : ra t1 = ra x.a * ra y.a := ht1
+  apply WP.spec_mono (new_spec hD hA t t1)
+  intro r hr
+  obtain ⟨hrd, hra⟩ := hr
+  refine ⟨?_, ?_⟩
+  · rw [Delta.mul_d, hrd, ht, hxd, hyd]
+  · rw [Delta.mul_a, hra]
+    by_cases hreg : Dioid.regular (rd t)
+    · rw [ite_eq_left hreg, ht1, hxa, hya]
+    · rw [ite_eq_right hreg]
+      by_cases hx : Dioid.regular mx.d
+      · have hy : ¬ Dioid.regular my.d := fun hy =>
+          hreg (by rw [ht, hxd, hyd]; exact Dioid.regular_mul hx hy)
+        rw [my.inv.resolve_left hy, mul_zero]
+      · rw [mx.inv.resolve_left hx, zero_mul]
+
 end Delta
+
+/-! ## `Nat` is a `SemiringSpec` -/
+
+theorem natSpec : SemiringSpec formalism.semiring.Nat.Insts.FormalismSemiringSemiring natOf :=
+  ⟨nat_zero_spec, nat_one_spec, nat_add_spec, nat_mul_spec, nat_eq_spec⟩
+
+/-! ## `eval`: Lemma 1 for the Rust -/
+
+section Eval
+variable {A' A M' : Type} [CommSemiring A]
+
+/-- An extracted measure computes `M` through `ra`. -/
+structure MeasureSpec (inst : formalism.expr.Measure M' A') (ra : A' → A) (m : M')
+    (M : Var → Val → A) : Prop where
+  weight : ∀ s t : U32, inst.weight m s t ⦃ (r : A') => ra r = M s.val t.val ⦄
+
+variable {AInst : formalism.semiring.Semiring A'} {ra : A' → A}
+  {MInst : formalism.expr.Measure M' A'} {m : M'} {M : Var → Val → A}
+
+/-- `expr::eval` computes the model's `eval`. -/
+theorem eval_spec (hA : SemiringSpec AInst ra) (hM : MeasureSpec MInst ra m M) :
+    ∀ e : formalism.expr.Expr,
+      formalism.expr.eval AInst MInst e m ⦃ (r : A') => ra r = Formalism.eval M (Refine.ofExt e) ⦄
+  | .Empty => by
+    unfold formalism.expr.eval
+    apply WP.spec_mono hA.zero
+    intro r hr
+    rw [hr, Refine.ofExt, Formalism.eval]
+  | .Unit => by
+    unfold formalism.expr.eval
+    apply WP.spec_mono hA.one
+    intro r hr
+    rw [hr, Refine.ofExt, Formalism.eval]
+  | .Leaf s t => by
+    unfold formalism.expr.eval
+    apply WP.spec_mono (hM.weight s t)
+    intro r hr
+    rw [hr, Refine.ofExt, Formalism.eval]
+  | .Union a b => by
+    unfold formalism.expr.eval
+    apply WP.spec_bind (eval_spec hA hM a)
+    intro t ht
+    replace ht : ra t = Formalism.eval M (Refine.ofExt a) := ht
+    apply WP.spec_bind (eval_spec hA hM b)
+    intro t1 ht1
+    replace ht1 : ra t1 = Formalism.eval M (Refine.ofExt b) := ht1
+    apply WP.spec_mono (hA.add t t1)
+    intro r hr
+    replace hr : ra r = ra t + ra t1 := hr
+    rw [hr, ht, ht1, Refine.ofExt, Formalism.eval]
+  | .Join a b => by
+    unfold formalism.expr.eval
+    apply WP.spec_bind (eval_spec hA hM a)
+    intro t ht
+    replace ht : ra t = Formalism.eval M (Refine.ofExt a) := ht
+    apply WP.spec_bind (eval_spec hA hM b)
+    intro t1 ht1
+    replace ht1 : ra t1 = Formalism.eval M (Refine.ofExt b) := ht1
+    apply WP.spec_mono (hA.mul t t1)
+    intro r hr
+    replace hr : ra r = ra t * ra t1 := hr
+    rw [hr, ht, ht1, Refine.ofExt, Formalism.eval]
+
+/-- Lemma 1 for the Rust: on an expression denoting `F`, `eval` computes the measure of `F`. -/
+theorem eval_measure_spec (hA : SemiringSpec AInst ra) (hM : MeasureSpec MInst ra m M)
+    (e : formalism.expr.Expr) (F : Finset Assign) (h : Sem (Refine.ofExt e) F) :
+    formalism.expr.eval AInst MInst e m ⦃ (r : A') => ra r = Formalism.measure M F ⦄ := by
+  apply WP.spec_mono (eval_spec hA hM e)
+  intro r hr
+  rw [hr, Formalism.eval_eq_measure M h]
+
+/-- The `Ones` measure weighs every leaf `1`. -/
+theorem onesSpec (hA : SemiringSpec AInst ra) :
+    MeasureSpec (formalism.expr.Ones.Insts.FormalismExprMeasure AInst) ra () (fun _ _ => 1) :=
+  ⟨fun s t => by
+    show AInst.one ⦃ (r : A') => ra r = 1 ⦄
+    exact hA.one⟩
+
+/-- `hylo::dp::eval_ones` over `Nat`, on an expression denoting `F`: the number of solutions
+    modulo `2^64`. -/
+theorem eval_ones_card (e : formalism.expr.Expr) (F : Finset Assign)
+    (h : Sem (Refine.ofExt e) F) :
+    hylo.dp.eval_ones formalism.semiring.Nat.Insts.FormalismSemiringSemiring e
+      ⦃ (r : U64) => natOf r = (F.card : Fin (2^64)) ⦄ := by
+  unfold hylo.dp.eval_ones
+  apply WP.spec_mono (eval_measure_spec natSpec (onesSpec natSpec) e F h)
+  intro r hr
+  rw [hr, Formalism.measure]
+  simp
+
+end Eval
 
 end Formalism.RefineSemiring
