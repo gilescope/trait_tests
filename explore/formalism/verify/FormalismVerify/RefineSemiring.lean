@@ -4,7 +4,7 @@ import FormalismVerify.Refine
 /-!
 # The extracted semirings compute the model's
 
-`semiring.rs` read back: `Nat` (wrapping `u64`) is `Fin (2^64)`, and the generic `Delta` is
+`semiring.rs` read back: `Nat` (wrapping `u64`) is `ZMod (2^64)`, and the generic `Delta` is
 the model's Δ-product (Theorem 3) for any extracted dioid `D'` and semiring `A'` that compute
 model instances `D`, `A` through representations `rd`, `ra` (`DioidSpec`, `SemiringSpec`).
 `Delta::new` establishes the Δ-set invariant, `Delta::add` keeps the `D`-minimum and the count
@@ -17,17 +17,14 @@ semantics (`eval_measure_spec`); with `Ones` over `Nat` that is the number of so
 namespace Formalism.RefineSemiring
 open Aeneas Aeneas.Std Result hylo
 
-/-! ## `Nat`: wrapping `u64` is `Fin (2^64)` -/
+/-! ## `Nat`: wrapping `u64` is `ZMod (2^64)` -/
 
-/-- The value of a `u64`, in `Fin (2^64)`. -/
-def natOf (x : U64) : Fin (2^64) := ⟨x.val, by have := UScalar.hBounds x; simpa using this⟩
+/-- The value of a `u64`, in `ZMod (2^64)`. -/
+def natOf (x : U64) : ZMod (2^64) := (x.val : ZMod (2^64))
 
-theorem natOf_val (x : U64) : (natOf x).val = x.val := rfl
-
-theorem natOf_injective : Function.Injective natOf := by
-  intro x y h
-  have h' : x.val = y.val := congrArg Fin.val h
-  exact UScalar.val_eq_imp x y h'
+theorem val_lt (x : U64) : x.val < 2^64 := by
+  have := UScalar.hBounds x
+  simpa using this
 
 theorem size_eq : UScalar.size .U64 = 2^64 := by
   rw [UScalar.size_UScalarTyU64, U64.size_def, U64.numBits_def]
@@ -42,8 +39,8 @@ theorem nat_add_spec (x y : U64) :
   intro i hi
   subst hi
   rw [WP.spec_ok]
-  apply Fin.ext
-  rw [Fin.val_add, natOf_val, natOf_val, natOf_val, core.num.U64.wrapping_add_val_eq, size_eq]
+  unfold natOf
+  rw [core.num.U64.wrapping_add_val_eq, size_eq, ZMod.natCast_mod, Nat.cast_add]
 
 theorem nat_mul_spec (x y : U64) :
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring.mul x y
@@ -54,24 +51,20 @@ theorem nat_mul_spec (x y : U64) :
   intro i hi
   subst hi
   rw [WP.spec_ok]
-  apply Fin.ext
-  rw [Fin.val_mul, natOf_val, natOf_val, natOf_val, core.num.U64.wrapping_mul_val_eq, size_eq]
+  unfold natOf
+  rw [core.num.U64.wrapping_mul_val_eq, size_eq, ZMod.natCast_mod, Nat.cast_mul]
 
 theorem nat_zero_spec :
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring.zero ⦃ (r : U64) => natOf r = 0 ⦄ := by
   unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.zero
   rw [WP.spec_ok]
-  apply Fin.ext
-  rw [natOf_val, Fin.val_zero]
-  simp
+  simp [natOf]
 
 theorem nat_one_spec :
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one ⦃ (r : U64) => natOf r = 1 ⦄ := by
   unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one
   rw [WP.spec_ok]
-  apply Fin.ext
-  rw [natOf_val]
-  first | rfl | decide | simp
+  simp [natOf]
 
 theorem nat_eq_spec (x y : U64) :
     formalism.semiring.Nat.Insts.CoreCmpPartialEqNat.eq x y
@@ -79,8 +72,9 @@ theorem nat_eq_spec (x y : U64) :
   unfold formalism.semiring.Nat.Insts.CoreCmpPartialEqNat.eq
   rw [WP.spec_ok]
   show decide (x = y) = true ↔ natOf x = natOf y
-  rw [decide_eq_true_iff, UScalar.eq_equiv, Fin.ext_iff]
-  rfl
+  unfold natOf
+  rw [decide_eq_true_iff, UScalar.eq_equiv, ZMod.natCast_eq_natCast_iff',
+    Nat.mod_eq_of_lt (val_lt x), Nat.mod_eq_of_lt (val_lt y)]
 
 /-! ## `Delta`, generically -/
 
@@ -341,7 +335,7 @@ theorem onesSpec (hA : SemiringSpec AInst ra) :
 theorem eval_ones_card (e : formalism.expr.Expr) (F : Finset Assign)
     (h : Sem (Refine.ofExt e) F) :
     hylo.dp.eval_ones formalism.semiring.Nat.Insts.FormalismSemiringSemiring e
-      ⦃ (r : U64) => natOf r = (F.card : Fin (2^64)) ⦄ := by
+      ⦃ (r : U64) => natOf r = (F.card : ZMod (2^64)) ⦄ := by
   unfold hylo.dp.eval_ones
   apply WP.spec_mono (eval_measure_spec natSpec (onesSpec natSpec) e F h)
   intro r hr
