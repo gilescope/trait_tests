@@ -8,4 +8,5 @@ import FormalismVerify.Refine
 import FormalismVerify.RefineStep
 import FormalismVerify.RefineRun
 import FormalismVerify.RefineHylo
+import FormalismVerify.RefineSemiring
 import FormalismVerify.BitsRust

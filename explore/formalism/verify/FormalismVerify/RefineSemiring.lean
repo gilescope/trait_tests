@@ -1,0 +1,210 @@
+import FormalismVerify.Spec
+import FormalismVerify.Extracted.Hylo
+
+/-!
+# The extracted semirings compute the model's
+
+`semiring.rs` read back: `Nat` (wrapping `u64`) is `Fin (2^64)`, and the generic `Delta` is
+the model's Δ-product (Theorem 3) for any extracted dioid `D'` and semiring `A'` that compute
+model instances `D`, `A` through representations `rd`, `ra` (`DioidSpec`, `SemiringSpec`).
+`Delta::new` establishes the Δ-set invariant, `Delta::add` keeps the `D`-minimum and the count
+of the argmin, summing on ties: exactly `Delta.add`.
+-/
+
+namespace Formalism.RefineSemiring
+open Aeneas Aeneas.Std Result hylo
+
+/-! ## `Nat`: wrapping `u64` is `Fin (2^64)` -/
+
+/-- The value of a `u64`, in `Fin (2^64)`. -/
+def natOf (x : U64) : Fin (2^64) := ⟨x.val, by have := UScalar.hBounds x; simpa using this⟩
+
+theorem natOf_val (x : U64) : (natOf x).val = x.val := rfl
+
+theorem natOf_injective : Function.Injective natOf := by
+  intro x y h
+  have h' : x.val = y.val := congrArg Fin.val h
+  exact UScalar.val_eq_imp x y h'
+
+theorem size_eq : UScalar.size .U64 = 2^64 := by
+  rw [UScalar.size_UScalarTyU64, U64.size_def, U64.numBits_def]
+  simp
+
+theorem nat_add_spec (x y : U64) :
+    formalism.semiring.Nat.Insts.FormalismSemiringSemiring.add x y
+      ⦃ (r : U64) => natOf r = natOf x + natOf y ⦄ := by
+  unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.add
+  try unfold lift
+  apply WP.spec_bind ((WP.spec_ok (p := fun r => r = core.num.U64.wrapping_add x y) _).mpr rfl)
+  intro i hi
+  subst hi
+  rw [WP.spec_ok]
+  apply Fin.ext
+  rw [Fin.val_add, natOf_val, natOf_val, natOf_val, core.num.U64.wrapping_add_val_eq, size_eq]
+
+theorem nat_mul_spec (x y : U64) :
+    formalism.semiring.Nat.Insts.FormalismSemiringSemiring.mul x y
+      ⦃ (r : U64) => natOf r = natOf x * natOf y ⦄ := by
+  unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.mul
+  try unfold lift
+  apply WP.spec_bind ((WP.spec_ok (p := fun r => r = core.num.U64.wrapping_mul x y) _).mpr rfl)
+  intro i hi
+  subst hi
+  rw [WP.spec_ok]
+  apply Fin.ext
+  rw [Fin.val_mul, natOf_val, natOf_val, natOf_val, core.num.U64.wrapping_mul_val_eq, size_eq]
+
+theorem nat_zero_spec :
+    formalism.semiring.Nat.Insts.FormalismSemiringSemiring.zero ⦃ (r : U64) => natOf r = 0 ⦄ := by
+  unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.zero
+  rw [WP.spec_ok]
+  apply Fin.ext
+  rw [natOf_val, Fin.val_zero]
+  simp
+
+theorem nat_one_spec :
+    formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one ⦃ (r : U64) => natOf r = 1 ⦄ := by
+  unfold formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one
+  rw [WP.spec_ok]
+  apply Fin.ext
+  rw [natOf_val]
+  first | rfl | decide | simp
+
+theorem nat_eq_spec (x y : U64) :
+    formalism.semiring.Nat.Insts.CoreCmpPartialEqNat.eq x y
+      ⦃ (b : Bool) => b = true ↔ natOf x = natOf y ⦄ := by
+  unfold formalism.semiring.Nat.Insts.CoreCmpPartialEqNat.eq
+  rw [WP.spec_ok]
+  show decide (x = y) = true ↔ natOf x = natOf y
+  rw [decide_eq_true_iff, UScalar.eq_equiv, Fin.ext_iff]
+  rfl
+
+/-! ## `Delta`, generically -/
+
+section Delta
+variable {D' A' D A : Type} [Dioid D] [CommSemiring A]
+
+/-- An extracted `Semiring` computes `A` through `ra`; its `PartialEq` decides equality of the
+    values read back. -/
+structure SemiringSpec (inst : formalism.semiring.Semiring A') (ra : A' → A) : Prop where
+  zero : inst.zero ⦃ (r : A') => ra r = 0 ⦄
+  one : inst.one ⦃ (r : A') => ra r = 1 ⦄
+  add : ∀ x y : A', inst.add x y ⦃ (r : A') => ra r = ra x + ra y ⦄
+  mul : ∀ x y : A', inst.mul x y ⦃ (r : A') => ra r = ra x * ra y ⦄
+  eq : ∀ x y : A', inst.corecmpPartialEqInst.eq x y ⦃ (b : Bool) => b = true ↔ ra x = ra y ⦄
+
+/-- An extracted `Dioid` computes `D` through `rd`: its semiring, its order, and `regular`
+    deciding the model's regularity (the law the Rust side owes). -/
+structure DioidSpec (inst : formalism.semiring.Dioid D') (rd : D' → D) : Prop where
+  toSemiring : SemiringSpec inst.SemiringInst rd
+  le : ∀ x y : D', inst.le x y ⦃ (b : Bool) => b = true ↔ rd x ≤ rd y ⦄
+  regular : ∀ x : D', inst.regular x ⦃ (b : Bool) => b = true ↔ Dioid.regular (rd x) ⦄
+
+/-- An extracted pair reads back as a model element. -/
+structure DeltaRel (rd : D' → D) (ra : A' → A) (x : formalism.semiring.Delta D' A')
+    (m : Delta D A) : Prop where
+  d : rd x.d = m.d
+  a : ra x.a = m.a
+
+variable {DInst : formalism.semiring.Dioid D'} {AInst : formalism.semiring.Semiring A'}
+  {rd : D' → D} {ra : A' → A}
+
+/-- `Delta::new` zeroes the count of an irregular cost. -/
+open Classical in
+theorem new_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra) (d : D') (a : A') :
+    formalism.semiring.Delta.new DInst AInst d a ⦃ (r : formalism.semiring.Delta D' A') =>
+      rd r.d = rd d ∧ ra r.a = if Dioid.regular (rd d) then ra a else 0 ⦄ := by
+  unfold formalism.semiring.Delta.new
+  apply WP.spec_bind (hD.regular d)
+  intro b hb
+  replace hb : b = true ↔ Dioid.regular (rd d) := hb
+  cases b with
+  | true =>
+    have hreg : Dioid.regular (rd d) := hb.mp rfl
+    rw [ite_eq_left rfl, WP.spec_ok]
+    exact ⟨rfl, by rw [ite_eq_left hreg]⟩
+  | false =>
+    have hreg : ¬ Dioid.regular (rd d) := fun h => Bool.false_ne_true (hb.mpr h)
+    rw [ite_eq_right Bool.false_ne_true]
+    apply WP.spec_bind hA.zero
+    intro t ht
+    replace ht : ra t = 0 := ht
+    rw [WP.spec_ok]
+    exact ⟨rfl, by rw [ite_eq_right hreg]; exact ht⟩
+
+/-- `Delta::zero` is the model's `0`. -/
+theorem zero_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra) :
+    formalism.semiring.Delta.Insts.FormalismSemiringSemiring.zero DInst AInst
+      ⦃ (r : formalism.semiring.Delta D' A') => DeltaRel rd ra r 0 ⦄ := by
+  unfold formalism.semiring.Delta.Insts.FormalismSemiringSemiring.zero
+  apply WP.spec_bind hD.toSemiring.zero
+  intro t ht
+  replace ht : rd t = 0 := ht
+  apply WP.spec_bind hA.zero
+  intro t1 ht1
+  replace ht1 : ra t1 = 0 := ht1
+  apply WP.spec_mono (new_spec hD hA t t1)
+  intro r hr
+  obtain ⟨hrd, hra⟩ := hr
+  refine ⟨?_, ?_⟩
+  · rw [hrd, ht, Delta.zero_d]
+  · rw [hra, ht1, ite_self, Delta.zero_a]
+
+/-- `Delta::add` is the model's `+`: the `D`-minimum with the count of the argmin, counts
+    summed on a tie. -/
+theorem add_spec (hD : DioidSpec DInst rd) (hA : SemiringSpec AInst ra)
+    (x y : formalism.semiring.Delta D' A') (mx my : Delta D A)
+    (hx : DeltaRel rd ra x mx) (hy : DeltaRel rd ra y my) :
+    formalism.semiring.Delta.Insts.FormalismSemiringSemiring.add DInst AInst x y
+      ⦃ (r : formalism.semiring.Delta D' A') => DeltaRel rd ra r (mx + my) ⦄ := by
+  obtain ⟨hxd, hxa⟩ := hx
+  obtain ⟨hyd, hya⟩ := hy
+  unfold formalism.semiring.Delta.Insts.FormalismSemiringSemiring.add
+  apply WP.spec_bind (hD.toSemiring.eq x.d y.d)
+  intro b hb
+  replace hb : b = true ↔ rd x.d = rd y.d := hb
+  cases b with
+  | true =>
+    have heq : rd x.d = rd y.d := hb.mp rfl
+    have hdd : mx.d = my.d := by rw [← hxd, ← hyd, heq]
+    rw [ite_eq_left rfl]
+    apply WP.spec_bind (hA.add x.a y.a)
+    intro t ht
+    replace ht : ra t = ra x.a + ra y.a := ht
+    apply WP.spec_mono (new_spec hD hA x.d t)
+    intro r hr
+    obtain ⟨hrd, hra⟩ := hr
+    refine ⟨?_, ?_⟩
+    · rw [Delta.add_d, hrd, hxd, ← hdd, min_self]
+    · rw [Delta.add_a, ← hdd, Delta.addA_self, hra]
+      by_cases hreg : Dioid.regular (rd x.d)
+      · rw [ite_eq_left hreg, ht, hxa, hya]
+      · rw [ite_eq_right hreg]
+        have h1 : mx.a = 0 := mx.inv.resolve_left (by rw [← hxd]; exact hreg)
+        have h2 : my.a = 0 := my.inv.resolve_left (by rw [← hyd, ← heq]; exact hreg)
+        rw [h1, h2, add_zero]
+  | false =>
+    have hne : rd x.d ≠ rd y.d := fun h => Bool.false_ne_true (hb.mpr h)
+    rw [ite_eq_right Bool.false_ne_true]
+    apply WP.spec_bind (hD.le x.d y.d)
+    intro b1 hb1
+    replace hb1 : b1 = true ↔ rd x.d ≤ rd y.d := hb1
+    cases b1 with
+    | true =>
+      have hle : rd x.d ≤ rd y.d := hb1.mp rfl
+      have hlt : mx.d < my.d := by rw [← hxd, ← hyd]; exact lt_of_le_of_ne hle hne
+      rw [ite_eq_left rfl, WP.spec_ok]
+      refine ⟨?_, ?_⟩
+      · rw [Delta.add_d, min_eq_left hlt.le, hxd]
+      · rw [Delta.add_a, Delta.addA_of_lt hlt, hxa]
+    | false =>
+      have hnle : ¬ rd x.d ≤ rd y.d := fun h => Bool.false_ne_true (hb1.mpr h)
+      have hlt : my.d < mx.d := by rw [← hxd, ← hyd]; exact not_le.mp hnle
+      rw [ite_eq_right Bool.false_ne_true, WP.spec_ok]
+      refine ⟨?_, ?_⟩
+      · rw [Delta.add_d, min_eq_right hlt.le, hyd]
+      · rw [Delta.add_a, Delta.addA_of_gt hlt, hya]
+
+end Delta
+
+end Formalism.RefineSemiring

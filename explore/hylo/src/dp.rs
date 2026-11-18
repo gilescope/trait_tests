@@ -6,6 +6,7 @@ use crate::shape::{hylo_rose, RoseAlgebra, RosePlan};
 use alloc::vec::Vec;
 use formalism::expr::{union, Expr};
 use formalism::scheme::{step_node, Node, Table, Traced};
+use formalism::semiring::{Boolean, Delta, Dioid, MaxPlus, Nat, Semiring, Tropical};
 
 /// The plan that just reads an existing tree. Recursive because the tree is finite.
 pub struct Project;
@@ -37,3 +38,11 @@ pub fn solve_scheme<P: Traced>(p: &P, root: &Node<P::Op>) -> Expr { formalism::s
 pub fn solve_bits(p: &formalism::instances::bits::Bits, root: &Node<formalism::instances::bits::Op>) -> Expr {
     formalism::scheme::solve(p, root)
 }
+
+/// Roots for the semiring refinement, so that the extraction carries `expr::eval` and the
+/// whole of `Delta`'s `Semiring` and `Dioid` (the search algorithms only reach `zero`/`add`).
+pub fn eval_ones<A: Semiring>(e: &Expr) -> A { formalism::expr::eval(e, &formalism::expr::Ones) }
+pub fn delta_one() -> Delta<MaxPlus, Nat> { Delta::one() }
+pub fn delta_mul(x: Delta<MaxPlus, Nat>, y: Delta<MaxPlus, Nat>) -> Delta<MaxPlus, Nat> { x.mul(y) }
+pub fn delta_le(x: Delta<Tropical, Boolean>, y: Delta<Tropical, Boolean>) -> bool { x.le(y) }
+pub fn delta_regular(x: Delta<Tropical, Boolean>) -> bool { x.regular() }
