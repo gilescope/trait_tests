@@ -282,7 +282,7 @@ theorem stepL_eq (P : Graphs) (op : HOp) (cs : List (Node HOp)) (gs : List Assig
     rw [consistentL_toSorted]
     by_cases hcons : consistent P (g'.restrict (bag c)) v d = true
     · simp only [hcons, ↓reduceIte, Option.map, toSorted_join_single hv']
-    · simp only [hcons, ↓reduceIte, Option.map]
+    · simp only [hcons, ↓reduceIte, Option.map, Bool.false_eq_true]
   | @forget v c _ _ _ =>
     obtain ⟨g', rfl, _⟩ := forall₂_single hgs
     show [(remove (toSorted (g'.restrict (bag c))) v, ([] : List (Var × Val)))] =
