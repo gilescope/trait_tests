@@ -145,7 +145,6 @@ theorem unfold_spec_nil (inst : core.cmp.Ord T) (self : hylo.sort.Pivot) (v : al
   subst ho
   show WP.spec (ok (none, self)) _
   rw [WP.spec_ok]
-  rfl
 
 /-- `Pivot::unfold` on a vector ending in `p`: the pivot `p` and the partition of the rest,
     read from the back. -/
@@ -315,7 +314,8 @@ theorem hylo_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R) (
     intro v plan alg hn
     rcases List.eq_nil_or_concat v.val with hv | ⟨v', p, hv⟩
     · exact hylo_spec_nil inst R v plan alg hv
-    · have hlen : v'.length ≤ m := by
+    · rw [List.concat_eq_append] at hv
+      have hlen : v'.length ≤ m := by
         rw [hv, List.length_append, List.length_singleton] at hn
         omega
       unfold hylo.shape.hylo_node_tree
@@ -368,7 +368,7 @@ theorem quicksort_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst
   apply WP.spec_bind (hylo_spec inst R hO v.val.length v () () le_rfl)
   rintro ⟨v1, plan, alg⟩ hv1
   replace hv1 : v1.val = quicksortBy R v.val := hv1
-  try dsimp only
+  show WP.spec (ok v1) _
   rw [WP.spec_ok]
   exact hv1
 
