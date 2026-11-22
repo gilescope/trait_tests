@@ -557,7 +557,8 @@ theorem step_nodup (P : Graphs) (op : HOp) (taus : List Assign) :
       intro d d' hne b hb b' hb' hτ
       exfalso
       try dsimp only at hb hb'
-      rw [Option.mem_def, Option.ite_none_right_eq_some] at hb hb'
+      try rw [Option.mem_def] at hb hb'
+      rw [Option.ite_none_right_eq_some] at hb hb'
       have hb2 := Option.some.inj hb.2
       have hb2' := Option.some.inj hb'.2
       have hτ' : (Assign.single v d).join f = (Assign.single v d').join f := by
