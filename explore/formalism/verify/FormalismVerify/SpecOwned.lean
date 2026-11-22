@@ -40,6 +40,18 @@ theorem compat_empty (g : Assign) : Compat empty g :=
 
 theorem compat_self (g : Assign) : Compat g g := g.2
 
+theorem compat_of_pairwise : ∀ {gs : List Assign}, gs.Pairwise Compat →
+    ∀ g ∈ gs, ∀ g' ∈ gs, Compat g g'
+  | [], _, _, hg, _, _ => nomatch hg
+  | a :: gs, hp, g, hg, g', hg' => by
+    rw [List.pairwise_cons] at hp
+    rw [List.mem_cons] at hg hg'
+    rcases hg with rfl | hg <;> rcases hg' with rfl | hg'
+    · exact compat_self g
+    · exact hp.1 g' hg'
+    · exact (hp.1 g hg).symm
+    · exact compat_of_pairwise hp.2 g hg g' hg'
+
 theorem mem_join_val {f g : Assign} {q : Var × Val} :
     q ∈ (f.join g).1 ↔ q ∈ f.1 ∨ (q ∈ g.1 ∧ q.1 ∉ f.dom) := by
   show q ∈ f.1 ∪ g.1.filter (fun q => q.1 ∉ f.dom) ↔ _
@@ -700,11 +712,7 @@ theorem restrict_owned_mk {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs
         exact I.owned_sub c' (hcs c' hc') hpc'
       rw [Assign.dom, Finset.mem_image] at hpd'
       obtain ⟨q, hq, hqp⟩ := hpd'
-      have hcompat' : Assign.Compat g g' := by
-        by_cases hgg : g = g'
-        · rw [hgg]
-          exact Assign.compat_self g'
-        · exact hcompat.forall (fun _ _ h => Assign.Compat.symm h) hg hg' hgg
+      have hcompat' : Assign.Compat g g' := Assign.compat_of_pairwise hcompat g hg g' hg'
       have hpq : p = q := hcompat' p hpV q hq hqp.symm
       rw [Assign.joinAll_val_of_compat (I.ownedParts_pairwise_compat hwf hgs)]
       apply mem_foldr_union_of_mem _ (List.mem_map.mpr ⟨g'.restrict (I.owned c'), hmem, rfl⟩)

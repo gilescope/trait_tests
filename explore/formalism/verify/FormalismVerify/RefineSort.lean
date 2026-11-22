@@ -289,7 +289,7 @@ theorem hylo_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R) :
       show WP.spec (ok (t, plan1, alg1)) _
       rw [WP.spec_ok]
       show t.val = _
-      rw [ht, hv, quicksortBy, List.reverse_nil, qsBy]
+      rw [ht, hv, quicksortBy, List.reverse_nil, qsBy_nil]
     · cases n with
       | zero =>
         exfalso
@@ -335,7 +335,7 @@ theorem hylo_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R) :
         rw [WP.spec_ok]
         show t1.val = _
         rw [ht1, hl1, hr1, hl, hr, hv, quicksortBy, quicksortBy, quicksortBy, List.reverse_append,
-          List.reverse_singleton, List.singleton_append, qsBy]
+          List.reverse_singleton, List.singleton_append, qsBy_cons]
 
 /-- `hylo::sort::quicksort` computes `quicksortBy R`. -/
 theorem quicksort_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R)
