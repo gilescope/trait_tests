@@ -1,6 +1,6 @@
 # Extracted Lean (snapshot)
 
-`Hylo.lean` is what Aeneas produced for `explore/hylo` on 17 November 2026, via
+`Hylo.lean` is what Aeneas produced for `explore/hylo` on 22 November 2026, via
 `earth +extract --AENEAS_TARBALL_URL=…/build-4797bb9/aeneas-linux-x86_64.tar.gz`
 (gilescope/aeneas release `build-4797bb9`: GAT-lite plus a model of `Vec::pop`, which earlier
 builds extracted as an axiom).

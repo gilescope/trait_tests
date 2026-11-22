@@ -10,13 +10,18 @@ set_option linter.unusedVariables false
 set_option linter.style.whitespace false
 set_option linter.style.setOption false
 set_option linter.style.longLine false
+
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
+
 /- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
 set_option maxRecDepth 2048
+
 /- You can remove the following line by using the CLI option `-all-computable`: -/
 noncomputable section
+
 namespace hylo
+
 /-- [core::option::{impl core::fmt::Debug for core::option::Option<T>}::fmt]:
     Source: '/rustc/library/core/src/option.rs', lines 592:15-592:20
     Name pattern: [core:xxxxx@T>>}::fmt]
@@ -26,6 +31,7 @@ axiom core.option.Option.Insts.CoreFmtDebug.fmt
   {T : Type} (fmtDebugInst : core.fmt.Debug T) :
   Option T → core.fmt.Formatter → Result ((core.result.Result Unit
     core.fmt.Error) × core.fmt.Formatter)
+
 /-- Trait implementation: [core::option::{impl core::fmt::Debug for core::option::Option<T>}]
     Source: '/rustc/library/core/src/option.rs', lines 592:15-592:20
     Name pattern: [core:xxxxx@T>>] -/
@@ -34,6 +40,7 @@ def core.option.Option.Insts.CoreFmtDebug {T : Type} (fmtDebugInst :
   core.fmt.Debug T) : core.fmt.Debug (Option T) := {
   fmt := core.option.Option.Insts.CoreFmtDebug.fmt fmtDebugInst
 }
+
 /-- [core::option::{impl core::ops::try_trait::Try<T, core::option::Option<!>, core::option::Option<T>> for core::option::Option<T>}::branch]:
     Source: '/rustc/library/core/src/option.rs', lines 2875:4-2875:64
     Name pattern: [core:xxxxx@T>, @T, core::option::Option<!>, core:xxxxx@T>>}::branch]
@@ -43,6 +50,7 @@ def core.option.Option.Insts.CoreFmtDebug {T : Type} (fmtDebugInst :
 axiom core.option.Option.Insts.CoreOpsTry_traitTryTOptionNeverOption.branch
   {T : Type} :
   Option T → Result (core.ops.control_flow.ControlFlow (Option Never) T)
+
 /-- [core::option::{impl core::ops::try_trait::FromResidual<core::option::Option<!>> for core::option::Option<T>}::from_residual]:
     Source: '/rustc/library/core/src/option.rs', lines 2889:4-2889:49
     Name pattern: [core:xxxxx@T>, core::option::Option<!>>}::from_residual]
@@ -52,6 +60,7 @@ axiom core.option.Option.Insts.CoreOpsTry_traitTryTOptionNeverOption.branch
 axiom
   core.option.Option.Insts.CoreOpsTry_traitFromResidualOptionNever.from_residual
   (T : Type) : Option Never → Result (Option T)
+
 /-- [alloc::boxed::{impl core::cmp::PartialEq<alloc::boxed::Box<T>> for alloc::boxed::Box<T>}::ne]:
     Source: '/rustc/library/alloc/src/boxed.rs', lines 2185:4-2185:38
     Name pattern: [alloc:xxxxx@T>, Box<@T>>}::ne]
@@ -60,6 +69,7 @@ axiom
 axiom Box.Insts.CoreCmpPartialEqBox.ne
   {T : Type} (A : Type) (corecmpPartialEqInst : core.cmp.PartialEq T T) :
   T → T → Result Bool
+
 /-- [alloc::vec::{alloc::vec::Vec<T>}::remove]:
     Source: '/rustc/library/alloc/src/vec/mod.rs', lines 2407:4-2407:47
     Name pattern: [alloc:xxxxx@T>}::remove]
@@ -68,6 +78,7 @@ axiom Box.Insts.CoreCmpPartialEqBox.ne
 axiom alloc.vec.Vec.remove
   {T : Type} (A : Type) :
   alloc.vec.Vec T → Std.Usize → Result (T × (alloc.vec.Vec T))
+
 /-- [alloc::vec::{alloc::vec::Vec<T>}::split_off]:
     Source: '/rustc/library/alloc/src/vec/mod.rs', lines 3193:4-3195:17
     Name pattern: [alloc:xxxxx@T>}::split_off]
@@ -77,6 +88,7 @@ axiom alloc.vec.Vec.split_off
   {T : Type} {A : Type} (corecloneCloneInst : core.clone.Clone A) :
   alloc.vec.Vec T → Std.Usize → Result ((alloc.vec.Vec T) × (alloc.vec.Vec
     T))
+
 /-- [formalism::expr::Expr]
     Source: 'formalism/src/expr.rs', lines 17:0-17:13
     Name pattern: [formalism::expr::Expr]
@@ -88,6 +100,7 @@ inductive formalism.expr.Expr where
 | Leaf : Std.U32 → Std.U32 → formalism.expr.Expr
 | Union : formalism.expr.Expr → formalism.expr.Expr → formalism.expr.Expr
 | Join : formalism.expr.Expr → formalism.expr.Expr → formalism.expr.Expr
+
 /-- [formalism::expr::{impl core::clone::Clone for formalism::expr::Expr}::clone]:
     Source: 'formalism/src/expr.rs', lines 16:9-16:14
     Name pattern: [formalism::expr::{core::clone::Clone<formalism::expr::Expr>}::clone]
@@ -112,6 +125,7 @@ def formalism.expr.Expr.Insts.CoreCloneClone.clone
     let e1 ← formalism.expr.Expr.Insts.CoreCloneClone.clone __self_1
     ok (formalism.expr.Expr.Join e e1)
 partial_fixpoint monotonicity by aeneas_monotonicity []
+
 /-- Trait implementation: [formalism::expr::{impl core::clone::Clone for formalism::expr::Expr}]
     Source: 'formalism/src/expr.rs', lines 16:9-16:14
     Name pattern: [core::clone::Clone<formalism::expr::Expr>] -/
@@ -120,6 +134,7 @@ impl_def formalism.expr.Expr.Insts.CoreCloneClone : core.clone.Clone
   formalism.expr.Expr := {
   clone := formalism.expr.Expr.Insts.CoreCloneClone.clone
 }
+
 /-- [formalism::expr::{impl core::cmp::PartialEq<formalism::expr::Expr> for formalism::expr::Expr}::eq]:
     Source: 'formalism/src/expr.rs', lines 16:16-16:25
     Name pattern: [formalism::expr::{core::cmp::PartialEq<formalism::expr::Expr, formalism::expr::Expr>}::eq]
@@ -177,6 +192,7 @@ def formalism.expr.Expr.Insts.CoreCmpPartialEqExpr.eq
         else ok false
   else ok false
 partial_fixpoint monotonicity by aeneas_monotonicity []
+
 /-- Trait implementation: [formalism::expr::{impl core::cmp::PartialEq<formalism::expr::Expr> for formalism::expr::Expr}]
     Source: 'formalism/src/expr.rs', lines 16:16-16:25
     Name pattern: [core::cmp::PartialEq<formalism::expr::Expr, formalism::expr::Expr>] -/
@@ -188,6 +204,7 @@ impl_def formalism.expr.Expr.Insts.CoreCmpPartialEqExpr : core.cmp.PartialEq
   ne := core.cmp.PartialEq.ne.trait_default
     formalism.expr.Expr.Insts.CoreCmpPartialEqExpr
 }
+
 /-- Trait declaration: [formalism::semiring::Semiring]
     Source: 'formalism/src/semiring.rs', lines 8:0-8:55
     Name pattern: [formalism::semiring::Semiring]
@@ -202,6 +219,7 @@ structure formalism.semiring.Semiring (Self : Type) where
   one : Result Self
   add : Self → Self → Result Self
   mul : Self → Self → Result Self
+
 /-- Trait declaration: [formalism::expr::Measure]
     Source: 'formalism/src/expr.rs', lines 26:0-26:30
     Name pattern: [formalism::expr::Measure]
@@ -211,6 +229,7 @@ structure formalism.semiring.Semiring (Self : Type) where
 structure formalism.expr.Measure (Self : Type) (A : Type) where
   semiringSemiringInst : formalism.semiring.Semiring A
   weight : Self → Std.U32 → Std.U32 → Result A
+
 /-- [formalism::expr::eval]:
     Source: 'formalism/src/expr.rs', lines 31:0-31:61
     Name pattern: [formalism::expr::eval]
@@ -235,6 +254,7 @@ def formalism.expr.eval
     let t1 ← formalism.expr.eval semiringSemiringInst MeasureInst b m
     semiringSemiringInst.mul t t1
 partial_fixpoint
+
 /-- [formalism::expr::union]:
     Source: 'formalism/src/expr.rs', lines 50:0-50:38
     Name pattern: [formalism::expr::union]
@@ -256,6 +276,7 @@ def formalism.expr.union
     if b2
     then ok a
     else ok (formalism.expr.Expr.Union a b)
+
 /-- [formalism::expr::join]:
     Source: 'formalism/src/expr.rs', lines 57:0-57:37
     Name pattern: [formalism::expr::join]
@@ -289,6 +310,7 @@ def formalism.expr.join
         if b4
         then ok a
         else ok (formalism.expr.Expr.Join a b)
+
 /-- [formalism::expr::join_leaves]: loop body 0:
     Source: 'formalism/src/expr.rs', lines 67:4-70:5
     Name pattern: [formalism::expr::join_leaves]
@@ -307,6 +329,7 @@ def formalism.expr.join_leaves_loop.body
     let i4 ← i + 1#usize
     ok (cont (e1, i4))
   else ok (done e)
+
 /-- [formalism::expr::join_leaves]: loop 0:
     Source: 'formalism/src/expr.rs', lines 67:4-70:5
     Name pattern: [formalism::expr::join_leaves]
@@ -320,6 +343,7 @@ def formalism.expr.join_leaves_loop
   loop
     (fun (e1, i1) => formalism.expr.join_leaves_loop.body leaves e1 i1)
     (e, i)
+
 /-- [formalism::expr::join_leaves]:
     Source: 'formalism/src/expr.rs', lines 65:0-65:62
     Name pattern: [formalism::expr::join_leaves]
@@ -330,12 +354,14 @@ def formalism.expr.join_leaves
   Result formalism.expr.Expr
   := do
   formalism.expr.join_leaves_loop e leaves 0#usize
+
 /-- [formalism::expr::Ones]
     Source: 'formalism/src/expr.rs', lines 76:0-76:15
     Name pattern: [formalism::expr::Ones]
     Visibility: public -/
 @[reducible, rust_type "formalism::expr::Ones"]
 def formalism.expr.Ones := Unit
+
 /-- [formalism::expr::{impl formalism::expr::Measure<A> for formalism::expr::Ones}::weight]:
     Source: 'formalism/src/expr.rs', lines 78:4-78:41
     Name pattern: [formalism::expr::{formalism::expr::Measure<formalism::expr::Ones, @A>}::weight]
@@ -348,6 +374,7 @@ def formalism.expr.Ones.Insts.FormalismExprMeasure.weight
   Result A
   := do
   semiringSemiringInst.one
+
 /-- Trait implementation: [formalism::expr::{impl formalism::expr::Measure<A> for formalism::expr::Ones}]
     Source: 'formalism/src/expr.rs', lines 77:0-77:37
     Name pattern: [formalism::expr::Measure<formalism::expr::Ones, @A>] -/
@@ -360,6 +387,7 @@ def formalism.expr.Ones.Insts.FormalismExprMeasure {A : Type}
   weight := formalism.expr.Ones.Insts.FormalismExprMeasure.weight
     semiringSemiringInst1
 }
+
 /-- [formalism::instances::bits::Op]
     Source: 'formalism/src/instances/bits.rs', lines 13:0-13:11
     Name pattern: [formalism::instances::bits::Op]
@@ -368,6 +396,7 @@ def formalism.expr.Ones.Insts.FormalismExprMeasure {A : Type}
 inductive formalism.instances.bits.Op where
 | Leaf : Std.U32 → formalism.instances.bits.Op
 | Node : formalism.instances.bits.Op
+
 /-- [formalism::instances::bits::Bits]
     Source: 'formalism/src/instances/bits.rs', lines 20:0-20:15
     Name pattern: [formalism::instances::bits::Bits]
@@ -375,6 +404,7 @@ inductive formalism.instances.bits.Op where
 @[rust_type "formalism::instances::bits::Bits"]
 structure formalism.instances.bits.Bits where
   k : Std.U64
+
 /-- [formalism::instances::bits::sum]: loop body 0:
     Source: 'formalism/src/instances/bits.rs', lines 28:4-31:5
     Name pattern: [formalism::instances::bits::sum] -/
@@ -391,6 +421,7 @@ def formalism.instances.bits.sum_loop.body
     let i3 ← i + 1#usize
     ok (cont (acc1, i3))
   else ok (done acc)
+
 /-- [formalism::instances::bits::sum]: loop 0:
     Source: 'formalism/src/instances/bits.rs', lines 28:4-31:5
     Name pattern: [formalism::instances::bits::sum] -/
@@ -403,6 +434,7 @@ def formalism.instances.bits.sum_loop
     (fun (acc1, i1) => formalism.instances.bits.sum_loop.body child_traces acc1
       i1)
     (acc, i)
+
 /-- [formalism::instances::bits::sum]:
     Source: 'formalism/src/instances/bits.rs', lines 25:0-25:35
     Name pattern: [formalism::instances::bits::sum] -/
@@ -410,6 +442,7 @@ def formalism.instances.bits.sum_loop
 def formalism.instances.bits.sum
   (child_traces : Slice Std.U64) : Result Std.U64 := do
   formalism.instances.bits.sum_loop child_traces 0#u64 0#usize
+
 /-- Trait declaration: [formalism::scheme::Traced]
     Source: 'formalism/src/scheme.rs', lines 31:0-31:16
     Name pattern: [formalism::scheme::Traced]
@@ -423,6 +456,7 @@ structure formalism.scheme.Traced (Self : Type) (Self_Op : Type) (Self_Tau :
   step : Self → Self_Op → Slice Self_Tau → Result (alloc.vec.Vec
     (Self_Tau × (alloc.vec.Vec (Std.U32 × Std.U32))))
   accept : Self → Self_Tau → Result Bool
+
 /-- [formalism::instances::bits::{impl formalism::scheme::Traced<formalism::instances::bits::Op, u64> for formalism::instances::bits::Bits}::accept]:
     Source: 'formalism/src/instances/bits.rs', lines 62:4-62:39
     Name pattern: [formalism::instances::bits::{formalism::scheme::Traced<formalism::instances::bits::Bits, formalism::instances::bits::Op, u64>}::accept]
@@ -432,6 +466,7 @@ structure formalism.scheme.Traced (Self : Type) (Self_Op : Type) (Self_Tau :
 def formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64.accept
   (self : formalism.instances.bits.Bits) (tau : Std.U64) : Result Bool := do
   ok (tau = self.k)
+
 /-- [formalism::instances::bits::{impl formalism::scheme::Traced<formalism::instances::bits::Op, u64> for formalism::instances::bits::Bits}::step]:
     Source: 'formalism/src/instances/bits.rs', lines 42:4-42:62
     Name pattern: [formalism::instances::bits::{formalism::scheme::Traced<formalism::instances::bits::Bits, formalism::instances::bits::Op, u64>}::step]
@@ -458,6 +493,7 @@ def formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64.step
   | formalism.instances.bits.Op.Node =>
     alloc.vec.Vec.push (alloc.vec.Vec.new (Std.U64 × (alloc.vec.Vec (Std.U32
       × Std.U32)))) (s, alloc.vec.Vec.new (Std.U32 × Std.U32))
+
 /-- Trait implementation: [formalism::instances::bits::{impl formalism::scheme::Traced<formalism::instances::bits::Op, u64> for formalism::instances::bits::Bits}]
     Source: 'formalism/src/instances/bits.rs', lines 35:0-35:20
     Name pattern: [formalism::scheme::Traced<formalism::instances::bits::Bits, formalism::instances::bits::Op, u64>] -/
@@ -472,6 +508,7 @@ def formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64 :
   accept :=
     formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64.accept
 }
+
 /-- [formalism::scheme::Node]
     Source: 'formalism/src/scheme.rs', lines 7:0-7:19
     Name pattern: [formalism::scheme::Node]
@@ -482,19 +519,24 @@ inductive formalism.scheme.Node (Op : Type) where
   Op →
   alloc.vec.Vec (formalism.scheme.Node Op) →
   formalism.scheme.Node Op
+
 def formalism.scheme.Node.op {Op : Type} (x : formalism.scheme.Node Op) :=
   match x with | formalism.scheme.Node.mk x1 _ => x1
+
 def formalism.scheme.Node.children {Op : Type} (x : formalism.scheme.Node Op)
   :=
   match x with | formalism.scheme.Node.mk _ x1 => x1
+
 @[simp]
 theorem formalism.scheme.Node.op._simpLemma_ {Op : Type} (op : Op) (children :
   alloc.vec.Vec (formalism.scheme.Node Op)) :
   (formalism.scheme.Node.mk op children).op = op := by rfl
+
 @[simp]
 theorem formalism.scheme.Node.children._simpLemma_ {Op : Type} (op : Op)
   (children : alloc.vec.Vec (formalism.scheme.Node Op)) :
   (formalism.scheme.Node.mk op children).children = children := by rfl
+
 /-- [formalism::scheme::Row]
     Source: 'formalism/src/scheme.rs', lines 13:0-13:19
     Name pattern: [formalism::scheme::Row]
@@ -503,6 +545,7 @@ theorem formalism.scheme.Node.children._simpLemma_ {Op : Type} (op : Op)
 structure formalism.scheme.Row (Tau : Type) where
   tau : Tau
   expr : formalism.expr.Expr
+
 /-- [formalism::scheme::union_into]: loop body 0:
     Source: 'formalism/src/scheme.rs', lines 45:4-54:1
     Name pattern: [formalism::scheme::union_into] -/
@@ -539,6 +582,7 @@ def formalism.scheme.union_into_loop.body
     let table1 ←
       alloc.vec.Vec.push table ({ tau, expr := e } : formalism.scheme.Row Tau)
     ok (done table1)
+
 /-- [formalism::scheme::union_into]: loop 0:
     Source: 'formalism/src/scheme.rs', lines 45:4-54:1
     Name pattern: [formalism::scheme::union_into] -/
@@ -553,6 +597,7 @@ def formalism.scheme.union_into_loop
     (fun i1 => formalism.scheme.union_into_loop.body corecmpPartialEqInst table
       tau e i1)
     i
+
 /-- [formalism::scheme::union_into]:
     Source: 'formalism/src/scheme.rs', lines 43:0-43:72
     Name pattern: [formalism::scheme::union_into] -/
@@ -564,6 +609,7 @@ def formalism.scheme.union_into
   Result (alloc.vec.Vec (formalism.scheme.Row Tau))
   := do
   formalism.scheme.union_into_loop corecmpPartialEqInst table tau e 0#usize
+
 /-- [formalism::scheme::step_node]: loop body 0:
     Source: 'formalism/src/scheme.rs', lines 69:4-73:5
     Name pattern: [formalism::scheme::step_node]
@@ -590,6 +636,7 @@ def formalism.scheme.step_node_loop0.body
     let k1 ← k + 1#usize
     ok (cont (idx1, any_empty1, k1))
   else ok (done (idx, any_empty))
+
 /-- [formalism::scheme::step_node]: loop 0:
     Source: 'formalism/src/scheme.rs', lines 69:4-73:5
     Name pattern: [formalism::scheme::step_node]
@@ -606,6 +653,7 @@ def formalism.scheme.step_node_loop0
     (fun (idx1, any_empty1, k1) => formalism.scheme.step_node_loop0.body
       child_tables n idx1 any_empty1 k1)
     (idx, any_empty, k)
+
 /-- [formalism::scheme::step_node]: loop body 2:
     Source: 'formalism/src/scheme.rs', lines 79:8-84:9
     Name pattern: [formalism::scheme::step_node]
@@ -639,6 +687,7 @@ def formalism.scheme.step_node_loop1_loop0.body
     let k1 ← k + 1#usize
     ok (cont (traces1, joined1, k1))
   else ok (done (traces, joined))
+
 /-- [formalism::scheme::step_node]: loop 2:
     Source: 'formalism/src/scheme.rs', lines 79:8-84:9
     Name pattern: [formalism::scheme::step_node]
@@ -657,6 +706,7 @@ def formalism.scheme.step_node_loop1_loop0
     (fun (traces1, joined1, k1) => formalism.scheme.step_node_loop1_loop0.body
       TracedInst child_tables n idx traces1 joined1 k1)
     (traces, joined, k)
+
 /-- [formalism::scheme::step_node]: loop body 3:
     Source: 'formalism/src/scheme.rs', lines 87:8-91:9
     Name pattern: [formalism::scheme::step_node]
@@ -686,6 +736,7 @@ def formalism.scheme.step_node_loop1_loop1.body
     let o1 ← o + 1#usize
     ok (cont (table1, o1))
   else ok (done table)
+
 /-- [formalism::scheme::step_node]: loop 3:
     Source: 'formalism/src/scheme.rs', lines 87:8-91:9
     Name pattern: [formalism::scheme::step_node]
@@ -704,6 +755,7 @@ def formalism.scheme.step_node_loop1_loop1
     (fun (table1, o1) => formalism.scheme.step_node_loop1_loop1.body TracedInst
       joined outs table1 o1)
     (table, o)
+
 /-- [formalism::scheme::step_node]: loop body 4:
     Source: 'formalism/src/scheme.rs', lines 95:8-99:9
    
@@ -745,6 +797,7 @@ def formalism.scheme.step_node_loop1_loop2.body
         ok (cont (idx2, k1, carry))
     else ok (done (idx, carry))
   else ok (done (idx, carry))
+
 /-- [formalism::scheme::step_node]: loop 4:
     Source: 'formalism/src/scheme.rs', lines 95:8-99:9
     Name pattern: [formalism::scheme::step_node]
@@ -761,6 +814,7 @@ def formalism.scheme.step_node_loop1_loop2
     (fun (idx1, k1, carry1) => formalism.scheme.step_node_loop1_loop2.body
       child_tables idx1 k1 carry1)
     (idx, k, carry)
+
 /-- [formalism::scheme::step_node]: loop body 1:
     Source: 'formalism/src/scheme.rs', lines 75:4-101:5
     Name pattern: [formalism::scheme::step_node]
@@ -791,6 +845,7 @@ def formalism.scheme.step_node_loop1.body
     let (idx1, carry) ←
       formalism.scheme.step_node_loop1_loop2 child_tables idx n true
     ok (cont (table1, idx1, carry))
+
 /-- [formalism::scheme::step_node]: loop 1:
     Source: 'formalism/src/scheme.rs', lines 75:4-101:5
     Name pattern: [formalism::scheme::step_node]
@@ -808,6 +863,7 @@ def formalism.scheme.step_node_loop1
     (fun (table1, idx1, done2) => formalism.scheme.step_node_loop1.body
       TracedInst p op child_tables n table1 idx1 done2)
     (table, idx, done1)
+
 /-- [formalism::scheme::step_node]:
     Source: 'formalism/src/scheme.rs', lines 62:0-62:97
     Name pattern: [formalism::scheme::step_node]
@@ -826,7 +882,9 @@ def formalism.scheme.step_node
       Std.Usize) false 0#usize
   formalism.scheme.step_node_loop1 TracedInst p op child_tables
     (alloc.vec.Vec.new (formalism.scheme.Row Clause0_Tau)) n idx any_empty
+
 mutual
+
 /-- [formalism::scheme::run]: loop 0:
     Source: 'formalism/src/scheme.rs', lines 110:4-113:5
     Name pattern: [formalism::scheme::run]
@@ -846,6 +904,7 @@ def formalism.scheme.run_loop
       node child_tables1 c1)
     (child_tables, c)
 partial_fixpoint
+
 /-- [formalism::scheme::run]: loop body 0:
     Source: 'formalism/src/scheme.rs', lines 110:4-113:5
     Name pattern: [formalism::scheme::run]
@@ -873,6 +932,7 @@ def formalism.scheme.run_loop.body
     ok (cont (child_tables1, c1))
   else ok (done (node.op, child_tables))
 partial_fixpoint
+
 /-- [formalism::scheme::run]:
     Source: 'formalism/src/scheme.rs', lines 107:0-107:65
     Name pattern: [formalism::scheme::run]
@@ -889,7 +949,9 @@ def formalism.scheme.run
       (alloc.vec.Vec (formalism.scheme.Row Clause0_Tau))) 0#usize
   formalism.scheme.step_node TracedInst p t child_tables
 partial_fixpoint
+
 end
+
 /-- [formalism::scheme::solve]: loop body 0:
     Source: 'formalism/src/scheme.rs', lines 123:4-128:5
     Name pattern: [formalism::scheme::solve]
@@ -919,6 +981,7 @@ def formalism.scheme.solve_loop.body
     let i2 ← i + 1#usize
     ok (cont (e1, i2))
   else ok (done e)
+
 /-- [formalism::scheme::solve]: loop 0:
     Source: 'formalism/src/scheme.rs', lines 123:4-128:5
     Name pattern: [formalism::scheme::solve]
@@ -934,6 +997,7 @@ def formalism.scheme.solve_loop
   loop
     (fun (e1, i1) => formalism.scheme.solve_loop.body TracedInst p table e1 i1)
     (e, i)
+
 /-- [formalism::scheme::solve]:
     Source: 'formalism/src/scheme.rs', lines 119:0-119:58
     Name pattern: [formalism::scheme::solve]
@@ -948,6 +1012,7 @@ def formalism.scheme.solve
   let table ← formalism.scheme.run TracedInst p root
   formalism.scheme.solve_loop TracedInst p table formalism.expr.Expr.Empty
     0#usize
+
 /-- Trait declaration: [formalism::semiring::Dioid]
     Source: 'formalism/src/semiring.rs', lines 17:0-17:25
     Name pattern: [formalism::semiring::Dioid]
@@ -957,12 +1022,14 @@ structure formalism.semiring.Dioid (Self : Type) where
   SemiringInst : formalism.semiring.Semiring Self
   le : Self → Self → Result Bool
   regular : Self → Result Bool
+
 /-- [formalism::semiring::Boolean]
     Source: 'formalism/src/semiring.rs', lines 24:0-24:18
     Name pattern: [formalism::semiring::Boolean]
     Visibility: public -/
 @[reducible, rust_type "formalism::semiring::Boolean"]
 def formalism.semiring.Boolean := Bool
+
 /-- [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Boolean}::clone]:
     Source: 'formalism/src/semiring.rs', lines 23:9-23:14
     Name pattern: [formalism::semiring::{core::clone::Clone<formalism::semiring::Boolean>}::clone]
@@ -972,6 +1039,7 @@ def formalism.semiring.Boolean := Bool
 def formalism.semiring.Boolean.Insts.CoreCloneClone.clone
   (self : formalism.semiring.Boolean) : Result formalism.semiring.Boolean := do
   ok self
+
 /-- Trait implementation: [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 23:9-23:14
     Name pattern: [core::clone::Clone<formalism::semiring::Boolean>] -/
@@ -981,6 +1049,7 @@ def formalism.semiring.Boolean.Insts.CoreCloneClone : core.clone.Clone
   formalism.semiring.Boolean := {
   clone := formalism.semiring.Boolean.Insts.CoreCloneClone.clone
 }
+
 /-- Trait implementation: [formalism::semiring::{impl core::marker::Copy for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 23:16-23:20
     Name pattern: [core::marker::Copy<formalism::semiring::Boolean>] -/
@@ -990,6 +1059,7 @@ def formalism.semiring.Boolean.Insts.CoreMarkerCopy : core.marker.Copy
   formalism.semiring.Boolean := {
   cloneInst := formalism.semiring.Boolean.Insts.CoreCloneClone
 }
+
 /-- [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Boolean> for formalism::semiring::Boolean}::eq]:
     Source: 'formalism/src/semiring.rs', lines 23:22-23:31
     Name pattern: [formalism::semiring::{core::cmp::PartialEq<formalism::semiring::Boolean, formalism::semiring::Boolean>}::eq]
@@ -1001,6 +1071,7 @@ def formalism.semiring.Boolean.Insts.CoreCmpPartialEqBoolean.eq
   Result Bool
   := do
   ok (self = other)
+
 /-- Trait implementation: [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Boolean> for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 23:22-23:31
     Name pattern: [core::cmp::PartialEq<formalism::semiring::Boolean, formalism::semiring::Boolean>] -/
@@ -1012,6 +1083,7 @@ impl_def formalism.semiring.Boolean.Insts.CoreCmpPartialEqBoolean :
   ne := core.cmp.PartialEq.ne.trait_default
     formalism.semiring.Boolean.Insts.CoreCmpPartialEqBoolean
 }
+
 /-- [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Boolean}::fmt]:
     Source: 'formalism/src/semiring.rs', lines 23:37-23:42
     Name pattern: [formalism::semiring::{core::fmt::Debug<formalism::semiring::Boolean>}::fmt]
@@ -1024,6 +1096,7 @@ def formalism.semiring.Boolean.Insts.CoreFmtDebug.fmt
   := do
   let dyn := Dyn.mk _ (core.fmt.DebugShared core.fmt.DebugBool) self
   core.fmt.Formatter.debug_tuple_field1_finish f (toStr "Boolean") dyn
+
 /-- Trait implementation: [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 23:37-23:42
     Name pattern: [core::fmt::Debug<formalism::semiring::Boolean>] -/
@@ -1032,6 +1105,7 @@ def formalism.semiring.Boolean.Insts.CoreFmtDebug : core.fmt.Debug
   formalism.semiring.Boolean := {
   fmt := formalism.semiring.Boolean.Insts.CoreFmtDebug.fmt
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Boolean}::mul]:
     Source: 'formalism/src/semiring.rs', lines 31:4-31:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Boolean>}::mul]
@@ -1045,6 +1119,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.mul
   if self
   then ok o
   else ok false
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Boolean}::add]:
     Source: 'formalism/src/semiring.rs', lines 30:4-30:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Boolean>}::add]
@@ -1058,6 +1133,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.add
   if self
   then ok true
   else ok o
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Boolean}::one]:
     Source: 'formalism/src/semiring.rs', lines 29:4-29:20
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Boolean>}::one]
@@ -1067,6 +1143,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.add
 def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.one
   : Result formalism.semiring.Boolean := do
   ok true
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Boolean}::zero]:
     Source: 'formalism/src/semiring.rs', lines 28:4-28:21
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Boolean>}::zero]
@@ -1076,6 +1153,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.one
 def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.zero
   : Result formalism.semiring.Boolean := do
   ok false
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 27:0-27:25
     Name pattern: [formalism::semiring::Semiring<formalism::semiring::Boolean>] -/
@@ -1092,6 +1170,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring :
   add := formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.add
   mul := formalism.semiring.Boolean.Insts.FormalismSemiringSemiring.mul
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Boolean}::regular]:
     Source: 'formalism/src/semiring.rs', lines 38:4-38:28
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::Boolean>}::regular]
@@ -1101,6 +1180,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringSemiring :
 def formalism.semiring.Boolean.Insts.FormalismSemiringDioid.regular
   (self : formalism.semiring.Boolean) : Result Bool := do
   ok self
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Boolean}::le]:
     Source: 'formalism/src/semiring.rs', lines 37:4-37:32
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::Boolean>}::le]
@@ -1114,6 +1194,7 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringDioid.le
   if self
   then ok true
   else ok (¬ o)
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Boolean}]
     Source: 'formalism/src/semiring.rs', lines 35:0-35:22
     Name pattern: [formalism::semiring::Dioid<formalism::semiring::Boolean>] -/
@@ -1125,12 +1206,14 @@ def formalism.semiring.Boolean.Insts.FormalismSemiringDioid :
   le := formalism.semiring.Boolean.Insts.FormalismSemiringDioid.le
   regular := formalism.semiring.Boolean.Insts.FormalismSemiringDioid.regular
 }
+
 /-- [formalism::semiring::Nat]
     Source: 'formalism/src/semiring.rs', lines 43:0-43:14
     Name pattern: [formalism::semiring::Nat]
     Visibility: public -/
 @[reducible, rust_type "formalism::semiring::Nat"]
 def formalism.semiring.Nat := Std.U64
+
 /-- [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Nat}::clone]:
     Source: 'formalism/src/semiring.rs', lines 42:9-42:14
     Name pattern: [formalism::semiring::{core::clone::Clone<formalism::semiring::Nat>}::clone]
@@ -1140,6 +1223,7 @@ def formalism.semiring.Nat := Std.U64
 def formalism.semiring.Nat.Insts.CoreCloneClone.clone
   (self : formalism.semiring.Nat) : Result formalism.semiring.Nat := do
   ok self
+
 /-- Trait implementation: [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Nat}]
     Source: 'formalism/src/semiring.rs', lines 42:9-42:14
     Name pattern: [core::clone::Clone<formalism::semiring::Nat>] -/
@@ -1148,6 +1232,7 @@ def formalism.semiring.Nat.Insts.CoreCloneClone : core.clone.Clone
   formalism.semiring.Nat := {
   clone := formalism.semiring.Nat.Insts.CoreCloneClone.clone
 }
+
 /-- Trait implementation: [formalism::semiring::{impl core::marker::Copy for formalism::semiring::Nat}]
     Source: 'formalism/src/semiring.rs', lines 42:16-42:20
     Name pattern: [core::marker::Copy<formalism::semiring::Nat>] -/
@@ -1156,6 +1241,7 @@ def formalism.semiring.Nat.Insts.CoreMarkerCopy : core.marker.Copy
   formalism.semiring.Nat := {
   cloneInst := formalism.semiring.Nat.Insts.CoreCloneClone
 }
+
 /-- [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Nat> for formalism::semiring::Nat}::eq]:
     Source: 'formalism/src/semiring.rs', lines 42:22-42:31
     Name pattern: [formalism::semiring::{core::cmp::PartialEq<formalism::semiring::Nat, formalism::semiring::Nat>}::eq]
@@ -1167,6 +1253,7 @@ def formalism.semiring.Nat.Insts.CoreCmpPartialEqNat.eq
   Result Bool
   := do
   ok (self = other)
+
 /-- Trait implementation: [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Nat> for formalism::semiring::Nat}]
     Source: 'formalism/src/semiring.rs', lines 42:22-42:31
     Name pattern: [core::cmp::PartialEq<formalism::semiring::Nat, formalism::semiring::Nat>] -/
@@ -1178,6 +1265,7 @@ impl_def formalism.semiring.Nat.Insts.CoreCmpPartialEqNat : core.cmp.PartialEq
   ne := core.cmp.PartialEq.ne.trait_default
     formalism.semiring.Nat.Insts.CoreCmpPartialEqNat
 }
+
 /-- [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Nat}::fmt]:
     Source: 'formalism/src/semiring.rs', lines 42:37-42:42
     Name pattern: [formalism::semiring::{core::fmt::Debug<formalism::semiring::Nat>}::fmt]
@@ -1190,6 +1278,7 @@ def formalism.semiring.Nat.Insts.CoreFmtDebug.fmt
   := do
   let dyn := Dyn.mk _ (core.fmt.DebugShared core.fmt.DebugU64) self
   core.fmt.Formatter.debug_tuple_field1_finish f (toStr "Nat") dyn
+
 /-- Trait implementation: [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Nat}]
     Source: 'formalism/src/semiring.rs', lines 42:37-42:42
     Name pattern: [core::fmt::Debug<formalism::semiring::Nat>] -/
@@ -1198,6 +1287,7 @@ def formalism.semiring.Nat.Insts.CoreFmtDebug : core.fmt.Debug
   formalism.semiring.Nat := {
   fmt := formalism.semiring.Nat.Insts.CoreFmtDebug.fmt
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Nat}::mul]:
     Source: 'formalism/src/semiring.rs', lines 50:4-50:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Nat>}::mul]
@@ -1210,6 +1300,7 @@ def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.mul
   := do
   let i ← lift (core.num.U64.wrapping_mul self o)
   ok i
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Nat}::add]:
     Source: 'formalism/src/semiring.rs', lines 49:4-49:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Nat>}::add]
@@ -1222,6 +1313,7 @@ def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.add
   := do
   let i ← lift (core.num.U64.wrapping_add self o)
   ok i
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Nat}::one]:
     Source: 'formalism/src/semiring.rs', lines 48:4-48:20
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Nat>}::one]
@@ -1231,6 +1323,7 @@ def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.add
 def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one
   : Result formalism.semiring.Nat := do
   ok 1#u64
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Nat}::zero]:
     Source: 'formalism/src/semiring.rs', lines 47:4-47:21
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Nat>}::zero]
@@ -1240,6 +1333,7 @@ def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.one
 def formalism.semiring.Nat.Insts.FormalismSemiringSemiring.zero
   : Result formalism.semiring.Nat := do
   ok 0#u64
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Nat}]
     Source: 'formalism/src/semiring.rs', lines 46:0-46:21
     Name pattern: [formalism::semiring::Semiring<formalism::semiring::Nat>] -/
@@ -1255,12 +1349,14 @@ def formalism.semiring.Nat.Insts.FormalismSemiringSemiring :
   add := formalism.semiring.Nat.Insts.FormalismSemiringSemiring.add
   mul := formalism.semiring.Nat.Insts.FormalismSemiringSemiring.mul
 }
+
 /-- [formalism::semiring::Tropical]
     Source: 'formalism/src/semiring.rs', lines 56:0-56:19
     Name pattern: [formalism::semiring::Tropical]
     Visibility: public -/
 @[reducible, rust_type "formalism::semiring::Tropical"]
 def formalism.semiring.Tropical := Std.U64
+
 /-- [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Tropical}::clone]:
     Source: 'formalism/src/semiring.rs', lines 55:9-55:14
     Name pattern: [formalism::semiring::{core::clone::Clone<formalism::semiring::Tropical>}::clone]
@@ -1272,6 +1368,7 @@ def formalism.semiring.Tropical.Insts.CoreCloneClone.clone
   Result formalism.semiring.Tropical
   := do
   ok self
+
 /-- Trait implementation: [formalism::semiring::{impl core::clone::Clone for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 55:9-55:14
     Name pattern: [core::clone::Clone<formalism::semiring::Tropical>] -/
@@ -1281,6 +1378,7 @@ def formalism.semiring.Tropical.Insts.CoreCloneClone : core.clone.Clone
   formalism.semiring.Tropical := {
   clone := formalism.semiring.Tropical.Insts.CoreCloneClone.clone
 }
+
 /-- Trait implementation: [formalism::semiring::{impl core::marker::Copy for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 55:16-55:20
     Name pattern: [core::marker::Copy<formalism::semiring::Tropical>] -/
@@ -1290,6 +1388,7 @@ def formalism.semiring.Tropical.Insts.CoreMarkerCopy : core.marker.Copy
   formalism.semiring.Tropical := {
   cloneInst := formalism.semiring.Tropical.Insts.CoreCloneClone
 }
+
 /-- [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Tropical> for formalism::semiring::Tropical}::eq]:
     Source: 'formalism/src/semiring.rs', lines 55:22-55:31
     Name pattern: [formalism::semiring::{core::cmp::PartialEq<formalism::semiring::Tropical, formalism::semiring::Tropical>}::eq]
@@ -1301,6 +1400,7 @@ def formalism.semiring.Tropical.Insts.CoreCmpPartialEqTropical.eq
   Result Bool
   := do
   ok (self = other)
+
 /-- Trait implementation: [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::Tropical> for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 55:22-55:31
     Name pattern: [core::cmp::PartialEq<formalism::semiring::Tropical, formalism::semiring::Tropical>] -/
@@ -1313,6 +1413,7 @@ impl_def formalism.semiring.Tropical.Insts.CoreCmpPartialEqTropical :
   ne := core.cmp.PartialEq.ne.trait_default
     formalism.semiring.Tropical.Insts.CoreCmpPartialEqTropical
 }
+
 /-- [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Tropical}::fmt]:
     Source: 'formalism/src/semiring.rs', lines 55:54-55:59
     Name pattern: [formalism::semiring::{core::fmt::Debug<formalism::semiring::Tropical>}::fmt]
@@ -1325,6 +1426,7 @@ def formalism.semiring.Tropical.Insts.CoreFmtDebug.fmt
   := do
   let dyn := Dyn.mk _ (core.fmt.DebugShared core.fmt.DebugU64) self
   core.fmt.Formatter.debug_tuple_field1_finish f (toStr "Tropical") dyn
+
 /-- Trait implementation: [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 55:54-55:59
     Name pattern: [core::fmt::Debug<formalism::semiring::Tropical>] -/
@@ -1333,6 +1435,7 @@ def formalism.semiring.Tropical.Insts.CoreFmtDebug : core.fmt.Debug
   formalism.semiring.Tropical := {
   fmt := formalism.semiring.Tropical.Insts.CoreFmtDebug.fmt
 }
+
 /-- [formalism::semiring::{formalism::semiring::Tropical}::INF]
     Source: 'formalism/src/semiring.rs', lines 59:4-59:27
     Name pattern: [formalism::semiring::{formalism::semiring::Tropical}::INF]
@@ -1341,6 +1444,7 @@ def formalism.semiring.Tropical.Insts.CoreFmtDebug : core.fmt.Debug
   "formalism::semiring::{formalism::semiring::Tropical}::INF"]
 def formalism.semiring.Tropical.INF : formalism.semiring.Tropical :=
   core.num.U64.MAX
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Tropical}::mul]:
     Source: 'formalism/src/semiring.rs', lines 71:4-71:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Tropical>}::mul]
@@ -1360,6 +1464,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.mul
 [A    else let s ← self + o
          massert (¬ (s = core.num.U64.MAX))
          ok s
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Tropical}::add]:
     Source: 'formalism/src/semiring.rs', lines 70:4-70:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Tropical>}::add]
@@ -1373,6 +1478,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.add
   if self <= o
   then ok self
   else ok o
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Tropical}::one]:
     Source: 'formalism/src/semiring.rs', lines 69:4-69:20
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Tropical>}::one]
@@ -1382,6 +1488,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.add
 def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.one
   : Result formalism.semiring.Tropical := do
   ok 0#u64
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Tropical}::zero]:
     Source: 'formalism/src/semiring.rs', lines 68:4-68:21
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::Tropical>}::zero]
@@ -1391,6 +1498,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.one
 def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.zero
   : Result formalism.semiring.Tropical := do
   ok formalism.semiring.Tropical.INF
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 67:0-67:26
     Name pattern: [formalism::semiring::Semiring<formalism::semiring::Tropical>] -/
@@ -1407,6 +1515,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring :
   add := formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.add
   mul := formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.mul
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Tropical}::regular]:
     Source: 'formalism/src/semiring.rs', lines 84:4-84:28
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::Tropical>}::regular]
@@ -1416,6 +1525,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring :
 def formalism.semiring.Tropical.Insts.FormalismSemiringDioid.regular
   (self : formalism.semiring.Tropical) : Result Bool := do
   ok (self != core.num.U64.MAX)
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Tropical}::le]:
     Source: 'formalism/src/semiring.rs', lines 83:4-83:32
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::Tropical>}::le]
@@ -1427,6 +1537,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringDioid.le
   Result Bool
   := do
   ok (self <= o)
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Tropical}]
     Source: 'formalism/src/semiring.rs', lines 82:0-82:23
     Name pattern: [formalism::semiring::Dioid<formalism::semiring::Tropical>] -/
@@ -1438,6 +1549,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringDioid :
   le := formalism.semiring.Tropical.Insts.FormalismSemiringDioid.le
   regular := formalism.semiring.Tropical.Insts.FormalismSemiringDioid.regular
 }
+
 /-- [formalism::semiring::Delta]
     Source: 'formalism/src/semiring.rs', lines 91:0-91:39
     Name pattern: [formalism::semiring::Delta]
@@ -1446,6 +1558,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringDioid :
 structure formalism.semiring.Delta (D : Type) (A : Type) where
   d : D
   a : A
+
 /-- [formalism::semiring::{formalism::semiring::Delta<D, A>}::new]:
     Source: 'formalism/src/semiring.rs', lines 98:4-98:34
     Name pattern: [formalism:xxxxx@D, @A>}::new]
@@ -1461,6 +1574,7 @@ def formalism.semiring.Delta.new
   then ok { d, a }
   else let t ← SemiringInst.zero
        ok { d, a := t }
+
 /-- [formalism::semiring::{formalism::semiring::Delta<D, A>}::cost]:
     Source: 'formalism/src/semiring.rs', lines 101:4-101:26
     Name pattern: [formalism:xxxxx@D, @A>}::cost]
@@ -1472,6 +1586,7 @@ def formalism.semiring.Delta.cost
   Result D
   := do
   ok self.d
+
 /-- [formalism::semiring::{formalism::semiring::Delta<D, A>}::count]:
     Source: 'formalism/src/semiring.rs', lines 102:4-102:27
     Name pattern: [formalism:xxxxx@D, @A>}::count]
@@ -1483,6 +1598,7 @@ def formalism.semiring.Delta.count
   Result A
   := do
   ok self.a
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Delta<D, A>}::zero]:
     Source: 'formalism/src/semiring.rs', lines 110:4-110:21
     Name pattern: [formalism:xxxxx@D, @A>>}::zero]
@@ -1497,6 +1613,7 @@ def formalism.semiring.Delta.Insts.FormalismSemiringSemiring.zero
   let t ← DioidInst.SemiringInst.zero
   let t1 ← SemiringInst.zero
   formalism.semiring.Delta.new DioidInst SemiringInst t t1
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Delta<D, A>}::one]:
     Source: 'formalism/src/semiring.rs', lines 111:4-111:20
     Name pattern: [formalism:xxxxx@D, @A>>}::one]
@@ -1511,6 +1628,7 @@ def formalism.semiring.Delta.Insts.FormalismSemiringSemiring.one
   let t ← DioidInst.SemiringInst.one
   let t1 ← SemiringInst.one
   formalism.semiring.Delta.new DioidInst SemiringInst t t1
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Delta<D, A>}::add]:
     Source: 'formalism/src/semiring.rs', lines 112:4-112:33
     Name pattern: [formalism:xxxxx@D, @A>>}::add]
@@ -1532,6 +1650,7 @@ def formalism.semiring.Delta.Insts.FormalismSemiringSemiring.add
        if b1
        then ok self
        else ok o
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::Delta<D, A>}::mul]:
     Source: 'formalism/src/semiring.rs', lines 121:4-121:33
     Name pattern: [formalism:xxxxx@D, @A>>}::mul]
@@ -1547,6 +1666,7 @@ def formalism.semiring.Delta.Insts.FormalismSemiringSemiring.mul
   let t ← DioidInst.SemiringInst.mul self.d o.d
   let t1 ← SemiringInst.mul self.a o.a
   formalism.semiring.Delta.new DioidInst SemiringInst t t1
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Delta<D1, D2>}::le]:
     Source: 'formalism/src/semiring.rs', lines 126:4-126:32
     Name pattern: [formalism:xxxxx@D1, @D2>>}::le]
@@ -1563,6 +1683,7 @@ def formalism.semiring.Delta.Insts.FormalismSemiringDioid.le
   if b
   then DioidInst1.le self.a o.a
   else DioidInst.le self.d o.d
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::Delta<D1, D2>}::regular]:
     Source: 'formalism/src/semiring.rs', lines 129:4-129:28
     Name pattern: [formalism:xxxxx@D1, @D2>>}::regular]
@@ -1578,12 +1699,14 @@ def formalism.semiring.Delta.Insts.FormalismSemiringDioid.regular
   if b
   then DioidInst1.regular self.a
   else ok false
+
 /-- [formalism::semiring::MaxPlus]
     Source: 'formalism/src/semiring.rs', lines 152:0-152:18
     Name pattern: [formalism::semiring::MaxPlus]
     Visibility: public -/
 @[reducible, rust_type "formalism::semiring::MaxPlus"]
 def formalism.semiring.MaxPlus := Option Std.U64
+
 /-- [formalism::semiring::{impl core::clone::Clone for formalism::semiring::MaxPlus}::clone]:
     Source: 'formalism/src/semiring.rs', lines 151:9-151:14
     Name pattern: [formalism::semiring::{core::clone::Clone<formalism::semiring::MaxPlus>}::clone]
@@ -1593,6 +1716,7 @@ def formalism.semiring.MaxPlus := Option Std.U64
 def formalism.semiring.MaxPlus.Insts.CoreCloneClone.clone
   (self : formalism.semiring.MaxPlus) : Result formalism.semiring.MaxPlus := do
   ok self
+
 /-- Trait implementation: [formalism::semiring::{impl core::clone::Clone for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 151:9-151:14
     Name pattern: [core::clone::Clone<formalism::semiring::MaxPlus>] -/
@@ -1602,6 +1726,7 @@ def formalism.semiring.MaxPlus.Insts.CoreCloneClone : core.clone.Clone
   formalism.semiring.MaxPlus := {
   clone := formalism.semiring.MaxPlus.Insts.CoreCloneClone.clone
 }
+
 /-- Trait implementation: [formalism::semiring::{impl core::marker::Copy for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 151:16-151:20
     Name pattern: [core::marker::Copy<formalism::semiring::MaxPlus>] -/
@@ -1611,6 +1736,7 @@ def formalism.semiring.MaxPlus.Insts.CoreMarkerCopy : core.marker.Copy
   formalism.semiring.MaxPlus := {
   cloneInst := formalism.semiring.MaxPlus.Insts.CoreCloneClone
 }
+
 /-- [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::MaxPlus> for formalism::semiring::MaxPlus}::eq]:
     Source: 'formalism/src/semiring.rs', lines 151:22-151:31
     Name pattern: [formalism::semiring::{core::cmp::PartialEq<formalism::semiring::MaxPlus, formalism::semiring::MaxPlus>}::eq]
@@ -1623,6 +1749,7 @@ def formalism.semiring.MaxPlus.Insts.CoreCmpPartialEqMaxPlus.eq
   := do
   core.option.Option.Insts.CoreCmpPartialEqOption.eq core.cmp.PartialEqU64 self
     other
+
 /-- Trait implementation: [formalism::semiring::{impl core::cmp::PartialEq<formalism::semiring::MaxPlus> for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 151:22-151:31
     Name pattern: [core::cmp::PartialEq<formalism::semiring::MaxPlus, formalism::semiring::MaxPlus>] -/
@@ -1634,6 +1761,7 @@ impl_def formalism.semiring.MaxPlus.Insts.CoreCmpPartialEqMaxPlus :
   ne := core.cmp.PartialEq.ne.trait_default
     formalism.semiring.MaxPlus.Insts.CoreCmpPartialEqMaxPlus
 }
+
 /-- [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::MaxPlus}::fmt]:
     Source: 'formalism/src/semiring.rs', lines 151:37-151:42
     Name pattern: [formalism::semiring::{core::fmt::Debug<formalism::semiring::MaxPlus>}::fmt]
@@ -1648,6 +1776,7 @@ def formalism.semiring.MaxPlus.Insts.CoreFmtDebug.fmt
     Dyn.mk _ (core.fmt.DebugShared (core.option.Option.Insts.CoreFmtDebug
       core.fmt.DebugU64)) self
   core.fmt.Formatter.debug_tuple_field1_finish f (toStr "MaxPlus") dyn
+
 /-- Trait implementation: [formalism::semiring::{impl core::fmt::Debug for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 151:37-151:42
     Name pattern: [core::fmt::Debug<formalism::semiring::MaxPlus>] -/
@@ -1656,6 +1785,7 @@ def formalism.semiring.MaxPlus.Insts.CoreFmtDebug : core.fmt.Debug
   formalism.semiring.MaxPlus := {
   fmt := formalism.semiring.MaxPlus.Insts.CoreFmtDebug.fmt
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::MaxPlus}::mul]:
     Source: 'formalism/src/semiring.rs', lines 160:4-160:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::MaxPlus>}::mul]
@@ -1673,6 +1803,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.mul
     | none => ok none
     | some b => let i ← a + b
                 ok (some i)
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::MaxPlus}::add]:
     Source: 'formalism/src/semiring.rs', lines 157:4-157:33
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::MaxPlus>}::add]
@@ -1691,6 +1822,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.add
     | some b => if a >= b
                 then ok self
                 else ok o
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::MaxPlus}::one]:
     Source: 'formalism/src/semiring.rs', lines 156:4-156:20
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::MaxPlus>}::one]
@@ -1700,6 +1832,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.add
 def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.one
   : Result formalism.semiring.MaxPlus := do
   ok (some 0#u64)
+
 /-- [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::MaxPlus}::zero]:
     Source: 'formalism/src/semiring.rs', lines 155:4-155:21
     Name pattern: [formalism::semiring::{formalism::semiring::Semiring<formalism::semiring::MaxPlus>}::zero]
@@ -1709,6 +1842,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.one
 def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.zero
   : Result formalism.semiring.MaxPlus := do
   ok none
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Semiring for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 154:0-154:25
     Name pattern: [formalism::semiring::Semiring<formalism::semiring::MaxPlus>] -/
@@ -1725,6 +1859,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring :
   add := formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.add
   mul := formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring.mul
 }
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::MaxPlus}::regular]:
     Source: 'formalism/src/semiring.rs', lines 170:4-170:28
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::MaxPlus>}::regular]
@@ -1734,6 +1869,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringSemiring :
 def formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid.regular
   (self : formalism.semiring.MaxPlus) : Result Bool := do
   ok (core.option.Option.is_some self)
+
 /-- [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::MaxPlus}::le]:
     Source: 'formalism/src/semiring.rs', lines 167:4-167:32
     Name pattern: [formalism::semiring::{formalism::semiring::Dioid<formalism::semiring::MaxPlus>}::le]
@@ -1751,6 +1887,7 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid.le
   | some a => match o with
               | none => ok true
               | some b => ok (a >= b)
+
 /-- Trait implementation: [formalism::semiring::{impl formalism::semiring::Dioid for formalism::semiring::MaxPlus}]
     Source: 'formalism/src/semiring.rs', lines 165:0-165:22
     Name pattern: [formalism::semiring::Dioid<formalism::semiring::MaxPlus>] -/
@@ -1762,29 +1899,34 @@ def formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid :
   le := formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid.le
   regular := formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid.regular
 }
+
 /-- Trait declaration: [hylo::algebra::Star]
     Source: 'hylo/src/algebra.rs', lines 7:0-9:1
     Visibility: public -/
 structure algebra.Star (Self : Type) where
   formalismsemiringSemiringInst : formalism.semiring.Semiring Self
   star : Self → Result Self
+
 /-- Trait declaration: [hylo::algebra::KClosed]
     Source: 'hylo/src/algebra.rs', lines 13:0-13:46
     Visibility: public -/
 structure algebra.KClosed (Self : Type) (K : Std.Usize) where
   formalismsemiringSemiringInst : formalism.semiring.Semiring Self
+
 /-- Trait declaration: [hylo::algebra::Semigroup]
     Source: 'hylo/src/algebra.rs', lines 30:0-30:59
     Visibility: public -/
 structure algebra.Semigroup (Self : Type) where
   coremarkerCopyInst : core.marker.Copy Self
   op : Self → Self → Result Self
+
 /-- Trait declaration: [hylo::algebra::Monoid]
     Source: 'hylo/src/algebra.rs', lines 31:0-31:50
     Visibility: public -/
 structure algebra.Monoid (Self : Type) where
   SemigroupInst : algebra.Semigroup Self
   unit : Result Self
+
 /-- Trait declaration: [hylo::algebra::Euclidean]
     Source: 'hylo/src/algebra.rs', lines 51:0-54:1
     Visibility: public -/
@@ -1793,18 +1935,21 @@ structure algebra.Euclidean (Self : Type) where
   corecmpPartialEqInst : core.cmp.PartialEq Self Self
   zero : Result Self
   rem : Self → Self → Result Self
+
 /-- [hylo::collections::Fifo]
     Source: 'hylo/src/collections.rs', lines 6:0-6:49
     Visibility: public -/
 structure collections.Fifo (T : Type) where
   items : alloc.vec.Vec T
   head : Std.Usize
+
 /-- [hylo::collections::{impl core::default::Default for hylo::collections::Fifo<T>}::default]:
     Source: 'hylo/src/collections.rs', lines 7:30-7:90
     Visibility: public -/
 def collections.Fifo.Insts.CoreDefaultDefault.default
   (T : Type) : Result (collections.Fifo T) := do
   ok { items := (alloc.vec.Vec.new T), head := 0#usize }
+
 /-- [hylo::collections::{hylo::collections::Fifo<T>}::push]:
     Source: 'hylo/src/collections.rs', lines 9:4-9:55
     Visibility: public -/
@@ -1815,6 +1960,7 @@ def collections.Fifo.push
   := do
   let v ← alloc.vec.Vec.push self.items t
   ok { self with items := v }
+
 /-- [hylo::collections::{hylo::collections::Fifo<T>}::pop]:
     Source: 'hylo/src/collections.rs', lines 10:4-12:5
     Visibility: public -/
@@ -1832,17 +1978,20 @@ def collections.Fifo.pop
     let i1 ← self.head + 1#usize
     ok (some t, { self with head := i1 })
   else ok (none, self)
+
 /-- [hylo::collections::MinHeap]
     Source: 'hylo/src/collections.rs', lines 16:0-16:46
     Visibility: public -/
 structure collections.MinHeap (K : Type) (V : Type) where
   data : alloc.vec.Vec (K × V)
+
 /-- [hylo::collections::{impl core::default::Default for hylo::collections::MinHeap<K, V>}::default]:
     Source: 'hylo/src/collections.rs', lines 17:39-17:92
     Visibility: public -/
 def collections.MinHeap.Insts.CoreDefaultDefault.default
   (K : Type) (V : Type) : Result (collections.MinHeap K V) := do
   ok { data := (alloc.vec.Vec.new (K × V)) }
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::push]: loop body 0:
     Source: 'hylo/src/collections.rs', lines 22:8-28:5
     Visibility: public -/
@@ -1870,6 +2019,7 @@ def collections.MinHeap.push_loop.body
       let v1 := deref_mut_back s1
       ok (cont (v1, p))
   else ok (done v)
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::push]: loop 0:
     Source: 'hylo/src/collections.rs', lines 22:8-28:5
     Visibility: public -/
@@ -1883,6 +2033,7 @@ def collections.MinHeap.push_loop
     (fun (v1, i1) => collections.MinHeap.push_loop.body corecmpOrdInst
       coremarkerCopyInst v1 i1)
     (v, i)
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::push]:
     Source: 'hylo/src/collections.rs', lines 19:4-28:5
     Visibility: public -/
@@ -1898,6 +2049,7 @@ def collections.MinHeap.push
   let v2 ←
     collections.MinHeap.push_loop corecmpOrdInst coremarkerCopyInst v1 i1
   ok { data := v2 }
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::pop]: loop body 0:
     Source: 'hylo/src/collections.rs', lines 36:8-44:9
     Visibility: public -/
@@ -1983,6 +2135,7 @@ def collections.MinHeap.pop_loop.body
       let s1 ← core.slice.Slice.swap s i m
       let v1 := deref_mut_back s1
       ok (cont (v1, m))
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::pop]: loop 0:
     Source: 'hylo/src/collections.rs', lines 36:8-44:9
     Visibility: public -/
@@ -1997,6 +2150,7 @@ def collections.MinHeap.pop_loop
     (fun (v1, i1) => collections.MinHeap.pop_loop.body corecmpOrdInst
       coremarkerCopyInst n v1 i1)
     (v, i)
+
 /-- [hylo::collections::{hylo::collections::MinHeap<K, V>}::pop]:
     Source: 'hylo/src/collections.rs', lines 29:4-46:5
     Visibility: public -/
@@ -2029,17 +2183,20 @@ def collections.MinHeap.pop
         core.option.Option.Insts.CoreOpsTry_traitFromResidualOptionNever.from_residual
           V residual
       ok (o1, { data := v1 })
+
 /-- [hylo::dp::Project]
     Source: 'hylo/src/dp.rs', lines 12:0-12:19
     Visibility: public -/
 @[reducible]
 def dp.Project := Unit
+
 /-- Trait declaration: [hylo::shape::RosePlan]
     Source: 'hylo/src/shape/mod.rs', lines 94:0-94:100
     Visibility: public -/
 structure shape.RosePlan (Self : Type) (T : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((T × (alloc.vec.Vec Self_Seed)) ×
     Self)
+
 /-- [hylo::dp::{impl hylo::shape::RosePlan<Op, formalism::scheme::Node<Op>> for hylo::dp::Project}::unfold]:
     Source: 'hylo/src/dp.rs', lines 15:4-15:83
     Visibility: public -/
@@ -2048,6 +2205,7 @@ def dp.Project.Insts.HyloShapeRosePlanOpNode.unfold
   Result ((Op × (alloc.vec.Vec (formalism.scheme.Node Op))) × dp.Project)
   := do
   ok ((n.op, n.children), self)
+
 /-- Trait implementation: [hylo::dp::{impl hylo::shape::RosePlan<Op, formalism::scheme::Node<Op>> for hylo::dp::Project}]
     Source: 'hylo/src/dp.rs', lines 13:0-16:1 -/
 @[reducible]
@@ -2056,16 +2214,19 @@ d
   dp.Project Op (formalism.scheme.Node Op) := {
   unfold := dp.Project.Insts.HyloShapeRosePlanOpNode.unfold
 }
+
 /-- [hylo::dp::TraceDp]
     Source: 'hylo/src/dp.rs', lines 18:0-18:37
     Visibility: public -/
 @[reducible]
 def dp.TraceDp (P : Type) := P
+
 /-- Trait declaration: [hylo::shape::RoseAlgebra]
     Source: 'hylo/src/shape/mod.rs', lines 95:0-95:99
     Visibility: public -/
 structure shape.RoseAlgebra (Self : Type) (T : Type) (Self_Out : Type) where
   fold : Self → (T × (alloc.vec.Vec Self_Out)) → Result (Self_Out × Self)
+
 /-- [hylo::dp::{impl hylo::shape::RoseAlgebra<Clause0_Op, alloc::vec::Vec<formalism::scheme::Row<Clause0_Tau>>> for hylo::dp::TraceDp<'p, P>}::fold]:
     Source: 'hylo/src/dp.rs', lines 21:4-21:113
     Visibility: public -/
@@ -2080,6 +2241,7 @@ def dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow.fold
   let (op, kids) := p
   let v ← formalism.scheme.step_node formalismschemeTracedInst self op kids
   ok (v, self)
+
 /-- Trait implementation: [hylo::dp::{impl hylo::shape::RoseAlgebra<Clause0_Op, alloc::vec::Vec<formalism::scheme::Row<Clause0_Tau>>> for hylo::dp::TraceDp<'p, P>}]
     Source: 'hylo/src/dp.rs', lines 19:0-22:1 -/
 @[reducible]
@@ -2091,7 +2253,9 @@ def dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow {P : Type}
   fold := dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow.fold
     formalismschemeTracedInst
 }
+
 mutual
+
 /-- [hylo::shape::hylo_rose]: loop 0:
     Source: 'hylo/src/shape/mod.rs', lines 100:4-100:73
     Visibility: public -/
@@ -2108,6 +2272,7 @@ def shape.hylo_rose_loop
       RoseAlgebraInst kids1 plan1 alg1 out1)
     (kids, plan, alg, out)
 partial_fixpoint
+
 /-- [hylo::shape::hylo_rose]: loop body 0:
     Source: 'hylo/src/shape/mod.rs', lines 100:4-100:73
     Visibility: public -/
@@ -2129,6 +2294,7 @@ def shape.hylo_rose_loop.body
     let out1 ← alloc.vec.Vec.push out t
     ok (cont (kids1, plan1, alg1, out1))
 partial_fixpoint
+
 /-- [hylo::shape::hylo_rose]:
     Source: 'hylo/src/shape/mod.rs', lines 96:0-103:1
     Visibility: public -/
@@ -2149,7 +2315,9 @@ def shape.hylo_rose
   let (t1, alg2) ← RoseAlgebraInst.fold alg1 (t, out1)
   ok (t1, plan2, alg2)
 partial_fixpoint
+
 end
+
 /-- [hylo::dp::trace_dp]: loop body 0:
     Source: 'hylo/src/dp.rs', lines 29:4-29:91
     Visibility: public -/
@@ -2172,6 +2340,7 @@ def dp.trace_dp_loop.body
     then let e1 ← formalism.expr.union e row.expr
          ok (cont (table1, e1))
     else ok (cont (table1, e))
+
 /-- [hylo::dp::trace_dp]: loop 0:
     Source: 'hylo/src/dp.rs', lines 29:4-29:91
     Visibility: public -/
@@ -2187,6 +2356,7 @@ def dp.trace_dp_loop
     (fun (table1, e1) => dp.trace_dp_loop.body formalismschemeTracedInst p
       table1 e1)
     (table, e)
+
 /-- [hylo::dp::trace_dp]:
     Source: 'hylo/src/dp.rs', lines 25:0-31:1
     Visibility: public -/
@@ -2204,6 +2374,7 @@ def dp.trace_dp
   let s1 ← lift (core.slice.Slice.reverse s)
   let table1 := deref_mut_back s1
   dp.trace_dp_loop formalismschemeTracedInst table1 p formalism.expr.Expr.Empty
+
 /-- [hylo::dp::solve_scheme]:
     Source: 'hylo/src/dp.rs', lines 35:0-35:103
     Visibility: public -/
@@ -2214,6 +2385,7 @@ def dp.solve_scheme
   Result formalism.expr.Expr
   := do
   formalism.scheme.solve formalismschemeTracedInst p root
+
 /-- [hylo::dp::solve_bits]:
     Source: 'hylo/src/dp.rs', lines 38:0-40:1
     Visibility: public -/
@@ -2224,6 +2396,7 @@ def dp.solve_bits
   := do
   formalism.scheme.solve
     formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64 p root
+
 /-- [hylo::dp::eval_ones]:
     Source: 'hylo/src/dp.rs', lines 44:0-44:97
     Visibility: public -/
@@ -2235,6 +2408,7 @@ def dp.eval_ones
   formalism.expr.eval formalismsemiringSemiringInst
     (formalism.expr.Ones.Insts.FormalismExprMeasure
     formalismsemiringSemiringInst) e ()
+
 /-- [hylo::dp::delta_one]:
     Source: 'hylo/src/dp.rs', lines 45:0-45:58
     Visibility: public -/
@@ -2246,6 +2420,7 @@ def dp.delta_one
   formalism.semiring.Delta.Insts.FormalismSemiringSemiring.one
     formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring
+
 /-- [hylo::dp::delta_mul]:
     Source: 'hylo/src/dp.rs', lines 46:0-46:100
     Visibility: public -/
@@ -2260,6 +2435,7 @@ def dp.delta_mul
   formalism.semiring.Delta.Insts.FormalismSemiringSemiring.mul
     formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring x y
+
 /-- [hylo::dp::delta_le]:
     Source: 'hylo/src/dp.rs', lines 47:0-47:93
     Visibility: public -/
@@ -2273,6 +2449,7 @@ def dp.delta_le
   formalism.semiring.Delta.Insts.FormalismSemiringDioid.le
     formalism.semiring.Tropical.Insts.FormalismSemiringDioid
     formalism.semiring.Boolean.Insts.FormalismSemiringDioid x y
+
 /-- [hylo::dp::delta_regular]:
     Source: 'hylo/src/dp.rs', lines 48:0-48:73
     Visibility: public -/
@@ -2284,11 +2461,13 @@ def dp.delta_regular
   formalism.semiring.Delta.Insts.FormalismSemiringDioid.regular
     formalism.semiring.Tropical.Insts.FormalismSemiringDioid
     formalism.semiring.Boolean.Insts.FormalismSemiringDioid x
+
 /-- [hylo::num::Euclid]
     Source: 'hylo/src/num.rs', lines 6:0-6:18
     Visibility: public -/
 @[reducible]
 def num.Euclid := Unit
+
 /-- [hylo::shape::Iter]
     Source: 'hylo/src/shape/mod.rs', lines 41:0-41:40
     Visibility: public -/
@@ -2296,11 +2475,13 @@ def num.Euclid := Unit
 inductive shape.Iter (D : Type) (X : Type) where
 | Done : D → shape.Iter D X
 | Step : X → shape.Iter D X
+
 /-- Trait declaration: [hylo::shape::IterPlan]
     Source: 'hylo/src/shape/mod.rs', lines 105:0-105:99
     Visibility: public -/
 structure shape.IterPlan (Self : Type) (D : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((shape.Iter D Self_Seed) × Self)
+
 /-- [hylo::num::{impl hylo::shape::IterPlan<T, (T, T)> for hylo::num::Euclid}::unfold]:
     Source: 'hylo/src/num.rs', lines 9:4-11:5
     Visibility: public -/
@@ -2317,6 +2498,7 @@ def num.Euclid.Insts.HyloShapeIterPlanTPair.unfold
   else
     let t1 ← algebraEuclideanInst.rem a b
     ok (shape.Iter.Step (b, t1), self)
+
 /-- Trait implementation: [hylo::num::{impl hylo::shape::IterPlan<T, (T, T)> for hylo::num::Euclid}]
     Source: 'hylo/src/num.rs', lines 7:0-12:1 -/
 @[reducible]
@@ -2324,11 +2506,13 @@ def num.Euclid.Insts.HyloShapeIterPlanTPair {T : Type} (algebraEuclideanInst :
   algebra.Euclidean T) : shape.IterPlan num.Euclid T (T × T) := {
   unfold := num.Euclid.Insts.HyloShapeIterPlanTPair.unfold algebraEuclideanInst
 }
+
 /-- Trait declaration: [hylo::shape::IterAlgebra]
     Source: 'hylo/src/shape/mod.rs', lines 106:0-106:98
     Visibility: public -/
 structure shape.IterAlgebra (Self : Type) (D : Type) (Self_Out : Type) where
   fold : Self → shape.Iter D Self_Out → Result (Self_Out × Self)
+
 /-- [hylo::shape::hylo_iter]:
     Source: 'hylo/src/shape/mod.rs', lines 107:0-112:1
     Visibility: public -/
@@ -2350,11 +2534,13 @@ def shape.hylo_iter
     let (t, alg2) ← IterAlgebraInst.fold alg1 (shape.Iter.Step r)
     ok (t, plan2, alg2)
 partial_fixpoint
+
 /-- [hylo::shape::Last]
     Source: 'hylo/src/shape/mod.rs', lines 51:0-51:16
     Visibility: public -/
 @[reducible]
 def shape.Last := Unit
+
 /-- [hylo::shape::{impl hylo::shape::IterAlgebra<D, D> for hylo::shape::Last}::fold]:
     Source: 'hylo/src/shape/mod.rs', lines 54:4-54:93
     Visibility: public -/
@@ -2365,6 +2551,7 @@ def shape.Last.Insts.HyloShapeIterAlgebra.fold
   match l with
   | shape.Iter.Done d => ok (d, self)
   | shape.Iter.Step d => ok (d, self)
+
 /-- Trait implementation: [hylo::shape::{impl hylo::shape::IterAlgebra<D, D> for hylo::shape::Last}]
     Source: 'hylo/src/shape/mod.rs', lines 52:0-55:1 -/
 @[reducible]
@@ -2372,6 +2559,7 @@ def shape.Last.Insts.HyloShapeIterAlgebra (D : Type) : shape.IterAlgebra
   shape.Last D D := {
   fold := shape.Last.Insts.HyloShapeIterAlgebra.fold
 }
+
 /-- [hylo::num::gcd]:
     Source: 'hylo/src/num.rs', lines 13:0-13:87
     Visibility: public -/
@@ -2384,11 +2572,13 @@ def num.gcd
       algebraEuclideanInst) (shape.Last.Insts.HyloShapeIterAlgebra T) () () (a,
       b)
   ok t
+
 /-- [hylo::num::Square]
     Source: 'hylo/src/num.rs', lines 16:0-16:18
     Visibility: public -/
 @[reducible]
 def num.Square := Unit
+
 /-- [hylo::num::{impl hylo::shape::IterPlan<M, (M, u64, M)> for hylo::num::Square}::unfold]:
     Source: 'hylo/src/num.rs', lines 19:4-23:5
     Visibility: public -/
@@ -2409,6 +2599,7 @@ def num.Square.Insts.HyloShapeIterPlanMTupleMU64M.unfold
     let t1 ← algebraMonoidInst.SemigroupInst.op x x
     let i1 ← n >>> 1#i32
     ok (shape.Iter.Step (t1, i1, acc1), self)
+
 /-- Trait implementation: [hylo::num::{impl hylo::shape::IterPlan<M, (M, u64, M)> for hylo::num::Square}]
     Source: 'hylo/src/num.rs', lines 17:0-24:1 -/
 @[reducible]
@@ -2417,6 +2608,7 @@ def num.Square.Insts.HyloShapeIterPlanMTupleMU64M {M : Type} (algebraMonoidInst
   unfold := num.Square.Insts.HyloShapeIterPlanMTupleMU64M.unfold
     algebraMonoidInst
 }
+
 /-- [hylo::num::power]:
     Source: 'hylo/src/num.rs', lines 25:0-25:99
     Visibility: public -/
@@ -2430,11 +2622,13 @@ def num.power
       algebraMonoidInst) (shape.Last.Insts.HyloShapeIterAlgebra M) () () (x, n,
       t)
   ok t1
+
 /-- [hylo::path::Graph]
     Source: 'hylo/src/path/mod.rs', lines 10:0-10:52
     Visibility: public -/
 structure path.Graph (S : Type) where
   adj : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × S))
+
 /-- Trait declaration: [hylo::path::Queue]
     Source: 'hylo/src/path/mod.rs', lines 13:0-18:1
     Visibility: public -/
@@ -2442,12 +2636,14 @@ structure path.Queue (Self : Type) (S : Type) where
   new : path.Graph S → Result (Option Self)
   push : Self → Std.Usize → S → Result Self
   pop : Self → Result ((Option Std.Usize) × Self)
+
 /-- [hylo::path::Topological]
     Source: 'hylo/src/path/mod.rs', lines 34:0-34:71
     Visibility: public -/
 structure path.Topological where
   rank : alloc.vec.Vec Std.Usize
   heap : collections.MinHeap Std.Usize Std.Usize
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::pop]:
     Source: 'hylo/src/path/mod.rs', lines 66:4-66:57
     Visibility: public -/
@@ -2459,6 +2655,7 @@ def path.Topological.Insts.HyloPathQueue.pop
     collections.MinHeap.pop core.cmp.OrdUsize core.marker.CopyUsize
       core.marker.CopyUsize self.heap
   ok (o, { self with heap := mh })
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::push]:
     Source: 'hylo/src/path/mod.rs', lines 65:4-65:73
     Visibility: public -/
@@ -2473,6 +2670,7 @@ def path.Topological.Insts.HyloPathQueue.push
     collections.MinHeap.push core.cmp.OrdUsize core.marker.CopyUsize
       core.marker.CopyUsize self.heap i n
   ok { self with heap := mh }
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop body 1:
     Source: 'hylo/src/path/mod.rs', lines 43:12-43:75
     Visibility: public -/
@@ -2500,6 +2698,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop0_loop0.body
     let indeg1 := index_mut_back i3
     ok (cont (indeg1, j1))
   else ok (done indeg)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop 1:
     Source: 'hylo/src/path/mod.rs', lines 43:12-43:75
     Visibility: public -/
@@ -2513,6 +2712,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop0_loop0
     (fun (indeg1, j1) =>
       path.Topological.Insts.HyloPathQueue.new_loop0_loop0.body v u indeg1 j1)
     (indeg, j)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop body 0:
     Source: 'hylo/src/path/mod.rs', lines 41:8-45:9
     Visibility: public -/
@@ -2530,6 +2730,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop0.body
     let u1 ← u + 1#usize
     ok (cont (indeg1, u1))
   else ok (done indeg)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop 0:
     Source: 'hylo/src/path/mod.rs', lines 41:8-45:9
     Visibility: public -/
@@ -2543,6 +2744,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop0
     (fun (indeg1, u1) => path.Topological.Insts.HyloPathQueue.new_loop0.body v
       n indeg1 u1)
     (indeg, u)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop body 2:
     Source: 'hylo/src/path/mod.rs', lines 48:8-48:67
     Visibility: public -/
@@ -2565,6 +2767,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop1.body
     let v1 ← v + 1#usize
     ok (cont (ready1, v1))
   else ok (done ready)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop 2:
     Source: 'hylo/src/path/mod.rs', lines 48:8-48:67
     Visibility: public -/
@@ -2578,6 +2781,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop1
     (fun (ready1, v1) => path.Topological.Insts.HyloPathQueue.new_loop1.body n
       indeg ready1 v1)
     (ready, v)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop body 4:
     Source: 'hylo/src/path/mod.rs', lines 55:12-60:13
     Visibility: public -/
@@ -2614,6 +2818,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop2_loop0.body
     let j1 ← j + 1#usize
     ok (cont (indeg1, ready1, j1))
   else ok (done (indeg, ready))
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop 4:
     Source: 'hylo/src/path/mod.rs', lines 55:12-60:13
     Visibility: public -/
@@ -2629,6 +2834,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop2_loop0
       path.Topological.Insts.HyloPathQueue.new_loop2_loop0.body v u indeg1
       ready1 j1)
     (indeg, ready, j)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop body 3:
     Source: 'hylo/src/path/mod.rs', lines 51:8-61:9
     Visibility: public -/
@@ -2654,6 +2860,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop2.body
       path.Topological.Insts.HyloPathQueue.new_loop2_loop0 v indeg ready1 u
         0#usize
     ok (cont (ready2, indeg1, rank1, next1))
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]: loop 3:
     Source: 'hylo/src/path/mod.rs', lines 51:8-61:9
     Visibility: public -/
@@ -2670,6 +2877,7 @@ def path.Topological.Insts.HyloPathQueue.new_loop2
       path.Topological.Insts.HyloPathQueue.new_loop2.body v ready1 indeg1 rank1
       next1)
     (ready, indeg, rank, next)
+
 /-- [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}::new]:
     Source: 'hylo/src/path/mod.rs', lines 36:4-64:5
     Visibility: public -/
@@ -2692,6 +2900,7 @@ def path.Topological.Insts.HyloPathQueue.new
     let mh ←
       collections.MinHeap.Insts.CoreDefaultDefault.default Std.Usize Std.Usize
     ok (some { rank := rank1, heap := mh })
+
 /-- Trait implementation: [hylo::path::{impl hylo::path::Queue<S> for hylo::path::Topological}]
     Source: 'hylo/src/path/mod.rs', lines 35:0-67:1 -/
 @[reducible]
@@ -2701,6 +2910,7 @@ def path.Topological.Insts.HyloPathQueue (S : Type) : path.Queue
   push := path.Topological.Insts.HyloPathQueue.push
   pop := path.Topological.Insts.HyloPathQueue.pop S
 }
+
 /-- [hylo::path::Relax]
     Source: 'hylo/src/path/mod.rs', lines 71:0-71:68
     Visibility: public -/
@@ -2708,12 +2918,14 @@ structure path.Relax (S : Type) (Q : Type) where
   g : path.Graph S
   q : Q
   inq : alloc.vec.Vec Bool
+
 /-- [hylo::path::State]
     Source: 'hylo/src/path/mod.rs', lines 72:0-72:52
     Visibility: public -/
 structure path.State (S : Type) where
   d : alloc.vec.Vec S
   r : alloc.vec.Vec S
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<S>, hylo::path::State<S>> for hylo::path::Relax<'g, S, Q>}::unfold]: loop body 0:
     Source: 'hylo/src/path/mod.rs', lines 81:8-91:9
     Visibility: public -/
@@ -2776,6 +2988,7 @@ def path.Relax.Insts.HyloShapeIterPlanVecState.unfold_loop.body
     let j1 ← j + 1#usize
     ok (cont (t2, v4, v5, v6, j1))
   else ok (done (g.adj, t, v, v1, v2))
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<S>, hylo::path::State<S>> for hylo::path::Relax<'g, S, Q>}::unfold]: loop 0:
     Source: 'hylo/src/path/mod.rs', lines 81:8-91:9
     Visibility: public -/
@@ -2793,6 +3006,7 @@ def path.Relax.Insts.HyloShapeIterPlanVecState.unfold_loop
       path.Relax.Insts.HyloShapeIterPlanVecState.unfold_loop.body
       formalismsemiringSemiringInst QueueInst g q rq t1 v3 v4 v5 j1)
     (t, v, v1, v2, j)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<S>, hylo::path::State<S>> for hylo::path::Relax<'g, S, Q>}::unfold]:
     Source: 'hylo/src/path/mod.rs', lines 76:4-93:5
     Visibility: public -/
@@ -2820,6 +3034,7 @@ def path.Relax.Insts.HyloShapeIterPlanVecState.unfold
         formalismsemiringSemiringInst QueueInst self.g t v1 st.d v q rq 0#usize
     ok (shape.Iter.Step { d := v4, r := v5 },
       { g := { adj := v2 }, q := t4, inq := v3 })
+
 /-- Trait implementation: [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<S>, hylo::path::State<S>> for hylo::path::Relax<'g, S, Q>}]
     Source: 'hylo/src/path/mod.rs', lines 74:0-94:1 -/
 @[reducible]
@@ -2830,6 +3045,7 @@ def path.Relax.Insts.HyloShapeIterPlanVecState {S : Type} {Q : Type}
   unfold := path.Relax.Insts.HyloShapeIterPlanVecState.unfold
     formalismsemiringSemiringInst QueueInst
 }
+
 /-- [hylo::path::run_relax]:
     Source: 'hylo/src/path/mod.rs', lines 96:0-106:1 -/
 def path.run_relax
@@ -2865,6 +3081,7 @@ def path.run_relax
       (shape.Last.Insts.HyloShapeIterAlgebra (alloc.vec.Vec S))
       { g, q := q1, inq := v1 } () { d := d1, r := r1 }
   ok v2
+
 /-- [hylo::path::relax]:
     Source: 'hylo/src/path/mod.rs', lines 109:0-111:1
     Visibility: public -/
@@ -2879,6 +3096,7 @@ def path.relax
     core.option.Option.expect o (toStr
       "Fifo and ShortestFirst have no precondition")
   path.run_relax formalismsemiringSemiringInst QueueInst g s t
+
 /-- [hylo::path::relax_acyclic]:
     Source: 'hylo/src/path/mod.rs', lines 115:0-117:1
     Visibility: public -/
@@ -2899,11 +3117,13 @@ def path.relax_acyclic
   | core.ops.control_flow.ControlFlow.Break residual =>
     core.option.Option.Insts.CoreOpsTry_traitFromResidualOptionNever.from_residual
       (alloc.vec.Vec S) residual
+
 /-- [hylo::path::Lehmann]
     Source: 'hylo/src/path/mod.rs', lines 121:0-121:31
     Visibility: public -/
 structure path.Lehmann where
   k : Std.Usize
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop body 0:
     Source: 'hylo/src/path/mod.rs', lines 128:12-128:68
     Visibility: public -/
@@ -2932,6 +3152,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop0.body
     let m1 := index_mut_back v2
     ok (cont (m1, i1))
   else ok (done m)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop 0:
     Source: 'hylo/src/path/mod.rs', lines 128:12-128:68
     Visibility: public -/
@@ -2946,6 +3167,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop0
       path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop0.body
       algebraStarInst n m1 i1)
     (m, i)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop body 2:
     Source: 'hylo/src/path/mod.rs', lines 136:12-136:88
     Visibility: public -/
@@ -2983,6 +3205,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1_loop0.body
     let m1 := index_mut_back v3
     ok (cont (m1, j1))
   else ok (done m)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop 2:
     Source: 'hylo/src/path/mod.rs', lines 136:12-136:88
     Visibility: public -/
@@ -2998,6 +3221,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1_loop0
       path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1_loop0.body
       algebraStarInst n k kk i m1 j1)
     (m, j)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop body 1:
     Source: 'hylo/src/path/mod.rs', lines 134:8-138:9
     Visibility: public -/
@@ -3016,6 +3240,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1.body
     let i1 ← i + 1#usize
     ok (cont (m1, i1))
   else ok (done m)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]: loop 1:
     Source: 'hylo/src/path/mod.rs', lines 134:8-138:9
     Visibility: public -/
@@ -3031,6 +3256,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1
       path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1.body
       algebraStarInst n k kk m1 i1)
     (m, i)
+
 /-- [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}::unfold]:
     Source: 'hylo/src/path/mod.rs', lines 124:4-141:5
     Visibility: public -/
@@ -3059,6 +3285,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold
         algebraStarInst m n self.k kk 0#usize
     let i ← self.k + 1#usize
     ok (shape.Iter.Step m1, { k := i })
+
 /-- Trait implementation: [hylo::path::{impl hylo::shape::IterPlan<alloc::vec::Vec<alloc::vec::Vec<S>>, alloc::vec::Vec<alloc::vec::Vec<S>>> for hylo::path::Lehmann}]
     Source: 'hylo/src/path/mod.rs', lines 122:0-142:1 -/
 @[reducible]
@@ -3068,6 +3295,7 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec {S : Type}
   unfold := path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold
     algebraStarInst
 }
+
 /-- [hylo::path::closure]:
     Source: 'hylo/src/path/mod.rs', lines 143:0-145:1
     Visibility: public -/
@@ -3081,6 +3309,7 @@ def path.closure
       algebraStarInst) (shape.Last.Insts.HyloShapeIterAlgebra (alloc.vec.Vec
       (alloc.vec.Vec S))) { k := 0#usize } () m
   ok v
+
 /-- Trait declaration: [hylo::search::GlobalSearch]
     Source: 'hylo/src/search/mod.rs', lines 11:0-20:1
     Visibility: public -/
@@ -3091,6 +3320,7 @@ structure search.GlobalSearch (Self : Type) (Self_Input : Type) (Self_Space :
   split : Self → Self_Space → Result (alloc.vec.Vec Self_Space)
   filter : Self → Self_Space → Result Bool
   extract : Self → Self_Space → Result Bool
+
 /-- [hylo::search::keep_filtered]: loop body 0:
     Source: 'hylo/src/search/mod.rs', lines 28:4-28:71 -/
 @[rust_loop_body]
@@ -3110,6 +3340,7 @@ def search.keep_filtered_loop.body
     then let out1 ← alloc.vec.Vec.push out k
          ok (cont (kids1, out1))
     else ok (cont (kids1, out))
+
 /-- [hylo::search::keep_filtered]: loop 0:
     Source: 'hylo/src/search/mod.rs', lines 28:4-28:71 -/
 @[rust_loop]
@@ -3124,6 +3355,7 @@ def search.keep_filtered_loop
     (fun (kids1, out1) => search.keep_filtered_loop.body GlobalSearchInst p
       kids1 out1)
     (kids, out)
+
 /-- [hylo::search::keep_filtered]:
     Source: 'hylo/src/search/mod.rs', lines 24:0-30:1 -/
 def search.keep_filtered
@@ -3137,12 +3369,14 @@ def search.keep_filtered
   let kids1 := deref_mut_back s1
   search.keep_filtered_loop GlobalSearchInst kids1 p (alloc.vec.Vec.new
     Clause0_Space)
+
 /-- [hylo::search::Backtrack]
     Source: 'hylo/src/search/mod.rs', lines 33:0-33:54
     Visibility: public -/
 structure search.Backtrack (P : Type) (Clause0_Input : Type) (Clause0_Space :
   Type) where
   p : P
+
 /-- [hylo::search::{impl hylo::shape::RosePlan<Clause0_Space, Clause0_Space> for hylo::search::Backtrack<'p, P, Clause0_Input, Clause0_Space>}::unfold]:
     Source: 'hylo/src/search/mod.rs', lines 36:4-39:5
     Visibility: public -/
@@ -3156,6 +3390,7 @@ def search.Backtrack.Insts.HyloShapeRosePlan.unfold
   let v ← GlobalSearchInst.split self.p r
   let kids ← search.keep_filtered GlobalSearchInst self.p v
   ok ((r, kids), self)
+
 /-- Trait implementation: [hylo::search::{impl hylo::shape::RosePlan<Clause0_Space, Clause0_Space> for hylo::search::Backtrack<'p, P, Clause0_Input, Clause0_Space>}]
     Source: 'hylo/src/search/mod.rs', lines 34:0-40:1 -/
 @[reducible]
@@ -3165,6 +3400,7 @@ def search.Backtrack.Insts.HyloShapeRosePlan {P : Type} {Clause0_Input : Type}
   Clause0_Input Clause0_Space) Clause0_Space Clause0_Space := {
   unfold := search.Backtrack.Insts.HyloShapeRosePlan.unfold GlobalSearchInst
 }
+
 /-- Trait declaration: [hylo::search::Weigh]
     Source: 'hylo/src/search/mod.rs', lines 44:0-46:1
     Visibility: public -/
@@ -3174,6 +3410,7 @@ structure search.Weigh (Self : Type) (S : Type) (Self_Clause0_Input : Type)
     Self_Clause0_Space
   formalismsemiringSemiringInst : formalism.semiring.Semiring S
   weigh : Self → Self_Clause0_Space → Result S
+
 /-- [hylo::search::Weigh::weigh]:
     Source: 'hylo/src/search/mod.rs', lines 45:4-45:55
     Visibility: public -/
@@ -3186,6 +3423,7 @@ def search.Weigh.weigh.default
   Result S
   := do
   WeighInst.formalismsemiringSemiringInst.one
+
 /-- [hylo::search::Aggregate]
     Source: 'hylo/src/search/mod.rs', lines 49:0-49:91
     Visibility: public -/
@@ -3193,6 +3431,7 @@ structure search.Aggregate (P : Type) (S : Type) (Clause0_Input : Type)
   (Clause0_Space : Type) where
   p : P
   _s : core.marker.PhantomData S
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<Clause0_Clause0_Space, S> for hylo::search::Aggregate<'p, P, S, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop body 0:
     Source: 'hylo/src/search/mod.rs', lines 55:8-55:64
     Visibility: public -/
@@ -3211,6 +3450,7 @@ def search.Aggregate.Insts.HyloShapeRoseAlgebra.fold_loop.body
     let i2 ← i + 1#usize
     ok (cont (acc1, i2))
   else ok (done acc)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<Clause0_Clause0_Space, S> for hylo::search::Aggregate<'p, P, S, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0:
     Source: 'hylo/src/search/mod.rs', lines 55:8-55:64
     Visibility: public -/
@@ -3225,6 +3465,7 @@ def search.Aggregate.Insts.HyloShapeRoseAlgebra.fold_loop
       search.Aggregate.Insts.HyloShapeRoseAlgebra.fold_loop.body
       formalismsemiringSemiringInst kids acc1 i1)
     (acc, i)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<Clause0_Clause0_Space, S> for hylo::search::Aggregate<'p, P, S, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]:
     Source: 'hylo/src/search/mod.rs', lines 52:4-57:5
     Visibility: public -/
@@ -3248,6 +3489,7 @@ def search.Aggregate.Insts.HyloShapeRoseAlgebra.fold
     search.Aggregate.Insts.HyloShapeRoseAlgebra.fold_loop
       formalismsemiringSemiringInst kids acc 0#usize
   ok (acc1, self)
+
 /-- Trait implementation: [hylo::search::{impl hylo::shape::RoseAlgebra<Clause0_Clause0_Space, S> for hylo::search::Aggregate<'p, P, S, Clause0_Clause0_Input, Clause0_Clause0_Space>}]
     Source: 'hylo/src/search/mod.rs', lines 50:0-58:1 -/
 @[reducible]
@@ -3260,6 +3502,7 @@ def search.Aggregate.Insts.HyloShapeRoseAlgebra {P : Type} {S : Type}
   fold := search.Aggregate.Insts.HyloShapeRoseAlgebra.fold WeighInst
     formalismsemiringSemiringInst
 }
+
 /-- [hylo::search::search]:
     Source: 'hylo/src/search/mod.rs', lines 60:0-63:1
     Visibility: public -/
@@ -3276,6 +3519,7 @@ def search.search
       WeighInst.GlobalSearchInst) (search.Aggregate.Insts.HyloShapeRoseAlgebra
       WeighInst formalismsemiringSemiringInst) { p } { p, _s := () } root
   ok t
+
 /-- Trait declaration: [hylo::search::Bounded]
     Source: 'hylo/src/search/mod.rs', lines 115:0-118:1
     Visibility: public -/
@@ -3285,6 +3529,7 @@ structure search.Bounded (Self : Type) (Self_Clause0_Input : Type)
     Self_Clause0_Space
   value : Self → Self_Clause0_Space → Result Std.U64
   bound : Self → Self_Clause0_Space → Result Std.U64
+
 /-- [hylo::search::BranchBound]
     Source: 'hylo/src/search/mod.rs', lines 126:0-126:91
     Visibility: public -/
@@ -3293,6 +3538,7 @@ structure search.BranchBound (P : Type) (Clause0_Clause0_Input : Type)
   p : P
   incumbent : Std.U64
   cut_ties : Bool
+
 /-- [hylo::search::{impl hylo::shape::RosePlan<(Clause0_Clause0_Space, bool), Clause0_Clause0_Space> for hylo::search::BranchBound<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::unfold]:
     Source: 'hylo/src/search/mod.rs', lines 129:4-139:5
     Visibility: public -/
@@ -3353,6 +3599,7 @@ def
       let v ← BoundedInst.GlobalSearchInst.split self.p r
       let kids ← search.keep_filtered BoundedInst.GlobalSearchInst self.p v
       ok (((r, false), kids), { self with incumbent := i })
+
 /-- Trait implementation: [hylo::search::{impl hylo::shape::RosePlan<(Clause0_Clause0_Space, bool), Clause0_Clause0_Space> for hylo::search::BranchBound<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}]
     Source: 'hylo/src/search/mod.rs', lines 127:0-140:1 -/
 @[reducible]
@@ -3367,12 +3614,14 @@ def
     search.BranchBound.Insts.HyloShapeRosePlanPairClause0_Clause0_SpaceBoolClause0_Clause0_Space.unfold
     BoundedInst
 }
+
 /-- [hylo::search::Best]
     Source: 'hylo/src/search/mod.rs', lines 144:0-144:44
     Visibility: public -/
 structure search.Best (P : Type) (Clause0_Clause0_Input : Type)
   (Clause0_Clause0_Space : Type) where
   p : P
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), u64> for hylo::search::Best<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop body 0:
     Source: 'hylo/src/search/mod.rs', lines 150:8-150:78
     Visibility: public -/
@@ -3394,6 +3643,7 @@ def
     let i3 ← i + 1#usize
     ok (cont (best1, i3))
   else ok (done best)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), u64> for hylo::search::Best<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0:
     Source: 'hylo/src/search/mod.rs', lines 150:8-150:78
     Visibility: public -/
@@ -3408,6 +3658,7 @@ def
       search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64.fold_loop.body
       kids best1 i1)
     (best, i)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), u64> for hylo::search::Best<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]:
     Source: 'hylo/src/search/mod.rs', lines 147:4-152:5
     Visibility: public -/
@@ -3433,6 +3684,7 @@ def search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64.fold
     search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64.fold_loop
       kids best 0#usize
   ok (best1, self)
+
 /-- Trait implementation: [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), u64> for hylo::search::Best<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}]
     Source: 'hylo/src/search/mod.rs', lines 145:0-153:1 -/
 @[reducible]
@@ -3445,6 +3697,7 @@ def search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64 {P :
     search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64.fold
     BoundedInst
 }
+
 /-- [hylo::search::maximise]:
     Source: 'hylo/src/search/mod.rs', lines 155:0-158:1
     Visibility: public -/
@@ -3462,12 +3715,14 @@ def search.maximise
       (search.Best.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolU64
       BoundedInst) { p, incumbent := 0#u64, cut_ties := true } { p } root
   ok i
+
 /-- [hylo::search::BestCount]
     Source: 'hylo/src/search/mod.rs', lines 161:0-161:49
     Visibility: public -/
 structure search.BestCount (P : Type) (Clause0_Clause0_Input : Type)
   (Clause0_Clause0_Space : Type) where
   p : P
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop body 0:
     Source: 'hylo/src/search/mod.rs', lines 168:8-168:64
     Visibility: public -/
@@ -3496,6 +3751,7 @@ def
     let i2 ← i + 1#usize
     ok (cont (acc1, i2))
   else ok (done acc)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]: loop 0:
     Source: 'hylo/src/search/mod.rs', lines 168:8-168:64
     Visibility: public -/
@@ -3514,6 +3770,7 @@ def
       search.BestCount.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolDeltaMaxPlusNat.fold_loop.body
       kids acc1 i1)
     (acc, i)
+
 /-- [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}::fold]:
     Source: 'hylo/src/search/mod.rs', lines 164:4-170:5
     Visibility: public -/
@@ -3553,6 +3810,7 @@ def
     search.BestCount.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolDeltaMaxPlusNat.fold_loop
       kids acc 0#usize
   ok (acc1, self)
+
 /-- Trait implementation: [hylo::search::{impl hylo::shape::RoseAlgebra<(Clause0_Clause0_Space, bool), formalism::semiring::Delta<formalism::semiring::MaxPlus, formalism::semiring::Nat>> for hylo::search::BestCount<'p, P, Clause0_Clause0_Input, Clause0_Clause0_Space>}]
     Source: 'hylo/src/search/mod.rs', lines 162:0-171:1 -/
 @[reducible]
@@ -3569,6 +3827,7 @@ def
     search.BestCount.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolDeltaMaxPlusNat.fold
     BoundedInst
 }
+
 /-- [hylo::search::maximise_count]:
     Source: 'hylo/src/search/mod.rs', lines 174:0-178:1
     Visibility: public -/
@@ -3595,16 +3854,19 @@ def search.maximise_count
       formalism.semiring.MaxPlus.Insts.FormalismSemiringDioid
       formalism.semiring.Nat.Insts.FormalismSemiringSemiring d
   ok (i, n)
+
 /-- [hylo::seq::ReduceL]
     Source: 'hylo/src/seq.rs', lines 9:0-9:52
     Visibility: public -/
 @[reducible]
 def seq.ReduceL (M : Type) := core.marker.PhantomData M
+
 /-- Trait declaration: [hylo::shape::ListAlgebra]
     Source: 'hylo/src/shape/mod.rs', lines 68:0-68:102
     Visibility: public -/
 structure shape.ListAlgebra (Self : Type) (T : Type) (Self_Out : Type) where
   fold : Self → Option (T × Self_Out) → Result (Self_Out × Self)
+
 /-- [hylo::seq::{impl hylo::shape::ListAlgebra<M, M> for hylo::seq::ReduceL<M>}::fold]:
     Source: 'hylo/src/seq.rs', lines 12:4-12:105
     Visibility: public -/
@@ -3620,6 +3882,7 @@ def seq.ReduceL.Insts.HyloShapeListAlgebra.fold
     let (h, t) := p
     let t1 ← algebraMonoidInst.SemigroupInst.op h t
     ok (t1, self)
+
 /-- Trait implementation: [hylo::seq::{impl hylo::shape::ListAlgebra<M, M> for hylo::seq::ReduceL<M>}]
     Source: 'hylo/src/seq.rs', lines 10:0-13:1 -/
 @[reducible]
@@ -3627,11 +3890,13 @@ def seq.ReduceL.Insts.HyloShapeListAlgebra {M : Type} (algebraMonoidInst :
   algebra.Monoid M) : shape.ListAlgebra (seq.ReduceL M) M M := {
   fold := seq.ReduceL.Insts.HyloShapeListAlgebra.fold algebraMonoidInst
 }
+
 /-- [hylo::seq::ReduceT]
     Source: 'hylo/src/seq.rs', lines 16:0-16:52
     Visibility: public -/
 @[reducible]
 def seq.ReduceT (M : Type) := core.marker.PhantomData M
+
 /-- [hylo::shape::LeafTree]
     Source: 'hylo/src/shape/mod.rs', lines 23:0-23:55
     Visibility: public -/
@@ -3639,12 +3904,14 @@ def seq.ReduceT (M : Type) := core.marker.PhantomData M
 inductive shape.LeafTree (T : Type) (X : Type) where
 | Leaf : Option T → shape.LeafTree T X
 | Node : X → X → shape.LeafTree T X
+
 /-- Trait declaration: [hylo::shape::LeafTreeAlgebra]
     Source: 'hylo/src/shape/mod.rs', lines 86:0-86:106
     Visibility: public -/
 structure shape.LeafTreeAlgebra (Self : Type) (T : Type) (Self_Out : Type)
   where
   fold : Self → shape.LeafTree T Self_Out → Result (Self_Out × Self)
+
 /-- [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, M> for hylo::seq::ReduceT<M>}::fold]:
     Source: 'hylo/src/seq.rs', lines 19:4-21:5
     Visibility: public -/
@@ -3662,6 +3929,7 @@ def seq.ReduceT.Insts.HyloShapeLeafTreeAlgebra.fold
   | shape.LeafTree.Node a b =>
     let x ← algebraMonoidInst.SemigroupInst.op a b
     ok (x, self)
+
 /-- Trait implementation: [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, M> for hylo::seq::ReduceT<M>}]
     Source: 'hylo/src/seq.rs', lines 17:0-22:1 -/
 @[reducible]
@@ -3669,11 +3937,13 @@ def seq.ReduceT.Insts.HyloShapeLeafTreeAlgebra {M : Type} (algebraMonoidInst :
   algebra.Monoid M) : shape.LeafTreeAlgebra (seq.ReduceT M) M M := {
   fold := seq.ReduceT.Insts.HyloShapeLeafTreeAlgebra.fold algebraMonoidInst
 }
+
 /-- [hylo::seq::Scan]
     Source: 'hylo/src/seq.rs', lines 25:0-25:49
     Visibility: public -/
 @[reducible]
 def seq.Scan (M : Type) := core.marker.PhantomData M
+
 /-- [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, (M, alloc::vec::Vec<M>)> for hylo::seq::Scan<M>}::fold]: loop body 0:
     Source: 'hylo/src/seq.rs', lines 34:16-34:69
     Visibility: public -/
@@ -3693,6 +3963,7 @@ def seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold_loop.body
     let i2 ← i + 1#usize
     ok (cont (pl1, i2))
   else ok (done pl)
+
 /-- [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, (M, alloc::vec::Vec<M>)> for hylo::seq::Scan<M>}::fold]: loop 0:
     Source: 'hylo/src/seq.rs', lines 34:16-34:69
     Visibility: public -/
@@ -3707,6 +3978,7 @@ def seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold_loop
       seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold_loop.body
       algebraMonoidInst tl pr pl1 i1)
     (pl, i)
+
 /-- [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, (M, alloc::vec::Vec<M>)> for hylo::seq::Scan<M>}::fold]:
     Source: 'hylo/src/seq.rs', lines 28:4-38:5
     Visibility: public -/
@@ -3734,6 +4006,7 @@ def seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold
         algebraMonoidInst tl pl pr 0#usize
     let t ← algebraMonoidInst.SemigroupInst.op tl tr
     ok ((t, pl1), self)
+
 /-- Trait implementation: [hylo::seq::{impl hylo::shape::LeafTreeAlgebra<M, (M, alloc::vec::Vec<M>)> for hylo::seq::Scan<M>}]
     Source: 'hylo/src/seq.rs', lines 26:0-39:1 -/
 @[reducible]
@@ -3743,11 +4016,13 @@ def seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec {M : Type}
   fold := seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold
     algebraMonoidInst
 }
+
 /-- [hylo::sort::Uncons]
     Source: 'hylo/src/sort/mod.rs', lines 6:0-6:18
     Visibility: public -/
 @[reducible]
 def sort.Uncons := Unit
+
 /-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::Uncons}::unfold]:
     Source: 'hylo/src/sort/mod.rs', lines 9:4-11:5
     Visibility: public -/
@@ -3761,11 +4036,13 @@ def sort.Uncons.Insts.HyloShapeListPlanTVec.unfold
   else
     let (h, v1) ← alloc.vec.Vec.remove Global v 0#usize
     ok (some (h, v1), self)
+
 /-- Trait declaration: [hylo::shape::ListPlan]
     Source: 'hylo/src/shape/mod.rs', lines 67:0-67:103
     Visibility: public -/
 structure shape.ListPlan (Self : Type) (T : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((Option (T × Self_Seed)) × Self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::Uncons}]
     Source: 'hylo/src/sort/mod.rs', lines 7:0-12:1 -/
 @[reducible]
@@ -3773,6 +4050,7 @@ def sort.Uncons.Insts.HyloShapeListPlanTVec (T : Type) : shape.ListPlan
   sort.Uncons T (alloc.vec.Vec T) := {
   unfold := sort.Uncons.Insts.HyloShapeListPlanTVec.unfold
 }
+
 /-- [hylo::shape::hylo_list]:
     Source: 'hylo/src/shape/mod.rs', lines 69:0-74:1
     Visibility: public -/
@@ -3794,6 +4072,7 @@ def shape.hylo_list
     let (t, alg2) ← ListAlgebraInst.fold alg1 (some (h, r))
     ok (t, plan2, alg2)
 partial_fixpoint
+
 /-- [hylo::seq::reduce_seq]:
     Source: 'hylo/src/seq.rs', lines 41:0-41:115
     Visibility: public -/
@@ -3805,13 +4084,15 @@ def seq.reduce_seq
     shape.hylo_list (sort.Uncons.Insts.HyloShapeListPlanTVec M)
       (seq.ReduceL.Insts.HyloShapeListAlgebra algebraMonoidInst) () () v
   ok t
+
 /-- [hylo::sort::Halve]
-    Source: 'hylo/src/sort/mod.rs', lines 79:0-79:17
+    Source: 'hylo/src/sort/mod.rs', lines 81:0-81:17
     Visibility: public -/
 @[reducible]
 def sort.Halve := Unit
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Halve}::unfold]:
-    Source: 'hylo/src/sort/mod.rs', lines 82:4-84:5
+    Source: 'hylo/src/sort/mod.rs', lines 84:4-86:5
     Visibility: public -/
 def sort.Halve.Insts.HyloShapeLeafTreePlanTVec.unfold
   {T : Type} (self : sort.Halve) (v : alloc.vec.Vec T) :
@@ -3826,18 +4107,21 @@ def sort.Halve.Insts.HyloShapeLeafTreePlanTVec.unfold
     let i2 ← i1 / 2#usize
     let (r, v1) ← alloc.vec.Vec.split_off core.clone.CloneGlobal v i2
     ok (shape.LeafTree.Node v1 r, self)
+
 /-- Trait declaration: [hylo::shape::LeafTreePlan]
     Source: 'hylo/src/shape/mod.rs', lines 85:0-85:107
     Visibility: public -/
 structure shape.LeafTreePlan (Self : Type) (T : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((shape.LeafTree T Self_Seed) × Self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::LeafTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Halve}]
-    Source: 'hylo/src/sort/mod.rs', lines 80:0-85:1 -/
+    Source: 'hylo/src/sort/mod.rs', lines 82:0-87:1 -/
 @[reducible]
 def sort.Halve.Insts.HyloShapeLeafTreePlanTVec (T : Type) : shape.LeafTreePlan
   sort.Halve T (alloc.vec.Vec T) := {
   unfold := sort.Halve.Insts.HyloShapeLeafTreePlanTVec.unfold
 }
+
 /-- [hylo::shape::hylo_leaf_tree]:
     Source: 'hylo/src/shape/mod.rs', lines 87:0-92:1
     Visibility: public -/
@@ -3861,6 +4145,7 @@ def shape.hylo_leaf_tree
     let (t, alg3) ← LeafTreeAlgebraInst.fold alg2 (shape.LeafTree.Node l1 r1)
     ok (t, plan3, alg3)
 partial_fixpoint
+
 /-- [hylo::seq::reduce_par]:
     Source: 'hylo/src/seq.rs', lines 42:0-42:119
     Visibility: public -/
@@ -3872,6 +4157,7 @@ def seq.reduce_par
     shape.hylo_leaf_tree (sort.Halve.Insts.HyloShapeLeafTreePlanTVec M)
       (seq.ReduceT.Insts.HyloShapeLeafTreeAlgebra algebraMonoidInst) () () v
   ok t
+
 /-- [hylo::seq::scan]:
     Source: 'hylo/src/seq.rs', lines 43:0-43:117
     Visibility: public -/
@@ -3884,12 +4170,14 @@ def seq.scan
       (seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec algebraMonoidInst) ()
       () v
   ok v1
+
 /-- Trait declaration: [hylo::shape::NodeTreePlan]
     Source: 'hylo/src/shape/mod.rs', lines 76:0-76:119
     Visibility: public -/
 structure shape.NodeTreePlan (Self : Type) (T : Type) (Self_Seed : Type) where
   unfold : Self → Self_Seed → Result ((Option (T × Self_Seed ×
     Self_Seed)) × Self)
+
 /-- Trait declaration: [hylo::shape::NodeTreeAlgebra]
     Source: 'hylo/src/shape/mod.rs', lines 77:0-77:117
     Visibility: public -/
@@ -3897,6 +4185,7 @@ structure shape.NodeTreeAlgebra (Self : Type) (T : Type) (Self_Out : Type)
   where
   fold : Self → Option (T × Self_Out × Self_Out) → Result (Self_Out ×
     Self)
+
 /-- [hylo::shape::hylo_node_tree]:
     Source: 'hylo/src/shape/mod.rs', lines 78:0-83:1
     Visibility: public -/
@@ -3921,11 +4210,13 @@ def shape.hylo_node_tree
     let (t1, alg3) ← NodeTreeAlgebraInst.fold alg2 (some (p, l1, r1))
     ok (t1, plan3, alg3)
 partial_fixpoint
+
 /-- [hylo::sort::Insert]
     Source: 'hylo/src/sort/mod.rs', lines 13:0-13:18
     Visibility: public -/
 @[reducible]
 def sort.Insert := Unit
+
 /-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]: loop body 0:
     Source: 'hylo/src/sort/mod.rs', lines 22:16-22:57
     Visibility: public -/
@@ -3946,6 +4237,7 @@ def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop.body
          ok (cont i2)
     else ok (done i)
   else ok (done i)
+
 /-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]: loop 0:
     Source: 'hylo/src/sort/mod.rs', lines 22:16-22:57
     Visibility: public -/
@@ -3959,6 +4251,7 @@ def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop
     (fun i1 => sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop.body
       corecmpOrdInst h t i1)
     i
+
 /-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]:
     Source: 'hylo/src/sort/mod.rs', lines 16:4-27:5
     Visibility: public -/
@@ -3976,6 +4269,7 @@ def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold
         0#usize
     let t1 ← alloc.vec.Vec.insert t i h
     ok (t1, self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}]
     Source: 'hylo/src/sort/mod.rs', lines 14:0-28:1 -/
 @[reducible]
@@ -3983,11 +4277,13 @@ def sort.Insert.Insts.HyloShapeListAlgebraTVec {T : Type} (corecmpOrdInst :
   core.cmp.Ord T) : shape.ListAlgebra sort.Insert T (alloc.vec.Vec T) := {
   fold := sort.Insert.Insts.HyloShapeListAlgebraTVec.fold corecmpOrdInst
 }
+
 /-- [hylo::sort::SelectMin]
     Source: 'hylo/src/sort/mod.rs', lines 31:0-31:21
     Visibility: public -/
 @[reducible]
 def sort.SelectMin := Unit
+
 /-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]: loop body 0:
     Source: 'hylo/src/sort/mod.rs', lines 38:8-38:63
     Visibility: public -/
@@ -4010,6 +4306,7 @@ def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop.body
     let j1 ← j + 1#usize
     ok (cont (i2, j1))
   else ok (done i)
+
 /-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]: loop 0:
     Source: 'hylo/src/sort/mod.rs', lines 38:8-38:63
     Visibility: public -/
@@ -4024,6 +4321,7 @@ def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop
       sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop.body
       corecmpOrdInst v i1 j1)
     (i, j)
+
 /-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]:
     Source: 'hylo/src/sort/mod.rs', lines 34:4-41:5
     Visibility: public -/
@@ -4041,6 +4339,7 @@ def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold
         0#usize 1#usize
     let (m, v1) ← alloc.vec.Vec.swap_remove v i
     ok (some (m, v1), self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}]
     Source: 'hylo/src/sort/mod.rs', lines 32:0-42:1 -/
 @[reducible]
@@ -4048,11 +4347,13 @@ def sort.SelectMin.Insts.HyloShapeListPlanTVec {T : Type} (corecmpOrdInst :
   core.cmp.Ord T) : shape.ListPlan sort.SelectMin T (alloc.vec.Vec T) := {
   unfold := sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold corecmpOrdInst
 }
+
 /-- [hylo::sort::Cons]
     Source: 'hylo/src/sort/mod.rs', lines 43:0-43:16
     Visibility: public -/
 @[reducible]
 def sort.Cons := Unit
+
 /-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Cons}::fold]:
     Source: 'hylo/src/sort/mod.rs', lines 46:4-48:5
     Visibility: public -/
@@ -4066,6 +4367,7 @@ def sort.Cons.Insts.HyloShapeListAlgebraTVec.fold
     let (h, t) := p
     let t1 ← alloc.vec.Vec.insert t 0#usize h
     ok (t1, self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Cons}]
     Source: 'hylo/src/sort/mod.rs', lines 44:0-49:1 -/
 @[reducible]
@@ -4073,13 +4375,15 @@ def sort.Cons.Insts.HyloShapeListAlgebraTVec (T : Type) : shape.ListAlgebra
   sort.Cons T (alloc.vec.Vec T) := {
   fold := sort.Cons.Insts.HyloShapeListAlgebraTVec.fold
 }
+
 /-- [hylo::sort::Pivot]
     Source: 'hylo/src/sort/mod.rs', lines 52:0-52:17
     Visibility: public -/
 @[reducible]
 def sort.Pivot := Unit
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 58:8-58:81
+    Source: 'hylo/src/sort/mod.rs', lines 60:8-60:81
     Visibility: public -/
 @[rust_loop_body]
 def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
@@ -4098,8 +4402,9 @@ def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
          ok (cont (v1, l1, r))
     else let r1 ← alloc.vec.Vec.push r x
          ok (cont (v1, l, r1))
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 58:8-58:81
+    Source: 'hylo/src/sort/mod.rs', lines 60:8-60:81
     Visibility: public -/
 @[rust_loop]
 def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop
@@ -4112,8 +4417,9 @@ def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop
       sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
       corecmpOrdInst p v1 l1 r1)
     (v, l, r)
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]:
-    Source: 'hylo/src/sort/mod.rs', lines 55:4-60:5
+    Source: 'hylo/src/sort/mod.rs', lines 57:4-62:5
     Visibility: public -/
 def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.Pivot)
@@ -4121,33 +4427,30 @@ def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold
   Result ((Option (T × (alloc.vec.Vec T) × (alloc.vec.Vec T))) × sort.Pivot)
   := do
   let (o, v1) ← alloc.vec.Vec.pop v
-  let cf ←
-    core.option.Option.Insts.CoreOpsTry_traitTryTOptionNeverOption.branch o
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
+  match o with
+  | none => ok (none, self)
+  | some p =>
     let (l, r) ←
       sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop corecmpOrdInst v1
-        val (alloc.vec.Vec.new T) (alloc.vec.Vec.new T)
-    ok (some (val, l, r), self)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let o1 ←
-      core.option.Option.Insts.CoreOpsTry_traitFromResidualOptionNever.from_residual
-        (T × (alloc.vec.Vec T) × (alloc.vec.Vec T)) residual
-    ok (o1, self)
+        p (alloc.vec.Vec.new T) (alloc.vec.Vec.new T)
+    ok (some (p, l, r), self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}]
-    Source: 'hylo/src/sort/mod.rs', lines 53:0-61:1 -/
+    Source: 'hylo/src/sort/mod.rs', lines 53:0-63:1 -/
 @[reducible]
 def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec {T : Type} (corecmpOrdInst :
   core.cmp.Ord T) : shape.NodeTreePlan sort.Pivot T (alloc.vec.Vec T) := {
   unfold := sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold corecmpOrdInst
 }
+
 /-- [hylo::sort::Concat]
-    Source: 'hylo/src/sort/mod.rs', lines 62:0-62:18
+    Source: 'hylo/src/sort/mod.rs', lines 64:0-64:18
     Visibility: public -/
 @[reducible]
 def sort.Concat := Unit
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 71:16-71:58
+    Source: 'hylo/src/sort/mod.rs', lines 73:16-73:58
     Visibility: public -/
 @[rust_loop_body]
 def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body
@@ -4160,8 +4463,9 @@ def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body
   | none => ok (done a)
   | some x => let a1 ← alloc.vec.Vec.push a x
               ok (cont (b1, a1))
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 71:16-71:58
+    Source: 'hylo/src/sort/mod.rs', lines 73:16-73:58
     Visibility: public -/
 @[rust_loop]
 def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop
@@ -4172,8 +4476,9 @@ def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop
     (fun (b1, a1) =>
       sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body b1 a1)
     (b, a)
+
 /-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 65:4-75:5
+    Source: 'hylo/src/sort/mod.rs', lines 67:4-77:5
     Visibility: public -/
 def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold
   {T : Type} (self : sort.Concat)
@@ -4190,20 +4495,23 @@ def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold
     let b1 := deref_mut_back s1
     let a2 ← sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop b1 a1
     ok (a2, self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}]
-    Source: 'hylo/src/sort/mod.rs', lines 63:0-76:1 -/
+    Source: 'hylo/src/sort/mod.rs', lines 65:0-78:1 -/
 @[reducible]
 def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec (T : Type) :
   shape.NodeTreeAlgebra sort.Concat T (alloc.vec.Vec T) := {
   fold := sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold
 }
+
 /-- [hylo::sort::Merge]
-    Source: 'hylo/src/sort/mod.rs', lines 86:0-86:17
+    Source: 'hylo/src/sort/mod.rs', lines 88:0-88:17
     Visibility: public -/
 @[reducible]
 def sort.Merge := Unit
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 98:16-101:17
+    Source: 'hylo/src/sort/mod.rs', lines 100:16-103:17
     Visibility: public -/
 @[rust_loop_body]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
@@ -4240,8 +4548,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
         let t2 ← core.option.Option.unwrap o
         let out1 ← alloc.vec.Vec.push out t2
         ok (cont (a, b3, out1))
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 98:16-101:17
+    Source: 'hylo/src/sort/mod.rs', lines 100:16-103:17
     Visibility: public -/
 @[rust_loop]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0
@@ -4254,8 +4563,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0
       sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
       corecmpOrdInst a1 b1 out1)
     (a, b, out)
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 1:
-    Source: 'hylo/src/sort/mod.rs', lines 102:16-102:59
+    Source: 'hylo/src/sort/mod.rs', lines 104:16-104:59
     Visibility: public -/
 @[rust_loop_body]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body
@@ -4268,8 +4578,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body
   | none => ok (done out)
   | some x => let out1 ← alloc.vec.Vec.push out x
               ok (cont (a1, out1))
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 1:
-    Source: 'hylo/src/sort/mod.rs', lines 102:16-102:59
+    Source: 'hylo/src/sort/mod.rs', lines 104:16-104:59
     Visibility: public -/
 @[rust_loop]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1
@@ -4280,8 +4591,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1
     (fun (a1, out1) =>
       sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body a1 out1)
     (a, out)
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 2:
-    Source: 'hylo/src/sort/mod.rs', lines 103:16-103:59
+    Source: 'hylo/src/sort/mod.rs', lines 105:16-105:59
     Visibility: public -/
 @[rust_loop_body]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body
@@ -4294,8 +4606,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body
   | none => ok (done out)
   | some y => let out1 ← alloc.vec.Vec.push out y
               ok (cont (b1, out1))
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 2:
-    Source: 'hylo/src/sort/mod.rs', lines 103:16-103:59
+    Source: 'hylo/src/sort/mod.rs', lines 105:16-105:59
     Visibility: public -/
 @[rust_loop]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2
@@ -4306,8 +4619,9 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2
     (fun (b1, out1) =>
       sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body b1 out1)
     (b, out)
+
 /-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 89:4-107:5
+    Source: 'hylo/src/sort/mod.rs', lines 91:4-109:5
     Visibility: public -/
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.Merge)
@@ -4335,16 +4649,17 @@ def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold
       sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1 a2 out
     let v ← sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2 b2 out1
     ok (v, self)
+
 /-- Trait implementation: [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}]
-    Source: 'hylo/src/sort/mod.rs', lines 87:0-108:1 -/
+    Source: 'hylo/src/sort/mod.rs', lines 89:0-110:1 -/
 @[reducible]
 def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec {T : Type} (corecmpOrdInst :
   core.cmp.Ord T) : shape.LeafTreeAlgebra sort.Merge T (alloc.vec.Vec T) := {
-  f
-[A  fold := sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold corecmpOrdInst
+  fold := sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold corecmpOrdInst
 }
+
 /-- [hylo::sort::insertion_sort]:
-    Source: 'hylo/src/sort/mod.rs', lines 111:0-111:93
+    Source: 'hylo/src/sort/mod.rs', lines 113:0-113:93
     Visibility: public -/
 def sort.insertion_sort
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
@@ -4354,8 +4669,9 @@ def sort.insertion_sort
     shape.hylo_list (sort.Uncons.Insts.HyloShapeListPlanTVec T)
       (sort.Insert.Insts.HyloShapeListAlgebraTVec corecmpOrdInst) () () v
   ok v1
+
 /-- [hylo::sort::selection_sort]:
-    Source: 'hylo/src/sort/mod.rs', lines 112:0-112:94
+    Source: 'hylo/src/sort/mod.rs', lines 114:0-114:94
     Visibility: public -/
 def sort.selection_sort
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
@@ -4365,8 +4681,9 @@ def sort.selection_sort
     shape.hylo_list (sort.SelectMin.Insts.HyloShapeListPlanTVec corecmpOrdInst)
       (sort.Cons.Insts.HyloShapeListAlgebraTVec T) () () v
   ok v1
+
 /-- [hylo::sort::quicksort]:
-    Source: 'hylo/src/sort/mod.rs', lines 113:0-113:92
+    Source: 'hylo/src/sort/mod.rs', lines 115:0-115:92
     Visibility: public -/
 def sort.quicksort
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
@@ -4377,8 +4694,9 @@ def sort.quicksort
       corecmpOrdInst) (sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec T) () ()
       v
   ok v1
+
 /-- [hylo::sort::mergesort]:
-    Source: 'hylo/src/sort/mod.rs', lines 114:0-114:91
+    Source: 'hylo/src/sort/mod.rs', lines 116:0-116:91
     Visibility: public -/
 def sort.mergesort
   {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
@@ -4388,4 +4706,5 @@ def sort.mergesort
     shape.hylo_leaf_tree (sort.Halve.Insts.HyloShapeLeafTreePlanTVec T)
       (sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec corecmpOrdInst) () () v
   ok v1
+
 end hylo
