@@ -62,6 +62,26 @@ def FitsList (I : Traced Op Tau) : List (Node Op) → Prop
   | c :: cs => Fits I c ∧ FitsList I cs
 end
 
+mutual
+/-- The Rust `step` is only run where it is defined: at every node, the operation and each tuple
+    of the children's traces satisfy the instance's `ok` (`TracedSpec.step`'s precondition). -/
+def StepsOk (I : Traced Op Tau) (ok : Op → List Tau → Prop) : Node Op → Prop
+  | .mk op cs =>
+    (∀ rows ∈ Traced.tuples (Traced.runList I cs), ok op (rows.map Prod.fst)) ∧ StepsOkList I ok cs
+def StepsOkList (I : Traced Op Tau) (ok : Op → List Tau → Prop) : List (Node Op) → Prop
+  | [] => True
+  | c :: cs => StepsOk I ok c ∧ StepsOkList I ok cs
+end
+
+mutual
+theorem StepsOk.trivial (I : Traced Op Tau) : ∀ m : Node Op, StepsOk I (fun _ _ => True) m
+  | .mk _ cs => ⟨fun _ _ => trivial, StepsOkList.trivial I cs⟩
+theorem StepsOkList.trivial (I : Traced Op Tau) :
+    ∀ ms : List (Node Op), StepsOkList I (fun _ _ => True) ms
+  | [] => trivial
+  | c :: cs => ⟨StepsOk.trivial I c, StepsOkList.trivial I cs⟩
+end
+
 theorem runList_length (I : Traced Op Tau) :
     ∀ ms : List (Node Op), (Traced.runList I ms).length = ms.length
   | [] => rfl
@@ -143,16 +163,19 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 mutual
 /-- `scheme::run` computes the model's `run`. -/
 theorem run_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    (hI : TracedSpec R inst p I) :
+    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
     ∀ (m : Node Op) (node : formalism.scheme.Node Op'), NodeRel R node m → Fits I m →
+      StepsOk I ok m →
       formalism.scheme.run inst p node ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
         tableOf R t = Traced.run I m ⦄
-  | .mk op ms, .mk nop ncs, hrel, hfit => by
+  | .mk op ms, .mk nop ncs, hrel, hfit, hok => by
     rw [Fits] at hfit
     obtain ⟨hfin, hfits⟩ := hfit
+    rw [StepsOk] at hok
+    obtain ⟨hok1, hoks⟩ := hok
     unfold formalism.scheme.run
     apply WP.spec_bind (run_loop_spec R inst p I nop ncs op ms hrel
-      (fun j hj n' hrel' => run_specList inst p I hI ms hfits j hj n' hrel')
+      (fun j hj n' hrel' => run_specList inst p I hI ms hfits hoks j hj n' hrel')
       (alloc.vec.Vec.new _) 0#usize (by scalar_tac)
       (by simp [tablesOf, alloc.vec.Vec.new, Traced.runList]))
     rintro ⟨t, cts⟩ hp
@@ -160,26 +183,27 @@ theorem run_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced
     obtain ⟨ht, hcts⟩ := hp'
     subst op
     try dsimp only
-    apply WP.spec_mono (step_node_spec R inst p I hI t cts (by rw [hcts]; exact hfin))
+    apply WP.spec_mono (step_node_spec R inst p I hI t cts (by rw [hcts]; exact hfin)
+      (by rw [hcts]; exact hok1))
     intro t' ht'
     rw [ht', hcts, Traced.run]
 theorem run_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    (hI : TracedSpec R inst p I) :
-    ∀ (ms : List (Node Op)), FitsList I ms →
+    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
+    ∀ (ms : List (Node Op)), FitsList I ms → StepsOkList I ok ms →
       ∀ (j : ℕ) (hj : j < ms.length) (node : formalism.scheme.Node Op'), NodeRel R node ms[j] →
         formalism.scheme.run inst p node ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
           tableOf R t = Traced.run I ms[j] ⦄
-  | [], _, _, hj, _, _ => absurd hj (Nat.not_lt_zero _)
-  | m :: _, hfit, 0, _, node, hrel => run_spec inst p I hI m node hrel hfit.1
-  | _ :: ms, hfit, j + 1, hj, node, hrel =>
-    run_specList inst p I hI ms hfit.2 j (by simpa using hj) node hrel
+  | [], _, _, _, hj, _, _ => absurd hj (Nat.not_lt_zero _)
+  | m :: _, hfit, hok, 0, _, node, hrel => run_spec inst p I hI m node hrel hfit.1 hok.1
+  | _ :: ms, hfit, hok, j + 1, hj, node, hrel =>
+    run_specList inst p I hI ms hfit.2 hok.2 j (by simpa using hj) node hrel
 end
 
 /-! ## `solve`: the accepted root rows -/
 
 omit [DecidableEq Tau] in
 theorem solve_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) (hI : TracedSpec R inst p I)
+    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok)
     (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (e : formalism.expr.Expr) (i : Usize)
     (hi : i.val ≤ table.val.length)
     (he : ofExt e = ((tableOf R table).take i.val).foldl
@@ -265,11 +289,12 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 
 /-- `scheme::solve` computes the model's `solve`. -/
 theorem solve_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    (hI : TracedSpec R inst p I) (m : Node Op) (root : formalism.scheme.Node Op')
-    (hrel : NodeRel R root m) (hfit : Fits I m) :
+    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) (m : Node Op)
+    (root : formalism.scheme.Node Op') (hrel : NodeRel R root m) (hfit : Fits I m)
+    (hok : StepsOk I ok m) :
     formalism.scheme.solve inst p root ⦃ (e : formalism.expr.Expr) => ofExt e = Traced.solve I m ⦄ := by
   unfold formalism.scheme.solve
-  apply WP.spec_bind (run_spec R inst p I hI m root hrel hfit)
+  apply WP.spec_bind (run_spec R inst p I hI m root hrel hfit hok)
   intro table htable
   replace htable : tableOf R table = Traced.run I m := htable
   apply WP.spec_mono (solve_loop_spec R inst p I hI table formalism.expr.Expr.Empty 0#usize
@@ -282,12 +307,12 @@ theorem solve_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Trac
 /-- Claim 1 for the extracted code: on a well-formed construction that the Rust can hold,
     `scheme::solve` succeeds and its expression denotes exactly the solution set. -/
 theorem solve_sound_extracted (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Instance Op Tau) (hI : TracedSpec R inst p I.toTraced) (m : Node Op)
-    (root : formalism.scheme.Node Op') (hrel : NodeRel R root m) (hfit : Fits I.toTraced m)
-    (hwf : I.WF m) :
+    (I : Instance Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I.toTraced ok)
+    (m : Node Op) (root : formalism.scheme.Node Op') (hrel : NodeRel R root m)
+    (hfit : Fits I.toTraced m) (hok : StepsOk I.toTraced ok m) (hwf : I.WF m) :
     formalism.scheme.solve inst p root ⦃ (e : formalism.expr.Expr) =>
       Sem (ofExt e) ((I.candidates m).filter fun f => I.accept (I.trace m f) = true) ⦄ := by
-  apply WP.spec_mono (solve_spec R inst p I.toTraced hI m root hrel hfit)
+  apply WP.spec_mono (solve_spec R inst p I.toTraced hI m root hrel hfit hok)
   intro e he
   rw [he]
   exact Formalism.solve_sound I hwf

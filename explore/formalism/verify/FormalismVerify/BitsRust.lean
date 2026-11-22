@@ -145,8 +145,8 @@ theorem clone_spec (a : U64) : inst.corecloneCloneInst.clone a ⦃ (r : U64) => 
 
 /-- The Rust `Bits` computes `model p`. -/
 theorem tracedSpec (p : formalism.instances.bits.Bits) :
-    TracedSpec R inst p (model p).toTraced :=
-  ⟨eq_spec, clone_spec, step_spec p, accept_spec p⟩
+    TracedSpec R inst p (model p).toTraced fun _ _ => True :=
+  ⟨eq_spec, clone_spec, fun op s _ => step_spec p op s, accept_spec p⟩
 
 theorem sizeOf_toList_le {α : Type} [SizeOf α] : ∀ {n : ℕ} (l : Data.ListN.ListN α n),
     sizeOf l.toList ≤ sizeOf l
@@ -226,7 +226,8 @@ theorem solve_bits_sound (p : formalism.instances.bits.Bits) (m : Node Bits.Op)
     hylo.dp.solve_bits p root ⦃ (e : formalism.expr.Expr) =>
       Sem (ofExt e) ((Bits.cands m).filter fun f => Bits.ones f % U64.size = p.k.val) ⦄ := by
   unfold hylo.dp.solve_bits
-  apply WP.spec_mono (solve_sound_extracted R inst p (model p) (tracedSpec p) m root hrel hfit hwf)
+  apply WP.spec_mono (solve_sound_extracted R inst p (model p) (tracedSpec p) m root hrel hfit
+    (StepsOk.trivial _ m) hwf)
   intro e he
   have heq : ((model p).candidates m).filter
       (fun f => (model p).accept ((model p).trace m f) = true) =

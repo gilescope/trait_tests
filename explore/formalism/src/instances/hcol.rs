@@ -42,14 +42,17 @@ impl Graph {
             if u != v { self.adj[v as usize].push(u); }
         }
     }
+    // A vertex outside the graph has no edges (so this is total, which the refinement needs).
     // No early `return` inside a loop: Aeneas does not translate those.
     pub fn has_edge(&self, u: u32, v: u32) -> bool {
-        let row = &self.adj[u as usize];
         let mut found = false;
-        let mut i = 0;
-        while i < row.len() {
-            if row[i] == v { found = true; }
-            i += 1;
+        if (u as usize) < self.adj.len() {
+            let row = &self.adj[u as usize];
+            let mut i = 0;
+            while i < row.len() {
+                if row[i] == v { found = true; }
+                i += 1;
+            }
         }
         found
     }
