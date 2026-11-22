@@ -153,7 +153,7 @@ theorem restrict_foldl_join_of_subset {D : Finset Var} :
 theorem restrict_foldl_join_mem :
     ∀ (fs : List Assign) (e : Assign), (∀ g ∈ fs, Compat e g) → fs.Pairwise Compat →
       ∀ g ∈ fs, (fs.foldl join e).restrict g.dom = g
-  | [], _, _, _, _, hg => absurd hg (List.not_mem_nil _)
+  | [], _, _, _, _, hg => nomatch hg
   | g' :: fs, e, he, hp, g, hg => by
     rw [List.pairwise_cons] at hp
     rw [List.mem_cons] at hg
@@ -205,7 +205,7 @@ end Assign
 
 theorem mem_foldr_union_of_mem {α : Type*} [DecidableEq α] :
     ∀ (l : List (Finset α)) {A : Finset α} {x : α}, A ∈ l → x ∈ A → x ∈ l.foldr (· ∪ ·) ∅
-  | [], _, _, hA, _ => absurd hA (List.not_mem_nil _)
+  | [], _, _, hA, _ => nomatch hA
   | B :: l, A, x, hA, hx => by
     rw [List.foldr_cons, Finset.mem_union]
     rw [List.mem_cons] at hA
@@ -572,11 +572,11 @@ theorem ownedParts_map_dom :
   | [], [], _, _ => rfl
   | g :: gs, c :: cs, hgs, hcs => by
     rw [List.forall₂_cons] at hgs
+    have ih := ownedParts_map_dom hgs.2 (fun c' hc' => hcs c' (List.mem_cons_of_mem _ hc'))
+    rw [ownedParts] at ih
     rw [ownedParts, List.zipWith_cons_cons, List.map_cons, List.map_cons,
       Assign.restrict_dom, I.dom_eq c (hcs c (List.mem_cons_self ..)) g hgs.1,
-      Finset.inter_eq_right.mpr (I.owned_sub c (hcs c (List.mem_cons_self ..)))]
-    rw [ownedParts_map_dom hgs.2 (fun c' hc' => hcs c' (List.mem_cons_of_mem _ hc'))]
-    rfl
+      Finset.inter_eq_right.mpr (I.owned_sub c (hcs c (List.mem_cons_self ..))), ih]
 
 theorem mem_dom_cands_of_mem_dom_joinAll {gs : List Assign} {cs : List (Node Op)}
     (hgs : List.Forall₂ (fun g c => g ∈ I.cands c) gs cs) (hcs : ∀ c ∈ cs, I.WF c) {x : Var}
@@ -602,7 +602,7 @@ theorem leaves_compat_joinAll {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk o
 theorem exists_ownedPart :
     ∀ {gs : List Assign} {cs : List (Node Op)}, List.Forall₂ (fun g c => g ∈ I.cands c) gs cs →
       ∀ c ∈ cs, ∃ g ∈ gs, g ∈ I.cands c ∧ g.restrict (I.owned c) ∈ I.ownedParts cs gs
-  | [], [], _, _, hc => absurd hc (List.not_mem_nil _)
+  | [], [], _, _, hc => nomatch hc
   | [], _ :: _, h, _, _ => nomatch h
   | _ :: _, [], h, _, _ => nomatch h
   | g :: gs, c' :: cs, h, c, hc => by
@@ -704,7 +704,7 @@ theorem restrict_owned_mk {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs
         by_cases hgg : g = g'
         · rw [hgg]
           exact Assign.compat_self g'
-        · exact List.Pairwise.forall (fun _ _ h => Assign.Compat.symm h) hcompat hg hg' hgg
+        · exact hcompat.forall (fun _ _ h => Assign.Compat.symm h) hg hg' hgg
       have hpq : p = q := hcompat' p hpV q hq hqp.symm
       rw [Assign.joinAll_val_of_compat (I.ownedParts_pairwise_compat hwf hgs)]
       apply mem_foldr_union_of_mem _ (List.mem_map.mpr ⟨g'.restrict (I.owned c'), hmem, rfl⟩)
