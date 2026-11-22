@@ -340,16 +340,21 @@ structure OwnedInstance (Op Tau : Type*) extends Traced Op Tau where
     (cs.map owned).Pairwise Disjoint
   step_leaves : ∀ (op : Op) (taus : List Tau), ∀ out ∈ step op taus,
     (out.2.map Prod.fst).Nodup ∧ (out.2.map Prod.fst).toFinset = opOwned op
+  /-- Two outputs with the same trace have different leaves (so a row's union is disjoint). -/
   step_nodup : ∀ (op : Op) (taus : List Tau),
-    ((step op taus).map fun out => Assign.ofList out.2).Nodup
+    (step op taus).Pairwise fun out out' =>
+      out.1 = out'.1 → Assign.ofList out.2 ≠ Assign.ofList out'.2
+  /-- The part of a candidate its trace carries beyond the leaves: variables the node assigns
+      without owning them (`∅` when every assigned variable is a leaf somewhere below). -/
+  tauAssign : Tau → Assign
   /-- The candidates at a node are the compatible unions of one candidate per child with the
-      leaves `step` yields for their traces. -/
+      leaves `step` yields for their traces, and whatever else the new trace assigns. -/
   cand_iff : ∀ (op : Op) (cs : List (Node Op)), WF (.mk op cs) → ∀ g : Assign,
     g ∈ cands (.mk op cs) ↔
     ∃ gs : List Assign, List.Forall₂ (fun g' c => g' ∈ cands c) gs cs ∧
       gs.Pairwise Assign.Compat ∧
       ∃ out ∈ step op (List.zipWith trace cs gs),
-        g = (Assign.joinAll gs).join (Assign.ofList out.2)
+        g = ((Assign.joinAll gs).join (Assign.ofList out.2)).join (tauAssign out.1)
   /-- `step` only combines compatible candidates. -/
   step_compat : ∀ (op : Op) (cs : List (Node Op)) (gs : List Assign), WF (.mk op cs) →
     List.Forall₂ (fun g c => g ∈ cands c) gs cs →
@@ -357,7 +362,8 @@ structure OwnedInstance (Op Tau : Type*) extends Traced Op Tau where
   trace_mk : ∀ (op : Op) (cs : List (Node Op)) (gs : List Assign) (out : Tau × List (Var × Val)),
     WF (.mk op cs) → List.Forall₂ (fun g c => g ∈ cands c) gs cs →
     out ∈ step op (List.zipWith trace cs gs) →
-    trace (.mk op cs) ((Assign.joinAll gs).join (Assign.ofList out.2)) = out.1
+    trace (.mk op cs) (((Assign.joinAll gs).join (Assign.ofList out.2)).join (tauAssign out.1)) =
+      out.1
   /-- A candidate is determined by its owned part and its trace. -/
   determined : ∀ n, WF n → ∀ g ∈ cands n, ∀ g' ∈ cands n,
     g.restrict (owned n) = g'.restrict (owned n) → trace n g = trace n g' → g = g'
@@ -638,14 +644,51 @@ theorem ownedParts_pairwise_compat {op : Op} {cs : List (Node Op)} (hwf : I.WF (
   rw [List.pairwise_map] at h1
   exact h1.imp fun h => Assign.compat_of_disjoint h
 
+/-- Every owned variable of a node is a variable of the children's candidates or a leaf. -/
+theorem owned_sub_dom_mk {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
+    {gs : List Assign} (hgs : List.Forall₂ (fun g c => g ∈ I.cands c) gs cs)
+    {out : Tau × List (Var × Val)} (hout : out ∈ I.step op (List.zipWith I.trace cs gs)) :
+    I.owned (.mk op cs) ⊆ ((Assign.joinAll gs).join (Assign.ofList out.2)).dom := by
+  have hcs : ∀ c ∈ cs, I.WF c := I.wf_children op cs hwf
+  have hE : (Assign.ofList out.2).dom = I.opOwned op := I.ofList_dom_owned hout
+  rw [Assign.join_dom_eq, I.owned_mk op cs hwf, hE]
+  intro x hx
+  rw [Finset.mem_union] at hx ⊢
+  rcases hx with hx | hx
+  · exact Or.inr hx
+  · left
+    obtain ⟨D, hD, hxD⟩ := mem_foldr_union _ hx
+    rw [List.mem_map] at hD
+    obtain ⟨c, hc, rfl⟩ := hD
+    obtain ⟨g, hg, hgc⟩ := forall₂_mem_left hgs.flip hc
+    rw [Assign.joinAll_dom]
+    apply mem_foldr_union_of_mem (gs.map Assign.dom) (List.mem_map.mpr ⟨g, hg, rfl⟩)
+    rw [I.dom_eq c (hcs c hc) g hgc]
+    exact I.owned_sub c (hcs c hc) hxD
+
+/-- A child's variables are variables of the children's candidates. -/
+theorem dom_sub_dom_mk {cs : List (Node Op)} (hcs : ∀ c ∈ cs, I.WF c)
+    {gs : List Assign} (hgs : List.Forall₂ (fun g c => g ∈ I.cands c) gs cs) {c : Node Op}
+    (hc : c ∈ cs) (E : Assign) : I.dom c ⊆ ((Assign.joinAll gs).join E).dom := by
+  rw [Assign.join_dom_eq]
+  intro x hx
+  apply Finset.mem_union_left
+  obtain ⟨g, hg, hgc⟩ := forall₂_mem_left hgs.flip hc
+  rw [Assign.joinAll_dom]
+  apply mem_foldr_union_of_mem (gs.map Assign.dom) (List.mem_map.mpr ⟨g, hg, rfl⟩)
+  rw [I.dom_eq c (hcs c hc) g hgc]
+  exact hx
+
 /-- The owned part of a candidate built from one candidate per child is the join of the
     children's owned parts with the operation's leaves. -/
 theorem restrict_owned_mk {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
     {gs : List Assign} (hgs : List.Forall₂ (fun g c => g ∈ I.cands c) gs cs)
     (hcompat : gs.Pairwise Assign.Compat) {out : Tau × List (Var × Val)}
     (hout : out ∈ I.step op (List.zipWith I.trace cs gs)) :
-    ((Assign.joinAll gs).join (Assign.ofList out.2)).restrict (I.owned (.mk op cs)) =
+    (((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssign out.1)).restrict
+        (I.owned (.mk op cs)) =
       (Assign.joinAll (I.ownedParts cs gs)).join (Assign.ofList out.2) := by
+  rw [Assign.restrict_join_left_of_subset (I.owned_sub_dom_mk hwf hgs hout)]
   have hcs : ∀ c ∈ cs, I.WF c := I.wf_children op cs hwf
   have hE : (Assign.ofList out.2).dom = I.opOwned op := I.ofList_dom_owned hout
   have hLE : Disjoint (Assign.joinAll gs).dom (Assign.ofList out.2).dom :=
@@ -662,22 +705,7 @@ theorem restrict_owned_mk {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs
     obtain ⟨c, hc, rfl⟩ := hD
     exact Finset.disjoint_left.mp (I.opOwned_disjoint op cs hwf c hc) hxo
       (I.owned_sub c (hcs c hc) hxD)
-  -- every owned variable is a variable of the built candidate
-  have hsub : I.owned (.mk op cs) ⊆ ((Assign.joinAll gs).join (Assign.ofList out.2)).dom := by
-    rw [Assign.join_dom_eq, hown, hE]
-    intro x hx
-    rw [Finset.mem_union] at hx ⊢
-    rcases hx with hx | hx
-    · exact Or.inr hx
-    · left
-      obtain ⟨D, hD, hxD⟩ := mem_foldr_union _ hx
-      rw [List.mem_map] at hD
-      obtain ⟨c, hc, rfl⟩ := hD
-      obtain ⟨g, hg, hgc⟩ := forall₂_mem_left hgs.flip hc
-      rw [Assign.joinAll_dom]
-      apply mem_foldr_union_of_mem (gs.map Assign.dom) (List.mem_map.mpr ⟨g, hg, rfl⟩)
-      rw [I.dom_eq c (hcs c hc) g hgc]
-      exact I.owned_sub c (hcs c hc) hxD
+  have hsub := I.owned_sub_dom_mk hwf hgs hout
   apply Assign.ext_of_dom_eq
   · rw [Assign.restrict_dom, Finset.inter_eq_right.mpr hsub, Assign.join_dom_eq, hFdom, hE, hown,
       Finset.union_comm]
@@ -730,9 +758,12 @@ theorem mem_rowSet_of_mem_itemSet {op : Op} {cs : List (Node Op)} (hwf : I.WF (.
     (hout : out ∈ I.step op (rows.map Prod.fst)) {f : Assign} (hf : f ∈ I.itemSet cs rows out) :
     ∃ gs : List Assign, List.Forall₂ (fun g c => g ∈ I.cands c) gs cs ∧
       rows.map Prod.fst = List.zipWith I.trace cs gs ∧
-      (Assign.joinAll gs).join (Assign.ofList out.2) ∈ I.cands (.mk op cs) ∧
-      I.trace (.mk op cs) ((Assign.joinAll gs).join (Assign.ofList out.2)) = out.1 ∧
-      f = ((Assign.joinAll gs).join (Assign.ofList out.2)).restrict (I.owned (.mk op cs)) := by
+      ((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssign out.1) ∈
+        I.cands (.mk op cs) ∧
+      I.trace (.mk op cs) (((Assign.joinAll gs).join (Assign.ofList out.2)).join
+        (I.tauAssign out.1)) = out.1 ∧
+      f = (((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssign out.1)).restrict
+        (I.owned (.mk op cs)) := by
   have hlen : tables.length = cs.length := List.Forall₂.length_eq hT
   rw [itemSet, Finset.mem_image] at hf
   obtain ⟨a, ha, rfl⟩ := hf
@@ -764,9 +795,11 @@ theorem restrict_children {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs
     (hcompat : gs.Pairwise Assign.Compat) {out : Tau × List (Var × Val)}
     (hout : out ∈ I.step op (List.zipWith I.trace cs gs)) :
     List.Forall₂ (fun g c =>
-      ((Assign.joinAll gs).join (Assign.ofList out.2)).restrict (I.dom c) = g) gs cs := by
+      (((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssign out.1)).restrict
+        (I.dom c) = g) gs cs := by
   apply forall₂_imp_mem _ hgs
   intro g hg c hc hgc
+  rw [Assign.restrict_join_left_of_subset (I.dom_sub_dom_mk (I.wf_children op cs hwf) hgs hc _)]
   rw [← I.dom_eq c (I.wf_children op cs hwf c hc) g hgc, Assign.restrict_join_of_disjoint_right,
     Assign.restrict_joinAll_mem hcompat hg]
   rw [I.dom_eq c (I.wf_children op cs hwf c hc) g hgc, I.ofList_dom_owned hout]
@@ -794,8 +827,9 @@ theorem cands_eq_of_join_eq {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op 
     (hc : gs.Pairwise Assign.Compat) (hc' : gs'.Pairwise Assign.Compat)
     {out out' : Tau × List (Var × Val)} (hout : out ∈ I.step op (List.zipWith I.trace cs gs))
     (hout' : out' ∈ I.step op (List.zipWith I.trace cs gs'))
-    (heq : (Assign.joinAll gs).join (Assign.ofList out.2) =
-      (Assign.joinAll gs').join (Assign.ofList out'.2)) : gs = gs' := by
+    (heq : ((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssign out.1) =
+      ((Assign.joinAll gs').join (Assign.ofList out'.2)).join (I.tauAssign out'.1)) :
+    gs = gs' := by
   have h1 := I.restrict_children hwf hgs hc hout
   have h2 := I.restrict_children hwf hgs' hc' hout'
   rw [heq] at h1
@@ -911,11 +945,10 @@ theorem stepNode_sound {op : Op} {cs : List (Node Op)} (hwf : I.WF (.mk op cs))
     · intro rows hrows
       have hrows' := mem_tuples.mp hrows
       rw [rowItems, List.pairwise_map]
-      have hs : (I.step op (rows.map Prod.fst)).Pairwise
-          (fun o o' => Assign.ofList o.2 ≠ Assign.ofList o'.2) :=
-        List.pairwise_map.mp (I.step_nodup op (rows.map Prod.fst))
+      have hs := I.step_nodup op (rows.map Prod.fst)
       refine List.Pairwise.imp_of_mem ?_ hs
-      intro o o' ho ho' hne _
+      intro o o' ho ho' hne hτ
+      replace hne := hne hτ
       show Disjoint (denot (Expr.joinLeaves (joined rows) o.2))
         (denot (Expr.joinLeaves (joined rows) o'.2))
       rw [hden rows hrows' o ho, hden rows hrows' o' ho']

@@ -1,5 +1,6 @@
 import FormalismVerify.Spec
 import FormalismVerify.SpecOwned
+import FormalismVerify.HCol
 import FormalismVerify.Quicksort
 import FormalismVerify.RefineSort
 import FormalismVerify.Hylo
