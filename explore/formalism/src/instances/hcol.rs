@@ -97,19 +97,20 @@ impl core::fmt::Debug for Tau {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.0.fmt(f) }
 }
 
+// The pairs at or below `v`, then `(v, d)`, then the rest. (Two plain loops: the extraction
+// then has no state flags and no nested blocks to reason about.)
 fn insert_sorted(f: &[(Var, Val)], v: Var, d: Val) -> Vec<(Var, Val)> {
     let mut out = Vec::new();
-    let mut placed = false;
     let mut i = 0;
-    while i < f.len() {
-        if !placed && f[i].0 > v {
-            out.push((v, d));
-            placed = true;
-        }
+    while i < f.len() && f[i].0 <= v {
         out.push(f[i]);
         i += 1;
     }
-    if !placed { out.push((v, d)); }
+    out.push((v, d));
+    while i < f.len() {
+        out.push(f[i]);
+        i += 1;
+    }
     out
 }
 
@@ -117,7 +118,8 @@ fn remove(f: &[(Var, Val)], v: Var) -> Vec<(Var, Val)> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < f.len() {
-        if f[i].0 != v { out.push(f[i]); }
+        let p = f[i];
+        if p.0 != v { out.push(p); }
         i += 1;
     }
     out
@@ -126,16 +128,34 @@ fn remove(f: &[(Var, Val)], v: Var) -> Vec<(Var, Val)> {
 impl HColoring {
     /// `f ∪ {v ↦ d}` respects every `G`-edge between `v` and the bag (Lemma 2 says
     /// those are the only edges at `v` inside `descbag`).
+    // Both edge tests are evaluated before the condition (no short-circuit): the extraction is
+    // then a flat sequence, which the refinement follows step by step.
+    #[allow(clippy::collapsible_if)]
     fn consistent(&self, f: &[(Var, Val)], v: Var, d: Val) -> bool {
         let mut ok = true;
         let mut i = 0;
         while i < f.len() {
-            let (u, c) = f[i];
-            if self.g.has_edge(u, v) && !self.h.has_edge(c, d) { ok = false; }
+            let p = f[i];
+            let e = self.g.has_edge(p.0, v);
+            let h = self.h.has_edge(p.1, d);
+            if e {
+                if !h { ok = false; }
+            }
             i += 1;
         }
-        if self.g.has_edge(v, v) && !self.h.has_edge(d, d) { ok = false; }
+        let e = self.g.has_edge(v, v);
+        let h = self.h.has_edge(d, d);
+        if e {
+            if !h { ok = false; }
+        }
         ok
+    }
+
+    /// One output of `Introduce`: the trace with `v ↦ d`, and the leaf if this node owns `v`.
+    fn emit(out: &mut Vec<(Tau, Vec<(Var, Val)>)>, f: &[(Var, Val)], v: Var, d: Val, owner: bool) {
+        let mut leaves = Vec::new();
+        if owner { leaves.push((v, d)); }
+        out.push((Tau(insert_sorted(f, v, d)), leaves));
     }
 }
 
@@ -151,11 +171,8 @@ impl Traced for HColoring {
                 let f = &child[0].0;
                 let mut d = 0;
                 while d < self.h.n() as Val {
-                    if self.consistent(f, *v, d) {
-                        let mut leaves = Vec::new();
-                        if *owner { leaves.push((*v, d)); }
-                        out.push((Tau(insert_sorted(f, *v, d)), leaves));
-                    }
+                    let c = self.consistent(f, *v, d);
+                    if c { Self::emit(&mut out, f, *v, d, *owner); }
                     d += 1;
                 }
             }

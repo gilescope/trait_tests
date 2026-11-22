@@ -17,6 +17,36 @@ open Aeneas Aeneas.Std Result hylo Formalism Formalism.Refine Formalism.HCol
 
 abbrev inst := formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau
 
+/-! ## Small tools for following the extracted code -/
+
+theorem spec_bind_ok {α β : Type} {x : α} {k : α → Result β} {P : β → Prop}
+    (h : WP.spec (k x) P) : WP.spec (Std.bind (ok x) k) P :=
+  WP.spec_bind ((WP.spec_ok (p := fun r => r = x) x).mpr rfl) fun y hy => by
+    rw [show y = x from hy]
+    exact h
+
+theorem spec_ite {α : Type} {c : Prop} [Decidable c] {m1 m2 : Result α} {P : α → Prop}
+    (h1 : c → WP.spec m1 P) (h2 : ¬ c → WP.spec m2 P) : WP.spec (if c then m1 else m2) P := by
+  split
+  · exact h1 (by assumption)
+  · exact h2 (by assumption)
+
+theorem spec_bind_ite {α β : Type} {c : Prop} [Decidable c] {m1 m2 : Result α} {k : α → Result β}
+    {P : β → Prop} (h1 : c → WP.spec (Std.bind m1 k) P) (h2 : ¬ c → WP.spec (Std.bind m2 k) P) :
+    WP.spec (Std.bind (if c then m1 else m2) k) P := by
+  split
+  · exact h1 (by assumption)
+  · exact h2 (by assumption)
+
+theorem new_val (α : Type) : (alloc.vec.Vec.new α).val = [] := rfl
+
+theorem new_len {α : Type} : (alloc.vec.Vec.new α).val.length < Usize.max := by
+  rw [new_val]
+  scalar_tac
+
+theorem deref_val {α : Type} (v : alloc.vec.Vec α) : (alloc.vec.Vec.deref v).val = v.val := by
+  rw [alloc.vec.Vec.deref, Slice.from_val]
+
 /-! ## The representation -/
 
 /-- The model operation of an extracted one. -/
@@ -34,8 +64,8 @@ theorem ofPairs_cons (p : U32 × U32) (l : List (U32 × U32)) :
 
 theorem ofPairs_nil : ofPairs [] = [] := rfl
 
-theorem ofPairs_length (l : List (U32 × U32)) : (ofPairs l).length = l.length :=
-  List.length_map _ _
+theorem ofPairs_length (l : List (U32 × U32)) : (ofPairs l).length = l.length := by
+  simp [ofPairs]
 
 theorem ofPairs_injective : Function.Injective ofPairs := by
   intro l l' h
@@ -47,20 +77,26 @@ theorem ofPairs_injective : Function.Injective ofPairs := by
 
 theorem tauOf_injective : Function.Injective tauOf := by
   intro t t' h
-  exact Vec.ext _ _ (ofPairs_injective h)
+  exact alloc.vec.Vec.ext _ _ (ofPairs_injective h)
 
 def R : Repr formalism.instances.hcol.Op formalism.instances.hcol.Tau HOp TauL :=
   ⟨opOf, tauOf, tauOf_injective⟩
+
+/-- Whether a row of the adjacency list holds the vertex `w`. -/
+def adjRow (row : alloc.vec.Vec U32) (w : ℕ) : Bool := decide (∃ x ∈ row.val, x.val = w)
 
 /-- The graphs of a Rust `HColoring`: `u` is adjacent to `w` when `w` is in `u`'s row (a vertex
     outside the graph has none); `H` has as many colours as vertices, counted in a `u32`. -/
 def adjOf (g : formalism.instances.hcol.Graph) (u w : ℕ) : Bool :=
   match g.adj.val[u]? with
-  | some row => decide (∃ x ∈ row.val, x.val = w)
+  | some row => adjRow row w
   | none => false
 
 def graphsOf (p : formalism.instances.hcol.HColoring) : Graphs :=
   { adjG := adjOf p.g, adjH := adjOf p.h, nH := p.h.adj.val.length % 2 ^ 32 }
+
+theorem graphsOf_nH (p : formalism.instances.hcol.HColoring) :
+    (graphsOf p).nH = p.h.adj.val.length % 2 ^ 32 := rfl
 
 /-- Where the Rust `step` is defined: as many children as the operation takes, traces that can
     grow by one. -/
@@ -72,28 +108,41 @@ def hcolOk (op : HOp) (taus : List TauL) : Prop :=
     | .forget _ => taus ≠ []
     | .join => 2 ≤ taus.length
 
-theorem new_len {α : Type} : (alloc.vec.Vec.new α).val.length < Usize.max := by
-  rw [new_val]
-  scalar_tac
-
-theorem deref_val {α : Type} (v : alloc.vec.Vec α) : (alloc.vec.Vec.deref v).val = v.val := by
-  rw [alloc.vec.Vec.deref, Slice.from_val]
-
 /-! ## `Graph::has_edge` -/
 
-theorem has_edge_loop_spec (v : U32) (row : alloc.vec.Vec U32) (found : Bool) (i : Usize)
+/-- Whether a list holds `v`. -/
+def hasVal : List U32 → U32 → Bool
+  | [], _ => false
+  | x :: l, v => decide (x = v) || hasVal l v
+
+theorem hasVal_iff (v : U32) : ∀ l : List U32, hasVal l v = true ↔ ∃ x ∈ l, x = v
+  | [] => by
+    rw [hasVal]
+    exact ⟨fun h => nomatch h, fun ⟨_, h, _⟩ => nomatch h⟩
+  | x :: l => by
+    rw [hasVal, Bool.or_eq_true, decide_eq_true_iff, hasVal_iff v l]
+    constructor
+    · rintro (h | ⟨y, hy, rfl⟩)
+      · exact ⟨x, List.mem_cons_self .., h⟩
+      · exact ⟨y, List.mem_cons_of_mem _ hy, rfl⟩
+    · rintro ⟨y, hy, rfl⟩
+      rw [List.mem_cons] at hy
+      rcases hy with rfl | hy
+      · exact Or.inl rfl
+      · exact Or.inr ⟨y, hy, rfl⟩
+
+theorem has_edge_loop_spec (v : U32) (found : Bool) (row : alloc.vec.Vec U32) (i : Usize)
     (hi : i.val ≤ row.val.length) :
     formalism.instances.hcol.Graph.has_edge_loop v found row i ⦃ (b : Bool) =>
-      b = (found || decide (∃ x ∈ row.val.drop i.val, x = v)) ⦄ := by
+      b = (found || hasVal (row.val.drop i.val) v) ⦄ := by
   unfold formalism.instances.hcol.Graph.has_edge_loop
-  apply loop.spec_decr_nat (measure := fun st => row.val.length - st.2.val)
-    (inv := fun st => st.2.val ≤ row.val.length ∧
-      (st.1 || decide (∃ x ∈ row.val.drop st.2.val, x = v)) =
-        (found || decide (∃ x ∈ row.val.drop i.val, x = v)))
+  apply loop.spec_decr_nat (measure := fun (st : Bool × Usize) => row.val.length - st.2.val)
+    (inv := fun (st : Bool × Usize) => st.2.val ≤ row.val.length ∧
+      (st.1 || hasVal (row.val.drop st.2.val) v) = (found || hasVal (row.val.drop i.val) v))
   · rintro ⟨found1, i1⟩ ⟨hi1, hinv⟩
     replace hi1 : i1.val ≤ row.val.length := hi1
-    replace hinv : (found1 || decide (∃ x ∈ row.val.drop i1.val, x = v)) =
-      (found || decide (∃ x ∈ row.val.drop i.val, x = v)) := hinv
+    replace hinv : (found1 || hasVal (row.val.drop i1.val) v) =
+      (found || hasVal (row.val.drop i.val) v) := hinv
     show formalism.instances.hcol.Graph.has_edge_loop.body v row found1 i1 ⦃ _ ⦄
     unfold formalism.instances.hcol.Graph.has_edge_loop.body
     dsimp only
@@ -104,39 +153,35 @@ theorem has_edge_loop_spec (v : U32) (row : alloc.vec.Vec U32) (found : Bool) (i
       apply WP.spec_bind (alloc.vec.Vec.index_usize_spec row i1 hlt')
       intro x hx
       replace hx : x = row.val[i1.val] := hx
-      apply WP.spec_bind ((WP.spec_ok (p := fun r => r = (if x = v then true else found1)) _).mpr
-        (by split <;> rfl))
-      intro found2 hfound2
-      apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
-      intro i2 hi2
-      replace hi2 : i2.val = i1.val + (1#usize).val := hi2
-      have hi2' : i2.val = i1.val + 1 := by scalar_tac
-      simp only [WP.spec_ok]
-      refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
-      rw [← hinv, hfound2, hi2', List.drop_eq_getElem_cons hlt', ← hx]
-      by_cases hxv : x = v
-      · subst hxv
-        simp
-      · rw [if_neg hxv]
-        congr 1
-        apply decide_eq_decide.mpr
-        constructor
-        · rintro ⟨y, hy, rfl⟩
-          exact ⟨y, List.mem_cons_of_mem _ hy, rfl⟩
-        · rintro ⟨y, hy, rfl⟩
-          rw [List.mem_cons] at hy
-          rcases hy with rfl | hy
-          · exact absurd rfl hxv
-          · exact ⟨y, hy, rfl⟩
+      apply spec_bind_ite
+      · intro hxv
+        apply spec_bind_ok
+        apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
+        intro i2 hi2
+        replace hi2 : i2.val = i1.val + (1#usize).val := hi2
+        have hi2' : i2.val = i1.val + 1 := by scalar_tac
+        simp only [WP.spec_ok]
+        refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
+        rw [← hinv, hi2', List.drop_eq_getElem_cons hlt', ← hx, hasVal, decide_eq_true hxv,
+          Bool.true_or, Bool.true_or, Bool.or_true]
+      · intro hxv
+        apply spec_bind_ok
+        apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
+        intro i2 hi2
+        replace hi2 : i2.val = i1.val + (1#usize).val := hi2
+        have hi2' : i2.val = i1.val + 1 := by scalar_tac
+        simp only [WP.spec_ok]
+        refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
+        rw [← hinv, hi2', List.drop_eq_getElem_cons hlt', ← hx, hasVal, decide_eq_false hxv,
+          Bool.false_or]
     · rename_i hge
       have hin : i1.val = row.val.length := by scalar_tac
       simp only [WP.spec_ok]
-      rw [← hinv, hin, List.drop_length]
-      simp
+      rw [← hinv, hin, List.drop_length, hasVal]
   · exact ⟨hi, rfl⟩
 
 theorem adjOf_of_lt {g : formalism.instances.hcol.Graph} {u : ℕ} (hu : u < g.adj.val.length)
-    (w : ℕ) : adjOf g u w = decide (∃ x ∈ (g.adj.val[u]).val, x.val = w) := by
+    (w : ℕ) : adjOf g u w = adjRow (g.adj.val[u]) w := by
   unfold adjOf
   rw [List.getElem?_eq_getElem hu]
 
@@ -145,42 +190,40 @@ theorem adjOf_of_ge {g : formalism.instances.hcol.Graph} {u : ℕ} (hu : g.adj.v
   unfold adjOf
   rw [List.getElem?_eq_none_iff.mpr hu]
 
+theorem hasVal_eq_adjRow (row : alloc.vec.Vec U32) (v : U32) : hasVal row.val v = adjRow row v.val := by
+  rw [Bool.eq_iff_iff, hasVal_iff, adjRow, decide_eq_true_iff]
+  constructor
+  · rintro ⟨x, hx, rfl⟩
+    exact ⟨x, hx, rfl⟩
+  · rintro ⟨x, hx, hxv⟩
+    exact ⟨x, hx, UScalar.val_eq_imp _ _ hxv⟩
+
 theorem has_edge_spec (g : formalism.instances.hcol.Graph) (u v : U32) :
     formalism.instances.hcol.Graph.has_edge g u v ⦃ (b : Bool) => b = adjOf g u.val v.val ⦄ := by
   unfold formalism.instances.hcol.Graph.has_edge
-  try unfold lift
-  apply WP.spec_bind ((WP.spec_ok (p := fun r => r = UScalar.cast .Usize u) _).mpr rfl)
-  intro i hi
-  subst hi
+  apply spec_bind_ok
   try dsimp only
-  split
-  · rename_i hlt
+  apply spec_ite
+  · intro hlt
     have hlt' : u.val < g.adj.val.length := by
-      rw [UScalar.lt_equiv, U32.cast_Usize_val_eq, Vec.len_val] at hlt
+      rw [UScalar.lt_equiv, U32.cast_Usize_val_eq, alloc.vec.Vec.len_val] at hlt
       exact hlt
-    apply WP.spec_bind ((WP.spec_ok (p := fun r => r = UScalar.cast .Usize u) _).mpr rfl)
-    intro i2 hi2
-    subst hi2
+    apply spec_bind_ok
     rw [alloc.vec.Vec.index_slice_index]
     apply WP.spec_bind (alloc.vec.Vec.index_usize_spec g.adj (UScalar.cast .Usize u)
       (by rw [U32.cast_Usize_val_eq]; exact hlt'))
     intro row hrow
     replace hrow : row = g.adj.val[(UScalar.cast .Usize u).val] := hrow
-    rw [U32.cast_Usize_val_eq] at hrow
+    simp only [U32.cast_Usize_val_eq] at hrow
     apply WP.spec_mono (has_edge_loop_spec v false row 0#usize (by simp))
     intro b hb
-    rw [hb, adjOf_of_lt hlt', hrow]
-    simp only [Bool.false_or, Usize.ofNat_val_eq, List.drop_zero]
-    apply decide_eq_decide.mpr
-    constructor
-    · rintro ⟨x, hx, rfl⟩
-      exact ⟨x, hx, rfl⟩
-    · rintro ⟨x, hx, hxv⟩
-      exact ⟨x, hx, UScalar.val_eq_imp _ _ hxv⟩
-  · rename_i hge
+    rw [hb, adjOf_of_lt hlt', hrow, Bool.false_or]
+    simp only [Usize.ofNat_val_eq, List.drop_zero]
+    exact hasVal_eq_adjRow _ v
+  · intro hge
     rw [WP.spec_ok]
     have hge' : g.adj.val.length ≤ u.val := by
-      rw [UScalar.lt_equiv, U32.cast_Usize_val_eq, Vec.len_val] at hge
+      rw [UScalar.lt_equiv, U32.cast_Usize_val_eq, alloc.vec.Vec.len_val] at hge
       omega
     rw [adjOf_of_ge hge']
 
@@ -189,29 +232,19 @@ theorem has_edge_spec (g : formalism.instances.hcol.Graph) (u v : U32) :
 /-- `insertSorted` on the code's pairs. -/
 def insertSortedU : List (U32 × U32) → U32 → U32 → List (U32 × U32)
   | [], v, d => [(v, d)]
-  | p :: rest, v, d => if v < p.1 then (v, d) :: p :: rest else p :: insertSortedU rest v d
+  | p :: rest, v, d => if v.val < p.1.val then (v, d) :: p :: rest else p :: insertSortedU rest v d
 
 theorem ofPairs_insertSortedU (v d : U32) :
     ∀ l : List (U32 × U32), ofPairs (insertSortedU l v d) = insertSorted (ofPairs l) v.val d.val
   | [] => rfl
   | p :: rest => by
     rw [insertSortedU, ofPairs_cons, insertSorted]
-    by_cases h : v < p.1
-    · rw [if_pos h, if_pos ((UScalar.lt_equiv v p.1).mp h), ofPairs_cons, ofPairs_cons]
-    · rw [if_neg h, if_neg (fun h' => h ((UScalar.lt_equiv v p.1).mpr h')), ofPairs_cons,
-        ofPairs_insertSortedU v d rest]
-
-theorem insertSortedU_length (v d : U32) :
-    ∀ l : List (U32 × U32), (insertSortedU l v d).length = l.length + 1
-  | [] => rfl
-  | p :: rest => by
-    rw [insertSortedU]
-    split
-    · rfl
-    · rw [List.length_cons, insertSortedU_length v d rest, List.length_cons]
+    by_cases h : v.val < p.1.val
+    · rw [if_pos h, if_pos h, ofPairs_cons, ofPairs_cons]
+    · rw [if_neg h, if_neg h, ofPairs_cons, ofPairs_insertSortedU v d rest]
 
 theorem insertSortedU_eq_append (v d : U32) :
-    ∀ l : List (U32 × U32), (∀ q ∈ l, ¬ v < q.1) → insertSortedU l v d = l ++ [(v, d)]
+    ∀ l : List (U32 × U32), (∀ q ∈ l, ¬ v.val < q.1.val) → insertSortedU l v d = l ++ [(v, d)]
   | [], _ => rfl
   | p :: rest, h => by
     rw [insertSortedU, if_neg (h p (List.mem_cons_self ..)), List.cons_append,
@@ -219,197 +252,157 @@ theorem insertSortedU_eq_append (v d : U32) :
 
 theorem insertSortedU_eq_of_split (v d : U32) :
     ∀ (l1 : List (U32 × U32)) (p : U32 × U32) (l2 : List (U32 × U32)),
-      (∀ q ∈ l1, ¬ v < q.1) → v < p.1 → insertSortedU (l1 ++ p :: l2) v d = l1 ++ (v, d) :: p :: l2
+      (∀ q ∈ l1, ¬ v.val < q.1.val) → v.val < p.1.val →
+      insertSortedU (l1 ++ p :: l2) v d = l1 ++ (v, d) :: p :: l2
   | [], p, l2, _, hp => by
     rw [List.nil_append, insertSortedU, if_pos hp, List.nil_append]
   | q :: l1, p, l2, h, hp => by
     rw [List.cons_append, insertSortedU, if_neg (h q (List.mem_cons_self ..)), List.cons_append,
       insertSortedU_eq_of_split v d l1 p l2 (fun r hr => h r (List.mem_cons_of_mem _ hr)) hp]
 
-/-- The loop's invariant, for a state `(out, placed, i)`. -/
-def InsInv (f : Slice (U32 × U32)) (v d : U32) (out : alloc.vec.Vec (U32 × U32)) (placed : Bool)
-    (i : ℕ) : Prop :=
-  if placed then out.val.length = i + 1 ∧ out.val ++ f.val.drop i = insertSortedU f.val v d
-  else out.val = f.val.take i ∧ ∀ q ∈ f.val.take i, ¬ v < q.1
-
-theorem insert_sorted_loop_spec (f : Slice (U32 × U32)) (v d : U32)
-    (out : alloc.vec.Vec (U32 × U32)) (placed : Bool) (i : Usize) (hi : i.val ≤ f.val.length)
-    (hlen : f.val.length < Usize.max) (hinv : InsInv f v d out placed i.val) :
-    formalism.instances.hcol.insert_sorted_loop f v d out placed i
-      ⦃ (res : alloc.vec.Vec (U32 × U32) × Bool) =>
-        res.1.val ++ (if res.2 then [] else [(v, d)]) = insertSortedU f.val v d ⦄ := by
-  unfold formalism.instances.hcol.insert_sorted_loop
-  apply loop.spec_decr_nat (measure := fun st => f.val.length - st.2.2.val)
-    (inv := fun st => st.2.2.val ≤ f.val.length ∧ InsInv f v d st.1 st.2.1 st.2.2.val)
-  · rintro ⟨out1, placed1, i1⟩ ⟨hi1, hinv1⟩
+/-- The first loop: copy the pairs at or below `v`. -/
+theorem insert_sorted_loop0_spec (f : Slice (U32 × U32)) (v : U32) (out : alloc.vec.Vec (U32 × U32))
+    (i : Usize) (hi : i.val ≤ f.val.length) (hout : out.val = f.val.take i.val)
+    (hq : ∀ q ∈ f.val.take i.val, ¬ v.val < q.1.val) :
+    formalism.instances.hcol.insert_sorted_loop0 f v out i
+      ⦃ (res : alloc.vec.Vec (U32 × U32) × Usize) =>
+        res.2.val ≤ f.val.length ∧ res.1.val = f.val.take res.2.val ∧
+        (∀ q ∈ f.val.take res.2.val, ¬ v.val < q.1.val) ∧
+        ∀ h : res.2.val < f.val.length, v.val < (f.val[res.2.val]).1.val ⦄ := by
+  unfold formalism.instances.hcol.insert_sorted_loop0
+  apply loop.spec_decr_nat (measure := fun (st : alloc.vec.Vec (U32 × U32) × Usize) =>
+      f.val.length - st.2.val)
+    (inv := fun (st : alloc.vec.Vec (U32 × U32) × Usize) => st.2.val ≤ f.val.length ∧
+      st.1.val = f.val.take st.2.val ∧ ∀ q ∈ f.val.take st.2.val, ¬ v.val < q.1.val)
+  · rintro ⟨out1, i1⟩ ⟨hi1, hout1, hq1⟩
     replace hi1 : i1.val ≤ f.val.length := hi1
-    replace hinv1 : InsInv f v d out1 placed1 i1.val := hinv1
-    show formalism.instances.hcol.insert_sorted_loop.body f v d out1 placed1 i1 ⦃ _ ⦄
-    unfold formalism.instances.hcol.insert_sorted_loop.body
+    replace hout1 : out1.val = f.val.take i1.val := hout1
+    replace hq1 : ∀ q ∈ f.val.take i1.val, ¬ v.val < q.1.val := hq1
+    show formalism.instances.hcol.insert_sorted_loop0.body f v out1 i1 ⦃ _ ⦄
+    unfold formalism.instances.hcol.insert_sorted_loop0.body
     dsimp only
     split
     · rename_i hlt
       have hlt' : i1.val < f.val.length := by scalar_tac
-      -- the tail of the body, from any state the first half can leave
-      have htail : ∀ (out2 : alloc.vec.Vec (U32 × U32)) (placed2 : Bool),
-          out2.val.length ≤ i1.val + 1 →
-          (if placed2 then out2.val ++ f.val.drop i1.val = insertSortedU f.val v d
-            else out2.val = f.val.take i1.val ∧ ∀ q ∈ f.val.take (i1.val + 1), ¬ v < q.1) →
-          (do
-            let p ← Slice.index_usize f i1
-            let out3 ← alloc.vec.Vec.push out2 p
-            let i2 ← i1 + 1#usize
-            ok (ControlFlow.cont (out3, placed2, i2)) :
-            Result (ControlFlow ((alloc.vec.Vec (U32 × U32)) × Bool × Usize)
-              ((alloc.vec.Vec (U32 × U32)) × Bool)))
-          ⦃ (r : ControlFlow ((alloc.vec.Vec (U32 × U32)) × Bool × Usize)
-              ((alloc.vec.Vec (U32 × U32)) × Bool)) =>
-            match r with
-            | .cont st => (st.2.2.val ≤ f.val.length ∧ InsInv f v d st.1 st.2.1 st.2.2.val) ∧
-                f.val.length - st.2.2.val < f.val.length - i1.val
-            | .done res => res.1.val ++ (if res.2 then [] else [(v, d)]) =
-                insertSortedU f.val v d ⦄ := by
-        intro out2 placed2 hlen2 hinv2
+      apply WP.spec_bind (Slice.index_usize_spec f i1 hlt')
+      rintro ⟨i2, c⟩ hp
+      have hp' : (i2, c) = f.val[i1.val] := hp
+      have hi2 : i2 = (f.val[i1.val]).1 := by rw [← hp']
+      apply spec_ite
+      · intro hle
+        have hle' : ¬ v.val < (f.val[i1.val]).1.val := by
+          rw [← hi2]
+          exact Nat.not_lt.mpr ((UScalar.le_equiv i2 v).mp hle)
         apply WP.spec_bind (Slice.index_usize_spec f i1 hlt')
-        intro p hp
-        replace hp : p = f.val[i1.val] := hp
-        apply WP.spec_bind (alloc.vec.Vec.push_spec out2 p (by omega))
-        intro out3 hout3
-        replace hout3 : out3.val = out2.val ++ [p] := hout3
+        intro p hp2
+        replace hp2 : p = f.val[i1.val] := hp2
+        have hlen1 : out1.val.length < Usize.max := by
+          have := f.length_ineq
+          rw [hout1, List.length_take]
+          omega
+        apply WP.spec_bind (alloc.vec.Vec.push_spec out1 p hlen1)
+        intro out2 hout2
+        replace hout2 : out2.val = out1.val ++ [p] := hout2
         apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
-        intro i2 hi2
-        replace hi2 : i2.val = i1.val + (1#usize).val := hi2
-        have hi2' : i2.val = i1.val + 1 := by scalar_tac
+        intro i3 hi3
+        replace hi3 : i3.val = i1.val + (1#usize).val := hi3
+        have hi3' : i3.val = i1.val + 1 := by scalar_tac
+        simp only [WP.spec_ok]
+        refine ⟨⟨by scalar_tac, ?_, ?_⟩, by scalar_tac⟩
+        · rw [hout2, hout1, hp2, hi3', List.take_succ_eq_append_getElem hlt']
+        · intro q hq'
+          rw [hi3', List.take_succ_eq_append_getElem hlt', List.mem_append, List.mem_singleton] at hq'
+          rcases hq' with hq' | rfl
+          · exact hq1 q hq'
+          · exact hle'
+      · intro hgt
+        have hgt' : v.val < (f.val[i1.val]).1.val := by
+          rw [← hi2]
+          exact Nat.lt_of_not_le fun h => hgt ((UScalar.le_equiv i2 v).mpr h)
         rw [WP.spec_ok]
-        show (i2.val ≤ f.val.length ∧ InsInv f v d out3 placed2 i2.val) ∧
-          f.val.length - i2.val < f.val.length - i1.val
-        refine ⟨⟨by omega, ?_⟩, by omega⟩
-        unfold InsInv
-        rw [hi2']
-        cases placed2 with
-        | true =>
-          rw [ite_eq_left rfl] at hinv2 ⊢
-          refine ⟨?_, ?_⟩
-          · have := congrArg List.length hinv2
-            rw [List.length_append, List.length_drop, insertSortedU_length] at this
-            rw [hout3, List.length_append, List.length_singleton]
-            omega
-          · rw [hout3, List.append_assoc, List.singleton_append, hp,
-              ← List.drop_eq_getElem_cons hlt']
-            exact hinv2
-        | false =>
-          rw [ite_eq_right Bool.false_ne_true] at hinv2 ⊢
-          obtain ⟨hout2, hq⟩ := hinv2
-          refine ⟨?_, hq⟩
-          rw [hout3, hout2, hp, ← List.take_succ_eq_append_getElem hlt']
-      -- the first half: maybe place `(v, d)`
-      unfold InsInv at hinv1
-      cases placed1 with
-      | true =>
-        rw [ite_eq_left rfl] at hinv1 ⊢
-        obtain ⟨hlen1, hinv1⟩ := hinv1
-        apply WP.spec_bind ((WP.spec_ok (p := fun r => r = (out1, true)) _).mpr rfl)
-        rintro ⟨out2, placed2⟩ h2
-        have h2' : (out2, placed2) = (out1, true) := h2
-        rw [Prod.mk.injEq] at h2'
-        obtain ⟨rfl, rfl⟩ := h2'
-        exact htail out1 true hlen1.le (by rw [ite_eq_left rfl]; exact hinv1)
-      | false =>
-        rw [ite_eq_right Bool.false_ne_true] at hinv1 ⊢
-        obtain ⟨hout1, hq⟩ := hinv1
-        apply WP.spec_bind (Slice.index_usize_spec f i1 hlt')
-        rintro ⟨i2, c⟩ hp
-        have hp' : (i2, c) = f.val[i1.val] := hp
-        have hi2 : i2 = (f.val[i1.val]).1 := by rw [← hp']
-        try dsimp only
-        split
-        · rename_i hgt
-          have hgt' : v < (f.val[i1.val]).1 := by rw [← hi2]; exact hgt
-          have hout1len : out1.val.length < Usize.max := by
-            rw [hout1, List.length_take]
-            omega
-          apply WP.spec_bind (alloc.vec.Vec.push_spec out1 (v, d) hout1len)
-          intro out2 hout2
-          replace hout2 : out2.val = out1.val ++ [(v, d)] := hout2
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = (out2, true)) _).mpr rfl)
-          rintro ⟨out3, placed3⟩ h3
-          have h3' : (out3, placed3) = (out2, true) := h3
-          rw [Prod.mk.injEq] at h3'
-          obtain ⟨rfl, rfl⟩ := h3'
-          apply htail out2 true
-          · rw [hout2, List.length_append, hout1, List.length_take, List.length_singleton]
-            omega
-          · rw [ite_eq_left rfl]
-            have hsplit : insertSortedU f.val v d =
-                f.val.take i1.val ++ (v, d) :: f.val[i1.val] :: f.val.drop (i1.val + 1) := by
-              conv_lhs => rw [← List.take_append_drop i1.val f.val, List.drop_eq_getElem_cons hlt']
-              exact insertSortedU_eq_of_split v d _ _ _ hq hgt'
-            rw [hsplit, hout2, hout1, List.append_assoc, List.singleton_append,
-              List.drop_eq_getElem_cons hlt']
-        · rename_i hle
-          have hle' : ¬ v < (f.val[i1.val]).1 := by rw [← hi2]; exact hle
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = (out1, false)) _).mpr rfl)
-          rintro ⟨out3, placed3⟩ h3
-          have h3' : (out3, placed3) = (out1, false) := h3
-          rw [Prod.mk.injEq] at h3'
-          obtain ⟨rfl, rfl⟩ := h3'
-          apply htail out1 false
-          · rw [hout1, List.length_take]
-            omega
-          · rw [ite_eq_right Bool.false_ne_true]
-            refine ⟨hout1, ?_⟩
-            intro q hq'
-            rw [List.take_succ_eq_append_getElem hlt', List.mem_append, List.mem_singleton] at hq'
-            rcases hq' with hq' | rfl
-            · exact hq q hq'
-            · exact hle'
+        exact ⟨hi1, hout1, hq1, fun _ => hgt'⟩
     · rename_i hge
       have hin : i1.val = f.val.length := by scalar_tac
       rw [WP.spec_ok]
-      unfold InsInv at hinv1
-      cases placed1 with
-      | true =>
-        rw [ite_eq_left rfl] at hinv1 ⊢
-        rw [List.append_nil]
-        rw [hin, List.drop_length, List.append_nil] at hinv1
-        exact hinv1.2
-      | false =>
-        rw [ite_eq_right Bool.false_ne_true] at hinv1 ⊢
-        obtain ⟨hout1, hq⟩ := hinv1
-        rw [hin, List.take_length] at hout1 hq
-        rw [hout1, insertSortedU_eq_append v d f.val hq]
+      exact ⟨hi1, hout1, hq1, fun h => absurd h (by rw [hin]; exact lt_irrefl _)⟩
+  · exact ⟨hi, hout, hq⟩
+
+/-- The second loop: copy the rest. -/
+theorem insert_sorted_loop1_spec (f : Slice (U32 × U32)) (out : alloc.vec.Vec (U32 × U32))
+    (i : Usize) (hi : i.val ≤ f.val.length)
+    (hlen : out.val.length + (f.val.length - i.val) ≤ Usize.max) :
+    formalism.instances.hcol.insert_sorted_loop1 f out i
+      ⦃ (res : alloc.vec.Vec (U32 × U32)) => res.val = out.val ++ f.val.drop i.val ⦄ := by
+  unfold formalism.instances.hcol.insert_sorted_loop1
+  apply loop.spec_decr_nat (measure := fun (st : alloc.vec.Vec (U32 × U32) × Usize) =>
+      f.val.length - st.2.val)
+    (inv := fun (st : alloc.vec.Vec (U32 × U32) × Usize) => st.2.val ≤ f.val.length ∧
+      st.1.val ++ f.val.drop st.2.val = out.val ++ f.val.drop i.val)
+  · rintro ⟨out1, i1⟩ ⟨hi1, hinv⟩
+    replace hi1 : i1.val ≤ f.val.length := hi1
+    replace hinv : out1.val ++ f.val.drop i1.val = out.val ++ f.val.drop i.val := hinv
+    show formalism.instances.hcol.insert_sorted_loop1.body f out1 i1 ⦃ _ ⦄
+    unfold formalism.instances.hcol.insert_sorted_loop1.body
+    dsimp only
+    split
+    · rename_i hlt
+      have hlt' : i1.val < f.val.length := by scalar_tac
+      apply WP.spec_bind (Slice.index_usize_spec f i1 hlt')
+      intro p hp
+      replace hp : p = f.val[i1.val] := hp
+      have hlen1 : out1.val.length < Usize.max := by
+        have := congrArg List.length hinv
+        rw [List.length_append, List.length_append, List.length_drop, List.length_drop] at this
+        omega
+      apply WP.spec_bind (alloc.vec.Vec.push_spec out1 p hlen1)
+      intro out2 hout2
+      replace hout2 : out2.val = out1.val ++ [p] := hout2
+      apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
+      intro i2 hi2
+      replace hi2 : i2.val = i1.val + (1#usize).val := hi2
+      have hi2' : i2.val = i1.val + 1 := by scalar_tac
+      simp only [WP.spec_ok]
+      refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
+      rw [hout2, hi2', List.append_assoc, List.singleton_append, hp,
+        ← List.drop_eq_getElem_cons hlt']
+      exact hinv
+    · rename_i hge
+      have hin : i1.val = f.val.length := by scalar_tac
+      rw [WP.spec_ok]
+      rw [hin, List.drop_length, List.append_nil] at hinv
+      exact hinv
   · exact ⟨hi, hinv⟩
 
 theorem insert_sorted_spec (f : Slice (U32 × U32)) (v d : U32) (hlen : f.val.length < Usize.max) :
     formalism.instances.hcol.insert_sorted f v d ⦃ (res : alloc.vec.Vec (U32 × U32)) =>
       res.val = insertSortedU f.val v d ⦄ := by
   unfold formalism.instances.hcol.insert_sorted
-  apply WP.spec_bind (insert_sorted_loop_spec f v d (alloc.vec.Vec.new _) false 0#usize
-    (by simp) hlen (by
-      unfold InsInv
-      rw [ite_eq_right Bool.false_ne_true]
-      refine ⟨?_, ?_⟩
-      · simp [new_val]
-      · intro q hq
-        simp at hq))
-  rintro ⟨out, placed⟩ hp
-  have hp' : out.val ++ (if placed then [] else [(v, d)]) = insertSortedU f.val v d := hp
-  try dsimp only
-  cases placed with
-  | true =>
-    rw [ite_eq_left rfl, List.append_nil] at hp'
-    rw [ite_eq_left rfl, WP.spec_ok]
-    exact hp'
-  | false =>
-    rw [ite_eq_right Bool.false_ne_true] at hp' ⊢
-    have hlen' : out.val.length < Usize.max := by
-      have := congrArg List.length hp'
-      rw [List.length_append, List.length_singleton, insertSortedU_length] at this
-      omega
-    apply WP.spec_mono (alloc.vec.Vec.push_spec out (v, d) hlen')
-    intro res hres
-    rw [hres]
-    exact hp'
+  apply WP.spec_bind (insert_sorted_loop0_spec f v (alloc.vec.Vec.new _) 0#usize (by simp)
+    (by rw [new_val]; simp) (by simp))
+  rintro ⟨out, k⟩ hp
+  have hp' : k.val ≤ f.val.length ∧ out.val = f.val.take k.val ∧
+    (∀ q ∈ f.val.take k.val, ¬ v.val < q.1.val) ∧
+    ∀ h : k.val < f.val.length, v.val < (f.val[k.val]).1.val := hp
+  obtain ⟨hk, hout, hq, hgt⟩ := hp'
+  have houtlen : out.val.length < Usize.max := by
+    rw [hout, List.length_take]
+    omega
+  apply WP.spec_bind (alloc.vec.Vec.push_spec out (v, d) houtlen)
+  intro out1 hout1
+  replace hout1 : out1.val = out.val ++ [(v, d)] := hout1
+  apply WP.spec_mono (insert_sorted_loop1_spec f out1 k hk
+    (by rw [hout1, List.length_append, hout, List.length_take, List.length_singleton]; omega))
+  intro res hres
+  rw [hres, hout1, hout]
+  rcases Nat.lt_or_ge k.val f.val.length with hlt | hge
+  · have hsplit : f.val = f.val.take k.val ++ f.val[k.val] :: f.val.drop (k.val + 1) := by
+      rw [← List.drop_eq_getElem_cons hlt, List.take_append_drop]
+    conv_rhs => rw [hsplit]
+    rw [insertSortedU_eq_of_split v d _ _ _ hq (hgt hlt), List.append_assoc, List.singleton_append,
+      List.drop_eq_getElem_cons hlt]
+  · have hk' : k.val = f.val.length := le_antisymm hk hge
+    rw [hk', List.take_length, List.drop_length, List.append_nil,
+      insertSortedU_eq_append v d f.val (by rw [hk', List.take_length] at hq; exact hq)]
 
 /-! ## `remove` -/
 
@@ -419,8 +412,9 @@ theorem remove_loop_spec (f : Slice (U32 × U32)) (v : U32) (out : alloc.vec.Vec
     formalism.instances.hcol.remove_loop f v out i ⦃ (res : alloc.vec.Vec (U32 × U32)) =>
       res.val = f.val.filter fun p => decide (p.1 ≠ v) ⦄ := by
   unfold formalism.instances.hcol.remove_loop
-  apply loop.spec_decr_nat (measure := fun st => f.val.length - st.2.val)
-    (inv := fun st => st.2.val ≤ f.val.length ∧
+  apply loop.spec_decr_nat (measure := fun (st : alloc.vec.Vec (U32 × U32) × Usize) =>
+      f.val.length - st.2.val)
+    (inv := fun (st : alloc.vec.Vec (U32 × U32) × Usize) => st.2.val ≤ f.val.length ∧
       st.1.val = (f.val.take st.2.val).filter fun p => decide (p.1 ≠ v))
   · rintro ⟨out1, i1⟩ ⟨hi1, hout1⟩
     replace hi1 : i1.val ≤ f.val.length := hi1
@@ -436,9 +430,9 @@ theorem remove_loop_spec (f : Slice (U32 × U32)) (v : U32) (out : alloc.vec.Vec
       have hp' : (i2, i3) = f.val[i1.val] := hp
       have hlen1 : out1.val.length < Usize.max := by
         have h1 := List.length_filter_le (fun p : U32 × U32 => decide (p.1 ≠ v)) (f.val.take i1.val)
+        have := f.length_ineq
         rw [← hout1, List.length_take] at h1
         omega
-      try dsimp only
       have hnext : (f.val.take (i1.val + 1)).filter (fun p => decide (p.1 ≠ v)) =
           ((f.val.take i1.val).filter fun p => decide (p.1 ≠ v)) ++
             if i2 ≠ v then [(i2, i3)] else [] := by
@@ -447,41 +441,53 @@ theorem remove_loop_spec (f : Slice (U32 × U32)) (v : U32) (out : alloc.vec.Vec
         by_cases h : i2 ≠ v
         · rw [if_pos (decide_eq_true h), if_pos h]
         · rw [if_neg (fun h' => h (decide_eq_true_iff.mp h')), if_neg h]
-      split
-      · rename_i hne
+      -- the tail, after the conditional push
+      have htail : ∀ (out2 : alloc.vec.Vec (U32 × U32)),
+          out2.val = (f.val.take (i1.val + 1)).filter (fun p => decide (p.1 ≠ v)) →
+          (do
+            let i4 ← i1 + 1#usize
+            ok (ControlFlow.cont (out2, i4)) :
+            Result (ControlFlow ((alloc.vec.Vec (U32 × U32)) × Usize) (alloc.vec.Vec (U32 × U32))))
+          ⦃ (r : ControlFlow ((alloc.vec.Vec (U32 × U32)) × Usize) (alloc.vec.Vec (U32 × U32))) =>
+            match r with
+            | .cont st => (st.2.val ≤ f.val.length ∧
+                st.1.val = (f.val.take st.2.val).filter fun p => decide (p.1 ≠ v)) ∧
+                f.val.length - st.2.val < f.val.length - i1.val
+            | .done res => res.val = f.val.filter fun p => decide (p.1 ≠ v) ⦄ := by
+        intro out2 hout2
+        apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
+        intro i4 hi4
+        replace hi4 : i4.val = i1.val + (1#usize).val := hi4
+        have hi4' : i4.val = i1.val + 1 := by scalar_tac
+        rw [WP.spec_ok]
+        show (i4.val ≤ f.val.length ∧ out2.val = _) ∧ f.val.length - i4.val < f.val.length - i1.val
+        rw [hi4']
+        exact ⟨⟨by omega, hout2⟩, by omega⟩
+      apply spec_bind_ite
+      · intro hne
         have hne' : i2 ≠ v := bne_iff_ne.mp hne
         apply WP.spec_bind (alloc.vec.Vec.push_spec out1 (i2, i3) hlen1)
         intro out2 hout2
         replace hout2 : out2.val = out1.val ++ [(i2, i3)] := hout2
-        apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
-        intro i4 hi4
-        replace hi4 : i4.val = i1.val + (1#usize).val := hi4
-        have hi4' : i4.val = i1.val + 1 := by scalar_tac
-        simp only [WP.spec_ok]
-        refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
-        rw [hi4', hnext, if_pos hne', hout2, hout1]
-      · rename_i hne
+        apply htail out2
+        rw [hnext, if_pos hne', hout2, hout1]
+      · intro hne
         have heq : i2 = v := by
           by_contra h
           exact hne (bne_iff_ne.mpr h)
-        apply WP.spec_bind (Usize.add_spec (x := i1) (y := 1#usize) (by scalar_tac))
-        intro i4 hi4
-        replace hi4 : i4.val = i1.val + (1#usize).val := hi4
-        have hi4' : i4.val = i1.val + 1 := by scalar_tac
-        simp only [WP.spec_ok]
-        refine ⟨⟨by scalar_tac, ?_⟩, by scalar_tac⟩
-        rw [hi4', hnext, if_neg (fun h => h heq), List.append_nil, hout1]
+        apply spec_bind_ok
+        apply htail out1
+        rw [hnext, if_neg (fun h => h heq), List.append_nil, hout1]
     · rename_i hge
       have hin : i1.val = f.val.length := by scalar_tac
-      simp only [WP.spec_ok]
-      rw [hout1, hin, List.take_length]
+      rw [WP.spec_ok, hout1, hin, List.take_length]
   · exact ⟨hi, hout⟩
 
 theorem remove_spec (f : Slice (U32 × U32)) (v : U32) :
     formalism.instances.hcol.remove f v ⦃ (res : alloc.vec.Vec (U32 × U32)) =>
       res.val = f.val.filter fun p => decide (p.1 ≠ v) ⦄ := by
   unfold formalism.instances.hcol.remove
-  exact remove_loop_spec f v (alloc.vec.Vec.new _) 0#usize (by simp) (by simp [new_val])
+  exact remove_loop_spec f v (alloc.vec.Vec.new _) 0#usize (by simp) (by rw [new_val]; simp)
 
 theorem ofPairs_filter_ne (v : U32) :
     ∀ l : List (U32 × U32),
@@ -491,11 +497,11 @@ theorem ofPairs_filter_ne (v : U32) :
     rw [remove, ofPairs_cons, List.filter_cons, List.filter_cons]
     by_cases h : p.1 = v
     · rw [if_neg (fun h' => (decide_eq_true_iff.mp h') h),
-        if_neg (fun h' => (decide_eq_true_iff.mp h') (by rw [h]))]
+        if_neg (fun h' => (decide_eq_true_iff.mp h') (by show p.1.val = v.val; rw [h]))]
       exact ofPairs_filter_ne v rest
     · rw [if_pos (decide_eq_true h),
-        if_pos (decide_eq_true (fun h' => h (UScalar.val_eq_imp _ _ h'))), ofPairs_cons,
-        ofPairs_filter_ne v rest, remove]
+        if_pos (decide_eq_true (show p.1.val ≠ v.val from fun h' => h (UScalar.val_eq_imp _ _ h'))),
+        ofPairs_cons, ofPairs_filter_ne v rest, remove]
 
 /-! ## `same`, `PartialEq`, `Clone` -/
 
@@ -507,8 +513,9 @@ theorem same_loop_spec (a b : Slice (U32 × U32)) (e eq0 : Bool) (i : Usize)
       r = true ↔ e = true ∧ ∀ j, j < min a.val.length b.val.length →
         ∀ (ha : j < a.val.length) (hb : j < b.val.length), a.val[j] = b.val[j] ⦄ := by
   unfold formalism.instances.hcol.same_loop
-  apply loop.spec_decr_nat (measure := fun st => min a.val.length b.val.length - st.2.val)
-    (inv := fun st => st.2.val ≤ a.val.length ∧ st.2.val ≤ b.val.length ∧
+  apply loop.spec_decr_nat (measure := fun (st : Bool × Usize) =>
+      min a.val.length b.val.length - st.2.val)
+    (inv := fun (st : Bool × Usize) => st.2.val ≤ a.val.length ∧ st.2.val ≤ b.val.length ∧
       (st.1 = true ↔ e = true ∧ ∀ j, j < st.2.val →
         ∀ (ha : j < a.val.length) (hb : j < b.val.length), a.val[j] = b.val[j]))
   · rintro ⟨eq1, i1⟩ ⟨hia, hib1, hinv1⟩
@@ -531,8 +538,7 @@ theorem same_loop_spec (a b : Slice (U32 × U32)) (e eq0 : Bool) (i : Usize)
         apply WP.spec_bind (Slice.index_usize_spec b i1 hltb')
         rintro ⟨i5, i6⟩ hpb
         have hpb' : (i5, i6) = b.val[i1.val] := hpb
-        try dsimp only
-        -- the new flag
+        -- the new flag, then the counter
         have hstep : ∀ (eq2 : Bool), (eq2 = true ↔ eq1 = true ∧ a.val[i1.val] = b.val[i1.val]) →
             (do
               let i7 ← i1 + 1#usize
@@ -568,35 +574,29 @@ theorem same_loop_spec (a b : Slice (U32 × U32)) (e eq0 : Bool) (i : Usize)
               hall i1.val (Nat.lt_succ_self _) hlta' hltb'⟩
         have hpair : a.val[i1.val] = b.val[i1.val] ↔ i3 = i5 ∧ i4 = i6 := by
           rw [← hpa', ← hpb', Prod.mk.injEq]
-        split
-        · rename_i hne
+        apply spec_bind_ite
+        · intro hne
           have hne' : i3 ≠ i5 := bne_iff_ne.mp hne
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = false) _).mpr rfl)
-          intro eq2 heq2
-          subst heq2
+          apply spec_bind_ok
           apply hstep
           rw [hpair]
           exact ⟨fun h => nomatch h, fun h => absurd h.2.1 hne'⟩
-        · rename_i hne
+        · intro hne
           have heq35 : i3 = i5 := by
             by_contra h
             exact hne (bne_iff_ne.mpr h)
-          split
-          · rename_i hne2
+          apply spec_bind_ite
+          · intro hne2
             have hne2' : i4 ≠ i6 := bne_iff_ne.mp hne2
-            apply WP.spec_bind ((WP.spec_ok (p := fun r => r = false) _).mpr rfl)
-            intro eq2 heq2
-            subst heq2
+            apply spec_bind_ok
             apply hstep
             rw [hpair]
             exact ⟨fun h => nomatch h, fun h => absurd h.2.2 hne2'⟩
-          · rename_i hne2
+          · intro hne2
             have heq46 : i4 = i6 := by
               by_contra h
               exact hne2 (bne_iff_ne.mpr h)
-            apply WP.spec_bind ((WP.spec_ok (p := fun r => r = eq1) _).mpr rfl)
-            intro eq2 heq2
-            subst heq2
+            apply spec_bind_ok
             apply hstep
             rw [hpair]
             exact ⟨fun h => ⟨h, heq35, heq46⟩, fun h => h.1⟩
@@ -635,7 +635,7 @@ theorem same_spec (a b : Slice (U32 × U32)) :
     intro j ha hb
     exact hall j (by omega) ha hb
   · intro h
-    refine ⟨by rw [h], ?_⟩
+    refine ⟨by show a.val.length = b.val.length; rw [h], ?_⟩
     intro j _ ha hb
     rw [List.getElem_of_eq h ha]
 
@@ -647,16 +647,18 @@ theorem eq_spec : EqSpec inst.corecmpPartialEqInst := by
   apply WP.spec_mono (same_spec (alloc.vec.Vec.deref a) (alloc.vec.Vec.deref b))
   intro r hr
   rw [hr, deref_val, deref_val, decide_eq_true_iff]
-  exact (Vec.eq_iff a b).symm
+  exact (alloc.vec.Vec.eq_iff a b).symm
 
 theorem clone_loop_spec (self : formalism.instances.hcol.Tau) (out : alloc.vec.Vec (U32 × U32))
     (i : Usize) (hi : i.val ≤ self.val.length) (hout : out.val = self.val.take i.val) :
     formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop self out i
       ⦃ (res : alloc.vec.Vec (U32 × U32)) => res.val = self.val ⦄ := by
   unfold formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop
-  apply loop.spec_decr_nat (measure := fun st => self.val.length - st.2.2.val)
-    (inv := fun st => st.1 = self ∧ st.2.2.val ≤ self.val.length ∧
-      st.2.1.val = self.val.take st.2.2.val)
+  apply loop.spec_decr_nat
+    (measure := fun (st : formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32) × Usize) =>
+      self.val.length - st.2.2.val)
+    (inv := fun (st : formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32) × Usize) =>
+      st.1 = self ∧ st.2.2.val ≤ self.val.length ∧ st.2.1.val = self.val.take st.2.2.val)
   · rintro ⟨self1, out1, i1⟩ ⟨hself1, hi1, hout1⟩
     replace hself1 : self1 = self := hself1
     replace hi1 : i1.val ≤ self.val.length := hi1
@@ -673,8 +675,9 @@ theorem clone_loop_spec (self : formalism.instances.hcol.Tau) (out : alloc.vec.V
       intro p hp
       replace hp : p = self1.val[i1.val] := hp
       have hlen1 : out1.val.length < Usize.max := by
+        have := self1.property
         rw [hout1, List.length_take]
-        scalar_tac
+        omega
       apply WP.spec_bind (alloc.vec.Vec.push_spec out1 p hlen1)
       intro out2 hout2
       replace hout2 : out2.val = out1.val ++ [p] := hout2
@@ -683,7 +686,7 @@ theorem clone_loop_spec (self : formalism.instances.hcol.Tau) (out : alloc.vec.V
       replace hi2 : i2.val = i1.val + (1#usize).val := hi2
       have hi2' : i2.val = i1.val + 1 := by scalar_tac
       simp only [WP.spec_ok]
-      refine ⟨⟨rfl, by scalar_tac, ?_⟩, by scalar_tac⟩
+      refine ⟨⟨by first | exact rfl | trivial, by scalar_tac, ?_⟩, by scalar_tac⟩
       rw [hout2, hout1, hp, hi2', List.take_succ_eq_append_getElem hlt']
     · rename_i hge
       have hin : i1.val = self1.val.length := by scalar_tac
@@ -695,11 +698,12 @@ theorem clone_spec (a : formalism.instances.hcol.Tau) :
     inst.corecloneCloneInst.clone a ⦃ (r : formalism.instances.hcol.Tau) => r = a ⦄ := by
   show formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone a ⦃ _ ⦄
   unfold formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone
-  apply WP.spec_bind (clone_loop_spec a (alloc.vec.Vec.new _) 0#usize (by simp) (by simp [new_val]))
+  apply WP.spec_bind (clone_loop_spec a (alloc.vec.Vec.new _) 0#usize (by simp)
+    (by rw [new_val]; simp))
   intro out hout
   replace hout : out.val = a.val := hout
   rw [WP.spec_ok]
-  exact Vec.ext _ _ hout
+  exact alloc.vec.Vec.ext _ _ hout
 
 /-! ## `accept` -/
 
@@ -715,6 +719,31 @@ theorem accept_spec (p : formalism.instances.hcol.HColoring) (t : formalism.inst
 
 /-! ## `consistent` -/
 
+/-- The flag after one pair: it stays unless the pair's `G`-edge to `v` has no `H`-edge. -/
+theorem flag_spec (ok1 e h : Bool) :
+    (if e then (if (!h) then ok false else ok ok1) else ok ok1 : Result Bool)
+      ⦃ (r : Bool) => r = true ↔ ok1 = true ∧ (e = true → h = true) ⦄ := by
+  apply spec_ite
+  · intro he
+    apply spec_ite
+    · intro hh
+      rw [WP.spec_ok]
+      have hh' : h = false := by
+        cases h with
+        | true => exact absurd hh (by simp)
+        | false => rfl
+      exact ⟨fun h' => nomatch h', fun h' => absurd (h'.2 he) (by rw [hh']; simp)⟩
+    · intro hh
+      rw [WP.spec_ok]
+      have hh' : h = true := by
+        cases h with
+        | true => rfl
+        | false => exact absurd rfl (by simpa using hh)
+      exact ⟨fun h' => ⟨h', fun _ => hh'⟩, fun h' => h'.1⟩
+  · intro he
+    rw [WP.spec_ok]
+    exact ⟨fun h' => ⟨h', fun h'' => absurd h'' he⟩, fun h' => h'.1⟩
+
 theorem consistent_loop_spec (self : formalism.instances.hcol.HColoring) (f : Slice (U32 × U32))
     (v d : U32) (ok0 ok1 : Bool) (i : Usize) (hi : i.val ≤ f.val.length)
     (hinv : ok1 = true ↔ ok0 = true ∧ ∀ p ∈ f.val.take i.val,
@@ -724,8 +753,8 @@ theorem consistent_loop_spec (self : formalism.instances.hcol.HColoring) (f : Sl
         res.1 = self ∧ (res.2 = true ↔ ok0 = true ∧ ∀ p ∈ f.val,
           adjOf self.g p.1.val v.val = true → adjOf self.h p.2.val d.val = true) ⦄ := by
   unfold formalism.instances.hcol.HColoring.consistent_loop
-  apply loop.spec_decr_nat (measure := fun st => f.val.length - st.2.val)
-    (inv := fun st => st.2.val ≤ f.val.length ∧
+  apply loop.spec_decr_nat (measure := fun (st : Bool × Usize) => f.val.length - st.2.val)
+    (inv := fun (st : Bool × Usize) => st.2.val ≤ f.val.length ∧
       (st.1 = true ↔ ok0 = true ∧ ∀ p ∈ f.val.take st.2.val,
         adjOf self.g p.1.val v.val = true → adjOf self.h p.2.val d.val = true))
   · rintro ⟨ok2, i1⟩ ⟨hi1, hinv1⟩
@@ -741,7 +770,6 @@ theorem consistent_loop_spec (self : formalism.instances.hcol.HColoring) (f : Sl
       apply WP.spec_bind (Slice.index_usize_spec f i1 hlt')
       rintro ⟨u, c⟩ hp
       have hp' : (u, c) = f.val[i1.val] := hp
-      try dsimp only
       have hnext : ∀ (ok3 : Bool),
           (ok3 = true ↔ ok2 = true ∧
             (adjOf self.g u.val v.val = true → adjOf self.h c.val d.val = true)) →
@@ -779,32 +807,13 @@ theorem consistent_loop_spec (self : formalism.instances.hcol.HColoring) (f : Sl
           exact ⟨⟨h0, fun p hp => hall p (List.mem_append_left _ hp)⟩,
             hall (u, c) (List.mem_append_right _ (List.mem_singleton_self _))⟩
       apply WP.spec_bind (has_edge_spec self.g u v)
-      intro b hb
-      subst hb
-      split
-      · rename_i hg
-        apply WP.spec_bind (has_edge_spec self.h c d)
-        intro b1 hb1
-        subst hb1
-        split
-        · rename_i hh
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = ok2) _).mpr rfl)
-          intro ok3 hok3
-          subst hok3
-          apply hnext
-          exact ⟨fun h => ⟨h, fun _ => hh⟩, fun h => h.1⟩
-        · rename_i hh
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = false) _).mpr rfl)
-          intro ok3 hok3
-          subst hok3
-          apply hnext
-          exact ⟨fun h => nomatch h, fun h => absurd (h.2 hg) hh⟩
-      · rename_i hg
-        apply WP.spec_bind ((WP.spec_ok (p := fun r => r = ok2) _).mpr rfl)
-        intro ok3 hok3
-        subst hok3
-        apply hnext
-        exact ⟨fun h => ⟨h, fun h' => absurd h' hg⟩, fun h => h.1⟩
+      intro e he
+      apply WP.spec_bind (has_edge_spec self.h c d)
+      intro h hh
+      apply WP.spec_bind (flag_spec ok2 e h)
+      intro ok3 hok3
+      apply hnext ok3
+      rw [hok3, he, hh]
     · rename_i hge
       have hin : i1.val = f.val.length := by scalar_tac
       rw [WP.spec_ok]
@@ -828,7 +837,7 @@ theorem consistent_spec (self : formalism.instances.hcol.HColoring) (f : Slice (
   have hp' : self1 = self ∧ (ok1 = true ↔ true = true ∧ ∀ p ∈ f.val,
     adjOf self.g p.1.val v.val = true → adjOf self.h p.2.val d.val = true) := hp
   obtain ⟨rfl, hok1⟩ := hp'
-  try dsimp only
+  simp only [eq_self_iff_true, true_and] at hok1
   have hfinal : ∀ (b : Bool), (b = true ↔ (∀ p ∈ f.val,
         adjOf self1.g p.1.val v.val = true → adjOf self1.h p.2.val d.val = true) ∧
         (adjOf self1.g v.val v.val = true → adjOf self1.h d.val d.val = true)) →
@@ -848,30 +857,14 @@ theorem consistent_spec (self : formalism.instances.hcol.HColoring) (f : Slice (
       refine ⟨?_, h2⟩
       intro p hp
       exact h1 (p.1.val, p.2.val) (List.mem_map.mpr ⟨p, hp, rfl⟩)
-  rw [true_and] at hok1
   apply WP.spec_bind (has_edge_spec self1.g v v)
+  intro e he
+  apply WP.spec_bind (has_edge_spec self1.h d d)
+  intro h hh
+  apply WP.spec_mono (flag_spec ok1 e h)
   intro b hb
-  subst hb
-  split
-  · rename_i hg
-    apply WP.spec_bind (has_edge_spec self1.h d d)
-    intro b1 hb1
-    subst hb1
-    split
-    · rename_i hh
-      rw [WP.spec_ok]
-      apply hfinal
-      rw [hok1]
-      exact ⟨fun h => ⟨h, fun _ => hh⟩, fun h => h.1⟩
-    · rename_i hh
-      rw [WP.spec_ok]
-      apply hfinal
-      exact ⟨fun h => nomatch h, fun h => absurd (h.2 hg) hh⟩
-  · rename_i hg
-    rw [WP.spec_ok]
-    apply hfinal
-    rw [hok1]
-    exact ⟨fun h => ⟨h, fun h' => absurd h' hg⟩, fun h => h.1⟩
+  apply hfinal
+  rw [hb, hok1, he, hh]
 
 /-! ## `step` -/
 
@@ -886,6 +879,47 @@ def introOut (P : Graphs) (fL : TauL) (v : Var) (o : Bool) (d : Val) :
   if consistentL P fL v d = true then some (insertSorted fL v d, if o then [(v, d)] else [])
   else none
 
+theorem emit_spec (out : alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32)))
+    (f : Slice (U32 × U32)) (v d : U32) (owner : Bool) (hf : f.val.length < Usize.max)
+    (hout : out.val.length < Usize.max) :
+    formalism.instances.hcol.HColoring.emit out f v d owner
+      ⦃ (res : alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32))) =>
+        res.val.map outOf = out.val.map outOf ++
+          [(insertSorted (ofPairs f.val) v.val d.val, if owner then [(v.val, d.val)] else [])] ⦄ := by
+  unfold formalism.instances.hcol.HColoring.emit
+  have hleaves : ∀ (leaves : alloc.vec.Vec (U32 × U32)),
+      ofPairs leaves.val = (if owner then [(v.val, d.val)] else []) →
+      (do
+        let v1 ← formalism.instances.hcol.insert_sorted f v d
+        alloc.vec.Vec.push out (v1, leaves) :
+        Result (alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32))))
+      ⦃ (res : alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32))) =>
+        res.val.map outOf = out.val.map outOf ++
+          [(insertSorted (ofPairs f.val) v.val d.val, if owner then [(v.val, d.val)] else [])] ⦄ := by
+    intro leaves hl
+    apply WP.spec_bind (insert_sorted_spec f v d hf)
+    intro v1 hv1
+    replace hv1 : v1.val = insertSortedU f.val v d := hv1
+    apply WP.spec_mono (alloc.vec.Vec.push_spec out (v1, leaves) hout)
+    intro res hres
+    rw [hres, List.map_append, List.map_singleton]
+    show _ = _ ++ [(ofPairs v1.val, ofPairs leaves.val)]
+    rw [hv1, ofPairs_insertSortedU, hl]
+  apply spec_bind_ite
+  · intro ho
+    apply WP.spec_bind (alloc.vec.Vec.push_spec (alloc.vec.Vec.new _) (v, d) new_len)
+    intro leaves hl
+    replace hl : leaves.val = (alloc.vec.Vec.new (U32 × U32)).val ++ [(v, d)] := hl
+    rw [new_val, List.nil_append] at hl
+    apply hleaves leaves
+    rw [hl, if_pos ho]
+    rfl
+  · intro ho
+    apply spec_bind_ok
+    apply hleaves (alloc.vec.Vec.new _)
+    rw [new_val, if_neg ho]
+    rfl
+
 theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (owner : Bool)
     (f : alloc.vec.Vec (U32 × U32)) (hf : f.val.length < Usize.max)
     (out : alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32))) (d : U32)
@@ -898,8 +932,12 @@ theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (ow
         res.val.map outOf = (List.range (graphsOf self).nH).filterMap
           (introOut (graphsOf self) (ofPairs f.val) v.val owner) ⦄ := by
   unfold formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop
-  apply loop.spec_decr_nat (measure := fun st => (graphsOf self).nH - st.2.val)
-    (inv := fun st => st.2.val ≤ (graphsOf self).nH ∧ st.1.val.length ≤ st.2.val ∧
+  apply loop.spec_decr_nat
+    (measure := fun (st : alloc.vec.Vec (formalism.instances.hcol.Tau ×
+      alloc.vec.Vec (U32 × U32)) × U32) => (graphsOf self).nH - st.2.val)
+    (inv := fun (st : alloc.vec.Vec (formalism.instances.hcol.Tau ×
+      alloc.vec.Vec (U32 × U32)) × U32) => st.2.val ≤ (graphsOf self).nH ∧
+      st.1.val.length ≤ st.2.val ∧
       st.1.val.map outOf =
         (List.range st.2.val).filterMap (introOut (graphsOf self) (ofPairs f.val) v.val owner))
   · rintro ⟨out1, d1⟩ ⟨hd1, hlen1, hout1⟩
@@ -910,38 +948,29 @@ theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (ow
     show formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop.body self v
       owner f out1 d1 ⦃ _ ⦄
     unfold formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop.body
-    show (do
-      let i ← formalism.instances.hcol.Graph.n self.h
-      let i1 ← lift (UScalar.cast .U32 i)
-      if d1 < i1 then _ else ok (ControlFlow.done out1)) ⦃ _ ⦄
-    unfold formalism.instances.hcol.Graph.n
-    try dsimp only
-    apply WP.spec_bind ((WP.spec_ok (p := fun r => r = alloc.vec.Vec.len self.h.adj) _).mpr rfl)
-    intro i hi
-    subst hi
-    try unfold lift
-    apply WP.spec_bind ((WP.spec_ok (p := fun r => r = UScalar.cast .U32 (alloc.vec.Vec.len self.h.adj))
-      _).mpr rfl)
-    intro i1 hi1
-    subst hi1
+    apply spec_bind_ok
+    apply spec_bind_ok
     have hnH : (UScalar.cast .U32 (alloc.vec.Vec.len self.h.adj)).val = (graphsOf self).nH := by
-      rw [UScalar.cast_val_eq, Vec.len_val, UScalarTy.U32_numBits_eq]
+      rw [UScalar.cast_val_eq, alloc.vec.Vec.len_val, UScalarTy.U32_numBits_eq, graphsOf_nH]
       rfl
     try dsimp only
-    split
-    · rename_i hlt
+    apply spec_ite
+    · intro hlt
       have hlt' : d1.val < (graphsOf self).nH := by
         rw [UScalar.lt_equiv, hnH] at hlt
         exact hlt
       have hnHle : (graphsOf self).nH ≤ Usize.max := by
-        show self.h.adj.val.length % 2 ^ 32 ≤ Usize.max
+        rw [graphsOf_nH]
         exact (Nat.mod_le _ _).trans self.h.adj.property
-      try dsimp only
+      have hd1max : d1.val + 1 ≤ U32.max := by
+        have := UScalar.hBounds (UScalar.cast .U32 (alloc.vec.Vec.len self.h.adj))
+        rw [hnH, UScalarTy.U32_numBits_eq] at this
+        rw [U32.max_eq]
+        omega
       apply WP.spec_bind (consistent_spec self (alloc.vec.Vec.deref f) v d1)
-      intro b hb
-      rw [deref_val] at hb
-      subst hb
-      -- the tail: the counter
+      intro c hc
+      rw [deref_val] at hc
+      -- the counter, from any state the conditional emit can leave
       have htail : ∀ (out2 : alloc.vec.Vec (formalism.instances.hcol.Tau ×
             alloc.vec.Vec (U32 × U32))),
           out2.val.length ≤ d1.val + 1 →
@@ -964,10 +993,6 @@ theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (ow
             | .done res => res.val.map outOf = (List.range (graphsOf self).nH).filterMap
                 (introOut (graphsOf self) (ofPairs f.val) v.val owner) ⦄ := by
         intro out2 hlen2 hout2
-        have hd1max : d1.val + 1 ≤ U32.max := by
-          have := UScalar.hBounds (UScalar.cast .U32 (alloc.vec.Vec.len self.h.adj))
-          rw [hnH] at this
-          omega
         apply WP.spec_bind (U32.add_spec (x := d1) (y := 1#u32) (by scalar_tac))
         intro d2 hd2
         replace hd2 : d2.val = d1.val + (1#u32).val := hd2
@@ -977,70 +1002,30 @@ theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (ow
           (graphsOf self).nH - d2.val < (graphsOf self).nH - d1.val
         rw [hd2']
         exact ⟨⟨hlt', hlen2, hout2⟩, by omega⟩
-      have hrange : (List.range (d1.val + 1)).filterMap
-          (introOut (graphsOf self) (ofPairs f.val) v.val owner) =
-          (List.range d1.val).filterMap (introOut (graphsOf self) (ofPairs f.val) v.val owner) ++
-            (introOut (graphsOf self) (ofPairs f.val) v.val owner d1.val).toList := by
-        rw [List.range_succ, List.filterMap_append, List.filterMap_singleton]
-      split
-      · rename_i hc
-        have hleaves : ∀ (leaves : alloc.vec.Vec (U32 × U32)),
-            ofPairs leaves.val = (if owner then [(v.val, d1.val)] else []) →
-            (do
-              let s1 := alloc.vec.Vec.deref f
-              let v1 ← formalism.instances.hcol.insert_sorted s1 v d1
-              alloc.vec.Vec.push out1 (v1, leaves) :
-              Result (alloc.vec.Vec (formalism.instances.hcol.Tau × alloc.vec.Vec (U32 × U32))))
-            ⦃ (out2 : alloc.vec.Vec (formalism.instances.hcol.Tau ×
-                alloc.vec.Vec (U32 × U32))) =>
-              out2.val.length ≤ d1.val + 1 ∧
-              out2.val.map outOf = (List.range (d1.val + 1)).filterMap
-                (introOut (graphsOf self) (ofPairs f.val) v.val owner) ⦄ := by
-          intro leaves hleaves
-          try dsimp only
-          apply WP.spec_bind (insert_sorted_spec (alloc.vec.Vec.deref f) v d1
-            (by rw [deref_val]; exact hf))
-          intro v1 hv1
-          replace hv1 : v1.val = insertSortedU (alloc.vec.Vec.deref f).val v d1 := hv1
-          rw [deref_val] at hv1
-          have hout1len : out1.val.length < Usize.max := by omega
-          apply WP.spec_mono (alloc.vec.Vec.push_spec out1 (v1, leaves) hout1len)
-          intro out2 hout2
-          replace hout2 : out2.val = out1.val ++ [(v1, leaves)] := hout2
-          refine ⟨?_, ?_⟩
-          · rw [hout2, List.length_append, List.length_singleton]
-            omega
-          · rw [hout2, List.map_append, hout1, hrange, List.map_singleton]
-            congr 1
-            show [(ofPairs v1.val, ofPairs leaves.val)] = _
-            rw [hv1, ofPairs_insertSortedU, hleaves, introOut, if_pos hc]
-            rfl
-        cases owner with
-        | true =>
-          rw [ite_eq_left rfl]
-          apply WP.spec_bind (alloc.vec.Vec.push_spec (alloc.vec.Vec.new _) (v, d1) new_len)
-          intro leaves hl
-          replace hl : leaves.val = (alloc.vec.Vec.new (U32 × U32)).val ++ [(v, d1)] := hl
-          rw [new_val, List.nil_append] at hl
-          apply WP.spec_bind (hleaves leaves (by rw [hl, ite_eq_left rfl]; rfl))
-          intro out2 hout2
-          exact htail out2 hout2.1 hout2.2
-        | false =>
-          rw [ite_eq_right Bool.false_ne_true]
-          apply WP.spec_bind ((WP.spec_ok (p := fun r => r = alloc.vec.Vec.new (U32 × U32)) _).mpr rfl)
-          intro leaves hl
-          subst hl
-          apply WP.spec_bind (hleaves (alloc.vec.Vec.new _)
-            (by rw [new_val, ite_eq_right Bool.false_ne_true]; rfl))
-          intro out2 hout2
-          exact htail out2 hout2.1 hout2.2
-      · rename_i hc
-        apply WP.spec_bind ((WP.spec_ok (p := fun r => r = out1) _).mpr rfl)
+      apply spec_bind_ite
+      · intro hcons
+        have hcons' : consistentL (graphsOf self) (ofPairs f.val) v.val d1.val = true := by
+          rw [← hc]; exact hcons
+        apply WP.spec_bind (emit_spec out1 (alloc.vec.Vec.deref f) v d1 owner
+          (by rw [deref_val]; exact hf) (by omega))
         intro out2 hout2
-        subst hout2
-        apply htail out2 (by omega)
-        rw [hout1, hrange, introOut, if_neg hc, Option.toList_none, List.append_nil]
-    · rename_i hge
+        rw [deref_val] at hout2
+        apply htail out2
+        · have := congrArg List.length hout2
+          rw [List.length_map, List.length_append, List.length_map, List.length_singleton] at this
+          omega
+        · rw [hout2, hout1]
+          simp only [List.range_succ, List.filterMap_append, List.filterMap_cons, List.filterMap_nil,
+            introOut, hcons', if_true]
+      · intro hcons
+        have hcons' : consistentL (graphsOf self) (ofPairs f.val) v.val d1.val ≠ true := by
+          rw [← hc]; exact hcons
+        apply spec_bind_ok
+        apply htail out1 (by omega)
+        rw [hout1]
+        simp only [List.range_succ, List.filterMap_append, List.filterMap_cons, List.filterMap_nil,
+          introOut, if_neg hcons', List.append_nil]
+    · intro hge
       have hge' : (graphsOf self).nH ≤ d1.val := by
         rw [UScalar.lt_equiv, hnH] at hge
         omega
@@ -1083,7 +1068,7 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
       rw [ofPairs_length] at this
       exact this
     apply WP.spec_mono (step_loop_spec p v owner t' hflen (alloc.vec.Vec.new _) 0#u32 (by simp)
-      (by simp [new_val]) (by rw [new_val]; rfl))
+      (by rw [new_val]; simp) (by rw [new_val]; rfl))
     intro res hres
     rw [hs, List.map_cons]
     show res.val.map outOf = stepL (graphsOf p) (.intro v.val owner) (tauOf t' :: rest.map R.tauOf)
@@ -1145,14 +1130,12 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
     apply WP.spec_bind (same_spec (alloc.vec.Vec.deref ta) (alloc.vec.Vec.deref tb))
     intro b hb
     rw [deref_val, deref_val] at hb
-    subst hb
     rw [hs, List.map_cons, List.map_cons]
-    show _ ⦃ fun outs => outs.val.map outOf =
-      stepL (graphsOf p) .join (tauOf ta :: tauOf tb :: rest'.map R.tauOf) ⦄
-    split
-    · rename_i heq
+    subst hb
+    apply spec_ite
+    · intro heq
       have heq' : ta.val = tb.val := decide_eq_true_iff.mp heq
-      have heq'' : ta = tb := Vec.ext _ _ heq'
+      have heq'' : ta = tb := alloc.vec.Vec.ext _ _ heq'
       apply WP.spec_bind (clone_spec ta)
       intro t2 ht2
       replace ht2 : t2 = ta := ht2
@@ -1164,7 +1147,7 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
         (if tauOf t2 = tauOf tb then [(tauOf t2, [])] else [])
       rw [new_val, if_pos (by rw [heq''])]
       rfl
-    · rename_i hne
+    · intro hne
       have hne' : ta ≠ tb := fun h => hne (decide_eq_true (by rw [h]))
       rw [WP.spec_ok, new_val, List.map_nil]
       show [] = (if tauOf ta = tauOf tb then [(tauOf ta, [])] else [])
