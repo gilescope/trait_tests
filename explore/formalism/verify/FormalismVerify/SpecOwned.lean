@@ -1047,4 +1047,105 @@ theorem OwnedInstance.solve_sound {Op Tau : Type*} [DecidableEq Tau] (I : OwnedI
   rw [hset] at h
   exact h
 
+/-! ## Reading the traces through an injection -/
+
+theorem zipWith_map_eq {α β γ δ : Type*} (f : γ → δ) (g : α → β → γ) :
+    ∀ (l : List α) (l' : List β),
+      List.zipWith (fun a b => f (g a b)) l l' = (List.zipWith g l l').map f
+  | [], _ => by simp
+  | _ :: _, [] => by simp
+  | a :: l, b :: l' => by
+    rw [List.zipWith_cons_cons, List.zipWith_cons_cons, List.map_cons, zipWith_map_eq f g l l']
+
+namespace OwnedInstance
+variable {Op Tau Tau' : Type*} [DecidableEq Tau] (I : OwnedInstance Op Tau)
+
+/-- The part of a candidate a transported trace carries: that of the trace it reads. -/
+noncomputable def tauAssignOf (φ : Tau → Tau') (τ' : Tau') : Assign :=
+  open Classical in if h : ∃ τ, φ τ = τ' then I.tauAssign h.choose else Assign.empty
+
+theorem tauAssignOf_apply {φ : Tau → Tau'} (hφ : Function.Injective φ) (τ : Tau) :
+    I.tauAssignOf φ (φ τ) = I.tauAssign τ := by
+  unfold tauAssignOf
+  rw [dif_pos ⟨τ, rfl⟩]
+  congr 1
+  exact hφ (Classical.choose_spec (⟨τ, rfl⟩ : ∃ τ', φ τ' = φ τ))
+
+/-- The same instance with its traces read through an injection `φ`, and an executable `step'`
+    on the new traces that agrees with `step` on the traces that arise (the children's traces of
+    one candidate each, at a well-formed node). This is how a model whose traces are
+    mathematical objects becomes one whose traces are the data structure the code uses. -/
+noncomputable def transport (φ : Tau → Tau') (hφ : Function.Injective φ)
+    (step' : Op → List Tau' → List (Tau' × List (Var × Val))) (accept' : Tau' → Bool)
+    (hstep : ∀ (op : Op) (cs : List (Node Op)) (gs : List Assign), I.WF (.mk op cs) →
+      List.Forall₂ (fun g c => g ∈ I.cands c) gs cs →
+      step' op ((List.zipWith I.trace cs gs).map φ) =
+        (I.step op (List.zipWith I.trace cs gs)).map fun o => (φ o.1, o.2))
+    (haccept : ∀ τ, accept' (φ τ) = I.accept τ)
+    (hleaves : ∀ (op : Op) (taus : List Tau'), ∀ out ∈ step' op taus,
+      (out.2.map Prod.fst).Nodup ∧ (out.2.map Prod.fst).toFinset = I.opOwned op)
+    (hnodup : ∀ (op : Op) (taus : List Tau'), (step' op taus).Pairwise fun out out' =>
+      out.1 = out'.1 → Assign.ofList out.2 ≠ Assign.ofList out'.2) :
+    OwnedInstance Op Tau' where
+  step := step'
+  accept := accept'
+  cands := I.cands
+  trace := fun n g => φ (I.trace n g)
+  WF := I.WF
+  wf_children := I.wf_children
+  dom := I.dom
+  dom_eq := I.dom_eq
+  owned := I.owned
+  opOwned := I.opOwned
+  owned_mk := I.owned_mk
+  owned_sub := I.owned_sub
+  opOwned_disjoint := I.opOwned_disjoint
+  children_owned_disjoint := I.children_owned_disjoint
+  step_leaves := hleaves
+  step_nodup := hnodup
+  tauAssign := I.tauAssignOf φ
+  cand_iff := by
+    intro op cs hwf g
+    rw [I.cand_iff op cs hwf g]
+    constructor
+    · rintro ⟨gs, hgs, hcompat, out, hout, rfl⟩
+      refine ⟨gs, hgs, hcompat, (φ out.1, out.2), ?_, ?_⟩
+      · rw [zipWith_map_eq, hstep op cs gs hwf hgs, List.mem_map]
+        exact ⟨out, hout, rfl⟩
+      · show _ = ((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssignOf φ (φ out.1))
+        rw [I.tauAssignOf_apply hφ]
+    · rintro ⟨gs, hgs, hcompat, out', hout', rfl⟩
+      rw [zipWith_map_eq, hstep op cs gs hwf hgs, List.mem_map] at hout'
+      obtain ⟨out, hout, rfl⟩ := hout'
+      refine ⟨gs, hgs, hcompat, out, hout, ?_⟩
+      show ((Assign.joinAll gs).join (Assign.ofList out.2)).join (I.tauAssignOf φ (φ out.1)) = _
+      rw [I.tauAssignOf_apply hφ]
+  step_compat := by
+    intro op cs gs hwf hgs out' hout'
+    rw [zipWith_map_eq, hstep op cs gs hwf hgs, List.mem_map] at hout'
+    obtain ⟨out, hout, rfl⟩ := hout'
+    exact I.step_compat op cs gs hwf hgs out hout
+  trace_mk := by
+    intro op cs gs out' hwf hgs hout'
+    rw [zipWith_map_eq, hstep op cs gs hwf hgs, List.mem_map] at hout'
+    obtain ⟨out, hout, rfl⟩ := hout'
+    show φ (I.trace (.mk op cs) (((Assign.joinAll gs).join (Assign.ofList out.2)).join
+      (I.tauAssignOf φ (φ out.1)))) = φ out.1
+    rw [I.tauAssignOf_apply hφ, I.trace_mk op cs gs out hwf hgs hout]
+  determined := by
+    intro n hwf g hg g' hg' hown htr
+    exact I.determined n hwf g hg g' hg' hown (hφ htr)
+  accept_determined := by
+    intro n hwf g hg g' hg' h1 h2 hown
+    rw [haccept] at h1 h2
+    exact congrArg φ (I.accept_determined n hwf g hg g' hg' h1 h2 hown)
+  solution := I.solution
+  accept_iff := by
+    intro n g hg
+    show I.solution n g ↔ accept' (φ (I.trace n g)) = true
+    rw [haccept]
+    exact I.accept_iff n g hg
+
+end OwnedInstance
+
 end Formalism
