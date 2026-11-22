@@ -142,6 +142,28 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    lemma per extracted function (`unfold_loop_spec`, `unfold_spec_cons`, `fold_loop_spec`,
    `fold_spec_some`) and an induction on a bound on the vector's length for `hylo_node_tree`,
    which Aeneas emits as a `partial_fixpoint`.
+9. `OwnedInstance.solve_sound` (`SpecOwned.lean`) and `HCol.hcol_sound` (`HCol.lean`): Claim 1
+   when siblings share variables, and the H-colouring instance. `Instance` has every candidate
+   assign exactly the variables its subtree owns, which a tree decomposition does not: a vertex
+   in both bags of a `Join` is a candidate variable of both sides but owned by one, and a
+   non-owner `Introduce` records the colour in the trace while the leaves do not mention it.
+   `OwnedInstance` lets a candidate be a full partial solution on the subtree's variables
+   (`dom`), of which it owns `owned`; a row denotes the owned parts of the candidates with its
+   trace; children combine by compatible union; and two obligations replace "the trace is a
+   function of the owned part": a candidate is determined by its owned part and its trace, and
+   among accepted traces the owned part determines the trace. `HCol.lean` is the model of
+   `instances/hcol.rs` as such an instance: `bag`, `desc`, `owned` and the checked edges
+   `covered` of a construction; `WF`, the shape of a nice tree decomposition (a vertex introduced
+   once per branch, forgotten only from the bag and only by the branch owning it, the two sides
+   of a `Join` with equal bags meeting only in them, owners disjoint); `step` constructor for
+   constructor after the Rust; candidates = colourings of `desc` respecting `covered`. Every
+   obligation is proved, so at a root with an empty bag the DP's expression denotes exactly the
+   candidates (`HCol.solve_sound`), and when the checked edges are all of `G`'s edges among the
+   vertices (Lemma 2; the Rust's `NiceTd::new` validates exactly this) they are the
+   `H`-colourings of `G` (`hcol_sound`). Not done: the refinement of the Rust `hcol.rs` to this
+   model (its `TracedSpec`, with the sorted-list trace read as an assignment), and the proof
+   that a decomposition passing `NiceTd::new` is `WF` with every edge covered; both are
+   hypotheses today.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -199,7 +221,9 @@ wrapping count read as the model's modular counter. `RefineHylo.lean` does the s
 hylomorphism form, `hylo::dp::trace_dp` (`trace_dp_sound_extracted`), and `RefineSemiring.lean`
 relates the extracted `Nat`, `Delta` and `eval` to the model, Lemma 1 included. `Quicksort.lean`
 and `RefineSort.lean` prove the extracted `hylo::sort::quicksort` sorts (`quicksort_sound`,
-`quicksort_u64_sound`), the first algorithm outside the DP taken end to end.
+`quicksort_u64_sound`), the first algorithm outside the DP taken end to end. `SpecOwned.lean`
+generalises Claim 1 to instances whose siblings share variables (`OwnedInstance.solve_sound`) and
+`HCol.lean` proves the H-colouring instance meets it (`hcol_sound`); its Rust is not refined yet.
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,
