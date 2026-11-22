@@ -130,6 +130,18 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    the `Ones` measure that is the number of solutions modulo `2^64` (`eval_ones_card`). Not
    done: a model dioid for `Tropical`/`MaxPlus`/`Boolean` (Theorem 4, `Dioid (Delta D1 D2)`, is
    not formalised either), so those are related to no model yet.
+8. `RefineSort.quicksort_sound` (`RefineSort.lean`, model in `Quicksort.lean`): the extracted
+   `hylo::sort::quicksort`, which is `hylo_node_tree(Pivot, Concat)`, returns a permutation of
+   its input whose readings are sorted, for any element type whose extracted `Ord::lt` decides
+   the order of a reading into a linear order (`OrdSpec`); `quicksort_u64_sound` is the `u64`
+   case, with no side condition at all (every partition is shorter than the input, so no `push`
+   can overflow). The model `quicksort` recurses the way the Rust reads a vector: the pivot is
+   the last element, the partitions are filters of the reverse of the rest, each sorted as a
+   vector again; it is written with a fuel bounding the length, since Lean's well-founded
+   recursion through `filter` rewrites the calls onto attached lists. The refinement is one
+   lemma per extracted function (`unfold_loop_spec`, `unfold_spec_cons`, `fold_loop_spec`,
+   `fold_spec_some`) and an induction on a bound on the vector's length for `hylo_node_tree`,
+   which Aeneas emits as a `partial_fixpoint`.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -160,11 +172,11 @@ dependency is dropped). The core modules are written in Aeneas's subset: `no_std
 generics. `semantics` (the set-theoretic oracle) and `laws` are outside that subset and
 are feature-gated out of extraction.
 
-Status (17 November 2026): green end to end on the gilescope/aeneas release tarball
+Status (22 November 2026): green end to end on the gilescope/aeneas release tarball
 `build-4797bb9` (GAT-lite plus the `Vec::pop` model, Lean 4.34.0). `earth +verify` extracts
-`explore/hylo` from the sixteen named algorithms and the `hylo::dp` roots (4391 lines of Lean,
-snapshot in `hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the extracted
-module and the refinement.
+`explore/hylo` from the sixteen named algorithms and the `hylo::dp` roots (snapshot in
+`hylo/extracted/`), then `lake build` checks `Spec.lean`, `Hylo.lean`, the extracted module and
+the refinement.
 Every theorem is proved, no `sorry` remains: `fusion`, `reduce_eq_prod`, `scan_eq_prefixes` (the
 homomorphism theorem for both sequence shapes), `eval_eq_measure` (Lemma 1), the Δ-product
 semiring instance (Theorem 3, with `regular` = cancellative) and `solve_sound` (Claim 1: the
@@ -185,7 +197,9 @@ so that the refinement is syntactic. `BitsRust.lean` closes the loop for one Rus
 `solve_bits_sound` is Claim 1 about the extracted `hylo::dp::solve_bits`, with the `u64`
 wrapping count read as the model's modular counter. `RefineHylo.lean` does the same for the
 hylomorphism form, `hylo::dp::trace_dp` (`trace_dp_sound_extracted`), and `RefineSemiring.lean`
-relates the extracted `Nat`, `Delta` and `eval` to the model, Lemma 1 included.
+relates the extracted `Nat`, `Delta` and `eval` to the model, Lemma 1 included. `Quicksort.lean`
+and `RefineSort.lean` prove the extracted `hylo::sort::quicksort` sorts (`quicksort_sound`,
+`quicksort_u64_sound`), the first algorithm outside the DP taken end to end.
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,
