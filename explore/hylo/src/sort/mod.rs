@@ -52,8 +52,9 @@ impl<T> ListAlgebra<T> for Cons {
 pub struct Pivot;
 impl<T: Ord> NodeTreePlan<T> for Pivot {
     type Seed = Vec<T>;
+    // `v.pop()?` spelled out: Aeneas has no model of `Option`'s `?` (the `Try` trait).
+    #[allow(clippy::question_mark)]
     fn unfold(&mut self, mut v: Vec<T>) -> Option<(T, Vec<T>, Vec<T>)> {
-        // `v.pop()?` spelled out: Aeneas has no model of `Option`'s `?` (the `Try` trait).
         let p = match v.pop() { None => return None, Some(p) => p };
         let (mut l, mut r) = (Vec::new(), Vec::new());
         while let Some(x) = v.pop() { if x < p { l.push(x) } else { r.push(x) } }
