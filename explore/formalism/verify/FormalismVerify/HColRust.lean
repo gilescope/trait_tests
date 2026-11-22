@@ -794,7 +794,7 @@ theorem consistent_loop_spec (self : formalism.instances.hcol.HColoring) (f : Sl
     · rename_i hge
       have hin : i1.val = f.val.length := by scalar_tac
       simp only [WP.spec_ok]
-      refine ⟨rfl, ?_⟩
+      refine ⟨by trivial, ?_⟩
       rw [hinv1, hin, List.take_length]
   · exact ⟨hi, hinv⟩
 
@@ -931,7 +931,6 @@ theorem step_loop_spec (self : formalism.instances.hcol.HColoring) (v : U32) (ow
     apply spec_bind_ok
     have hnH : (UScalar.cast .U32 (alloc.vec.Vec.len self.h.adj)).val = (graphsOf self).nH := by
       rw [UScalar.cast_val_eq, alloc.vec.Vec.len_val, UScalarTy.U32_numBits_eq, graphsOf_nH]
-      rfl
     apply spec_ite
     · intro hlt
       have hlt' : d1.val < (graphsOf self).nH := by
@@ -1019,7 +1018,7 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
     replace ht' : t' = s.val[(0#usize).val] := ht'
     have ht : t' = t := by
       rw [ht', List.getElem_of_eq hs h0]
-      simp [usize_zero]
+      simp only [usize_zero, List.getElem_cons_zero]
     subst ht
     have hflen : t'.val.length < Usize.max := by
       have h : (ofPairs t'.val).length < Usize.max :=
@@ -1046,7 +1045,7 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
     replace ht' : t' = s.val[(0#usize).val] := ht'
     have ht : t' = t := by
       rw [ht', List.getElem_of_eq hs h0]
-      simp [usize_zero]
+      simp only [usize_zero, List.getElem_cons_zero]
     subst ht
     apply WP.spec_bind (remove_spec (alloc.vec.Vec.deref t') v)
     intro v1 hv1
@@ -1065,7 +1064,8 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
       have h : 2 ≤ (s.val.map R.tauOf).length := harity
       rw [List.length_map] at h
       exact h
-    obtain ⟨t, rest, hs⟩ := List.exists_cons_of_ne_nil (List.ne_nil_of_length_pos (by omega))
+    have hne : s.val ≠ [] := List.ne_nil_of_length_pos (by omega)
+    obtain ⟨t, rest, hs⟩ := List.exists_cons_of_ne_nil hne
     have hrest : rest ≠ [] := by
       intro h
       rw [hs, h] at h2
@@ -1079,14 +1079,14 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
     replace hta : ta = s.val[(0#usize).val] := hta
     have hta' : ta = t := by
       rw [hta, List.getElem_of_eq hs h0]
-      simp [usize_zero]
+      simp only [usize_zero, List.getElem_cons_zero]
     subst hta'
     apply WP.spec_bind (Slice.index_usize_spec s 1#usize h1)
     intro tb htb
     replace htb : tb = s.val[(1#usize).val] := htb
     have htb' : tb = t1 := by
       rw [htb, List.getElem_of_eq hs h1]
-      simp [show (1#usize).val = 1 by scalar_tac]
+      simp only [show (1#usize).val = 1 by scalar_tac, List.getElem_cons_succ, List.getElem_cons_zero]
     subst htb'
     apply WP.spec_bind (same_spec (alloc.vec.Vec.deref ta) (alloc.vec.Vec.deref tb))
     intro b hb
