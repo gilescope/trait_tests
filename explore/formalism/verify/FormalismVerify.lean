@@ -1,4 +1,5 @@
 import FormalismVerify.Spec
+import FormalismVerify.SpecOwned
 import FormalismVerify.Hylo
 import FormalismVerify.Bits
 import FormalismVerify.Odometer
