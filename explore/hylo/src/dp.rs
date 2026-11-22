@@ -41,6 +41,10 @@ pub fn solve_bits(p: &formalism::instances::bits::Bits, root: &Node<formalism::i
 
 /// Roots for the semiring refinement, so that the extraction carries `expr::eval` and the
 /// whole of `Delta`'s `Semiring` and `Dioid` (the search algorithms only reach `zero`/`add`).
+/// Extraction root for the H-colouring instance (`instances/hcol.rs`).
+pub fn solve_hcol(p: &formalism::instances::hcol::HColoring, root: &Node<formalism::instances::hcol::Op>) -> Expr {
+    formalism::scheme::solve(p, root)
+}
 pub fn eval_ones<A: Semiring>(e: &Expr) -> A { formalism::expr::eval(e, &formalism::expr::Ones) }
 pub fn delta_one() -> Delta<MaxPlus, Nat> { Delta::one() }
 pub fn delta_mul(x: Delta<MaxPlus, Nat>, y: Delta<MaxPlus, Nat>) -> Delta<MaxPlus, Nat> { x.mul(y) }

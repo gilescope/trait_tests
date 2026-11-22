@@ -4,9 +4,14 @@
 //! k-Coloring (`H = K_k`), Independent Set (`H`: loop at 0, edge 0–1),
 //! Vertex Cover (`H`: loop at 1, edge 0–1), and every binary CSP with one relation.
 //! The semiring picks the question; `Table` weights pick the costs.
+//!
+//! This module is the extractable core (Aeneas's subset: index loops, no early `return` in a
+//! loop, no iterator adaptors). Validating a decomposition is in `hcol_td`.
 use crate::expr::{Val, Var};
-use crate::scheme::{Node, Step, Traced};
+use crate::scheme::{Step, Traced};
 use alloc::vec::Vec;
+
+pub use super::hcol_td::{solve, Invalid, NiceTd};
 
 /// Nodes of a nice tree decomposition, read as a construction of `G` (Section 6.1).
 /// `owner` marks the one Introduce node λ(v) that owns `v`'s leaf in the expression.
@@ -37,14 +42,16 @@ impl Graph {
             if u != v { self.adj[v as usize].push(u); }
         }
     }
+    // No early `return` inside a loop: Aeneas does not translate those.
     pub fn has_edge(&self, u: u32, v: u32) -> bool {
         let row = &self.adj[u as usize];
+        let mut found = false;
         let mut i = 0;
         while i < row.len() {
-            if row[i] == v { return true; }
+            if row[i] == v { found = true; }
             i += 1;
         }
-        false
+        found
     }
     pub fn n(&self) -> usize { self.adj.len() }
 }
@@ -54,10 +61,40 @@ pub struct HColoring {
     pub h: Graph,
 }
 
-/// Trace: the assignment restricted to the current bag, kept sorted by variable.
-pub type Tau = Vec<(Var, Val)>;
+/// Trace: the assignment restricted to the current bag, kept sorted by variable. A struct with
+/// its own `Clone` and `PartialEq` (element loops), so that the extraction needs no library
+/// model of `Vec`'s.
+pub struct Tau(pub Vec<(Var, Val)>);
 
-fn insert_sorted(f: &Tau, v: Var, d: Val) -> Tau {
+impl Clone for Tau {
+    fn clone(&self) -> Tau {
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < self.0.len() { out.push(self.0[i]); i += 1; }
+        Tau(out)
+    }
+}
+
+fn same(a: &[(Var, Val)], b: &[(Var, Val)]) -> bool {
+    let mut eq = a.len() == b.len();
+    let mut i = 0;
+    while i < a.len() && i < b.len() {
+        if a[i].0 != b[i].0 || a[i].1 != b[i].1 { eq = false; }
+        i += 1;
+    }
+    eq
+}
+
+impl PartialEq for Tau {
+    fn eq(&self, other: &Tau) -> bool { same(&self.0, &other.0) }
+}
+impl Eq for Tau {}
+
+impl core::fmt::Debug for Tau {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.0.fmt(f) }
+}
+
+fn insert_sorted(f: &[(Var, Val)], v: Var, d: Val) -> Vec<(Var, Val)> {
     let mut out = Vec::new();
     let mut placed = false;
     let mut i = 0;
@@ -73,7 +110,7 @@ fn insert_sorted(f: &Tau, v: Var, d: Val) -> Tau {
     out
 }
 
-fn remove(f: &Tau, v: Var) -> Tau {
+fn remove(f: &[(Var, Val)], v: Var) -> Vec<(Var, Val)> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < f.len() {
@@ -86,15 +123,16 @@ fn remove(f: &Tau, v: Var) -> Tau {
 impl HColoring {
     /// `f ∪ {v ↦ d}` respects every `G`-edge between `v` and the bag (Lemma 2 says
     /// those are the only edges at `v` inside `descbag`).
-    fn consistent(&self, f: &Tau, v: Var, d: Val) -> bool {
+    fn consistent(&self, f: &[(Var, Val)], v: Var, d: Val) -> bool {
+        let mut ok = true;
         let mut i = 0;
         while i < f.len() {
             let (u, c) = f[i];
-            if self.g.has_edge(u, v) && !self.h.has_edge(c, d) { return false; }
+            if self.g.has_edge(u, v) && !self.h.has_edge(c, d) { ok = false; }
             i += 1;
         }
-        if self.g.has_edge(v, v) && !self.h.has_edge(d, d) { return false; }
-        true
+        if self.g.has_edge(v, v) && !self.h.has_edge(d, d) { ok = false; }
+        ok
     }
 }
 
@@ -105,22 +143,22 @@ impl Traced for HColoring {
     fn step(&self, op: &Op, child: &[Tau]) -> Step<Tau> {
         let mut out = Vec::new();
         match op {
-            Op::Leaf => out.push((Vec::new(), Vec::new())),
+            Op::Leaf => out.push((Tau(Vec::new()), Vec::new())),
             Op::Introduce { v, owner } => {
-                let f = &child[0];
+                let f = &child[0].0;
                 let mut d = 0;
                 while d < self.h.n() as Val {
                     if self.consistent(f, *v, d) {
                         let mut leaves = Vec::new();
                         if *owner { leaves.push((*v, d)); }
-                        out.push((insert_sorted(f, *v, d), leaves));
+                        out.push((Tau(insert_sorted(f, *v, d)), leaves));
                     }
                     d += 1;
                 }
             }
-            Op::Forget { v } => out.push((remove(&child[0], *v), Vec::new())),
+            Op::Forget { v } => out.push((Tau(remove(&child[0].0, *v)), Vec::new())),
             Op::Join => {
-                if child[0] == child[1] {
+                if same(&child[0].0, &child[1].0) {
                     out.push((child[0].clone(), Vec::new()));
                 }
             }
@@ -128,130 +166,7 @@ impl Traced for HColoring {
         out
     }
 
-    fn accept(&self, tau: &Tau) -> bool { tau.is_empty() }
-}
-
-/// Validation of a nice tree decomposition of `g`, i.e. Lemma 2 plus unique ownership.
-/// A `Node<Op>` that passes is a construction of `g`; the DP is only run on those.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Invalid {
-    IntroduceAlreadyPresent(Var),
-    ForgetNotInBag(Var),
-    JoinBagsDiffer,
-    Arity,
-    RootBagNotEmpty,
-    EdgeNotCovered(Var, Var),
-    Owners(Var, usize),
-}
-
-struct Seen { bag: Vec<Var>, desc: Vec<Var> }
-
-fn contains(xs: &[Var], v: Var) -> bool {
-    let mut i = 0;
-    while i < xs.len() { if xs[i] == v { return true; } i += 1; }
-    false
-}
-
-fn check(g: &Graph, node: &Node<Op>, owners: &mut Vec<usize>, covered: &mut Vec<(Var, Var)>) -> Result<Seen, Invalid> {
-    // No early returns inside loops (Aeneas limitation): loops record a failure, the function
-    // returns after them.
-    match &node.op {
-        Op::Leaf => {
-            if !node.children.is_empty() { return Err(Invalid::Arity); }
-            Ok(Seen { bag: Vec::new(), desc: Vec::new() })
-        }
-        Op::Introduce { v, owner } => {
-            if node.children.len() != 1 { return Err(Invalid::Arity); }
-            let c = check(g, &node.children[0], owners, covered)?;
-            if contains(&c.desc, *v) { return Err(Invalid::IntroduceAlreadyPresent(*v)); }
-            if *owner { owners[*v as usize] += 1; }
-            let mut bag = c.bag.clone();
-            let mut i = 0;
-            while i < bag.len() {
-                if g.has_edge(bag[i], *v) { covered.push((bag[i], *v)); covered.push((*v, bag[i])); }
-                i += 1;
-            }
-            bag.push(*v);
-            let mut desc = c.desc;
-            desc.push(*v);
-            Ok(Seen { bag, desc })
-        }
-        Op::Forget { v } => {
-            if node.children.len() != 1 { return Err(Invalid::Arity); }
-            let c = check(g, &node.children[0], owners, covered)?;
-            if !contains(&c.bag, *v) { return Err(Invalid::ForgetNotInBag(*v)); }
-            let mut bag = Vec::new();
-            let mut i = 0;
-            while i < c.bag.len() { if c.bag[i] != *v { bag.push(c.bag[i]); } i += 1; }
-            Ok(Seen { bag, desc: c.desc })
-        }
-        Op::Join => {
-            if node.children.len() != 2 { return Err(Invalid::Arity); }
-            let a = check(g, &node.children[0], owners, covered)?;
-            let b = check(g, &node.children[1], owners, covered)?;
-            let mut bags_differ = a.bag.len() != b.bag.len();
-            let mut i = 0;
-            while i < a.bag.len() { if !contains(&b.bag, a.bag[i]) { bags_differ = true; } i += 1; }
-            if bags_differ { return Err(Invalid::JoinBagsDiffer); }
-            // descbag(N1) ∩ descbag(N2) ⊆ bag(N)
-            let mut leaked: Option<Var> = None;
-            let mut i = 0;
-            while i < a.desc.len() {
-                if contains(&b.desc, a.desc[i]) && !contains(&a.bag, a.desc[i]) && leaked.is_none() {
-                    leaked = Some(a.desc[i]);
-                }
-                i += 1;
-            }
-            if let Some(v) = leaked { return Err(Invalid::IntroduceAlreadyPresent(v)); }
-            let mut desc = a.desc;
-            let mut i = 0;
-            while i < b.desc.len() { if !contains(&desc, b.desc[i]) { desc.push(b.desc[i]); } i += 1; }
-            Ok(Seen { bag: a.bag, desc })
-        }
-    }
-}
-
-/// A validated construction of `g`. Only this can be solved.
-pub struct NiceTd<'a> {
-    pub root: &'a Node<Op>,
-}
-
-impl<'a> NiceTd<'a> {
-    pub fn new(g: &Graph, root: &'a Node<Op>) -> Result<Self, Invalid> {
-        let mut owners = Vec::new();
-        let mut i = 0;
-        while i < g.n() { owners.push(0usize); i += 1; }
-        let mut covered = Vec::new();
-        let seen = check(g, root, &mut owners, &mut covered)?;
-        if !seen.bag.is_empty() { return Err(Invalid::RootBagNotEmpty); }
-        // scan for the first violation; return after the loops
-        let mut problem: Option<Invalid> = None;
-        let mut v = 0;
-        while v < g.n() {
-            if contains(&seen.desc, v as Var) && owners[v] != 1 && problem.is_none() {
-                problem = Some(Invalid::Owners(v as Var, owners[v]));
-            }
-            let row = &g.adj[v];
-            let mut j = 0;
-            while j < row.len() {
-                let u = row[j];
-                if u != v as Var {
-                    let mut found = false;
-                    let mut k = 0;
-                    while k < covered.len() { if covered[k] == (v as Var, u) { found = true; } k += 1; }
-                    if !found && problem.is_none() { problem = Some(Invalid::EdgeNotCovered(v as Var, u)); }
-                }
-                j += 1;
-            }
-            v += 1;
-        }
-        match problem { Some(e) => Err(e), None => Ok(NiceTd { root }) }
-    }
-}
-
-/// Solve on a validated decomposition: the expression of all H-colourings of `g`.
-pub fn solve(p: &HColoring, td: &NiceTd<'_>) -> crate::expr::Expr {
-    crate::scheme::solve(p, td.root)
+    fn accept(&self, tau: &Tau) -> bool { tau.0.is_empty() }
 }
 
 /// Well-known `H` graphs.

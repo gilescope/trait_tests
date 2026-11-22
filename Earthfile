@@ -120,8 +120,8 @@ extract:
     # (formalism::scheme::step_node, formalism::expr::union) as axioms in the Lean: the
     # `--include` patterns translate those bodies too, so the refinement theorems have something
     # to refine.
-    ARG INCLUDE="--include=formalism::expr::_ --include=formalism::scheme::_ --include=formalism::instances::bits::_ --include=formalism::semiring::_"
-    ARG START_FROM=hylo::sort::insertion_sort,hylo::sort::selection_sort,hylo::sort::quicksort,hylo::sort::mergesort,hylo::seq::reduce_seq,hylo::seq::reduce_par,hylo::seq::scan,hylo::num::gcd,hylo::num::power,hylo::path::relax,hylo::path::relax_acyclic,hylo::path::closure,hylo::search::search,hylo::search::maximise,hylo::search::maximise_count,hylo::dp::trace_dp,hylo::dp::solve_scheme,hylo::dp::solve_bits,hylo::dp::eval_ones,hylo::dp::delta_one,hylo::dp::delta_mul,hylo::dp::delta_le,hylo::dp::delta_regular
+    ARG INCLUDE="--include=formalism::expr::_ --include=formalism::scheme::_ --include=formalism::instances::bits::_ --include=formalism::instances::hcol::_ --include=formalism::semiring::_"
+    ARG START_FROM=hylo::sort::insertion_sort,hylo::sort::selection_sort,hylo::sort::quicksort,hylo::sort::mergesort,hylo::seq::reduce_seq,hylo::seq::reduce_par,hylo::seq::scan,hylo::num::gcd,hylo::num::power,hylo::path::relax,hylo::path::relax_acyclic,hylo::path::closure,hylo::search::search,hylo::search::maximise,hylo::search::maximise_count,hylo::dp::trace_dp,hylo::dp::solve_scheme,hylo::dp::solve_bits,hylo::dp::solve_hcol,hylo::dp::eval_ones,hylo::dp::delta_one,hylo::dp::delta_mul,hylo::dp::delta_le,hylo::dp::delta_regular
     RUN cd explore/hylo && charon cargo --preset=aeneas $INCLUDE --start-from="$START_FROM" --dest-file=/src/hylo.llbc || true; \
         [ -f /src/hylo.llbc ] || cp "$(find / -name 'hylo.llbc' -not -path '*/proc/*' 2>/dev/null | head -1)" /src/hylo.llbc; \
         ls -la /src/hylo.llbc
