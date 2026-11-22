@@ -160,10 +160,20 @@ In `formalism/verify/FormalismVerify/Spec.lean` (all proved, checked in CI):
    obligation is proved, so at a root with an empty bag the DP's expression denotes exactly the
    candidates (`HCol.solve_sound`), and when the checked edges are all of `G`'s edges among the
    vertices (Lemma 2; the Rust's `NiceTd::new` validates exactly this) they are the
-   `H`-colourings of `G` (`hcol_sound`). Not done: the refinement of the Rust `hcol.rs` to this
-   model (its `TracedSpec`, with the sorted-list trace read as an assignment), and the proof
-   that a decomposition passing `NiceTd::new` is `WF` with every edge covered; both are
-   hypotheses today.
+   `H`-colourings of `G` (`hcol_sound`). The Rust is refined to it too: `HColList.lean` reads
+   the traces as the sorted lists the code keeps (`OwnedInstance.transport` carries every
+   obligation along an injection on traces, given that the list algorithms agree with the set
+   ones on the traces that arise) and `HColRust.lean` proves the extracted `hcol.rs` computes
+   that list instance function by function (`has_edge`, `insert_sorted`, `remove`, `same`,
+   `consistent`, `emit`, `step`, `accept`, `Clone`, `PartialEq`), so `solve_hcol_sound` is Claim 1
+   about the extracted `hylo::dp::solve_hcol`: it denotes exactly the `H`-colourings. Two things
+   the refinement forced into the open: the Rust `step` is only total where the model's `run`
+   calls it (it indexes its children, and a trace of `usize::MAX` pairs could not grow), so
+   `TracedSpec.step` now carries a precondition `ok` and the theorems a hypothesis `StepsOk`
+   (trivial for bits); and `hcol.rs` was reshaped for a flat extraction (`has_edge` total with a
+   bounds check, `insert_sorted` as two loops, no short-circuit `&&` in `consistent`, an `emit`
+   helper), with the oracle tests unchanged. Still a hypothesis: that a decomposition passing
+   `NiceTd::new` is `WF` with every edge covered.
 
 Then an instance owes only its trace obligations, and a semiring owes only its laws.
 Everything else is inherited.
@@ -223,7 +233,8 @@ relates the extracted `Nat`, `Delta` and `eval` to the model, Lemma 1 included. 
 and `RefineSort.lean` prove the extracted `hylo::sort::quicksort` sorts (`quicksort_sound`,
 `quicksort_u64_sound`), the first algorithm outside the DP taken end to end. `SpecOwned.lean`
 generalises Claim 1 to instances whose siblings share variables (`OwnedInstance.solve_sound`) and
-`HCol.lean` proves the H-colouring instance meets it (`hcol_sound`); its Rust is not refined yet.
+`HCol.lean` proves the H-colouring instance meets it (`hcol_sound`), `HColList.lean` and
+`HColRust.lean` refine the Rust `hcol.rs` to it (`solve_hcol_sound`).
 Upstream Aeneas main (1dc8ad3) fails on the same crate: with the `formalism` bodies included
 its newer loop encoding makes Aeneas itself crash (`[Error] Internal error`); before that it
 produced Lean that did not compile (universe mismatch on the generic `hylo_rose_loop0`,

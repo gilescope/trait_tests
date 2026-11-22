@@ -509,6 +509,593 @@ def formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64 :
     formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64.accept
 }
 
+/-- [formalism::instances::hcol::Op]
+    Source: 'formalism/src/instances/hcol.rs', lines 19:0-19:11
+    Name pattern: [formalism::instances::hcol::Op]
+    Visibility: public -/
+@[discriminant isize, rust_type "formalism::instances::hcol::Op"]
+inductive formalism.instances.hcol.Op where
+| Leaf : formalism.instances.hcol.Op
+| Introduce : Std.U32 → Bool → formalism.instances.hcol.Op
+| Forget : Std.U32 → formalism.instances.hcol.Op
+| Join : formalism.instances.hcol.Op
+
+/-- [formalism::instances::hcol::Graph]
+    Source: 'formalism/src/instances/hcol.rs', lines 28:0-28:16
+    Name pattern: [formalism::instances::hcol::Graph]
+    Visibility: public -/
+@[rust_type "formalism::instances::hcol::Graph"]
+structure formalism.instances.hcol.Graph where
+  adj : alloc.vec.Vec (alloc.vec.Vec Std.U32)
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 52:12-55:13
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]
+    Visibility: public -/
+@[rust_loop_body, rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge"]
+def formalism.instances.hcol.Graph.has_edge_loop.body
+  (v : Std.U32) (row : alloc.vec.Vec Std.U32) (found : Bool) (i : Std.Usize) :
+  Result (ControlFlow (Bool × Std.Usize) Bool)
+  := do
+  let i1 := alloc.vec.Vec.len row
+  if i < i1
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) row i
+    let found1 : Bool ← if i2 = v
+                          then ok true
+                          else ok found
+    let i3 ← i + 1#usize
+    ok (cont (found1, i3))
+  else ok (done found)
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 52:12-55:13
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]
+    Visibility: public -/
+@[rust_loop, rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge"]
+def formalism.instances.hcol.Graph.has_edge_loop
+  (v : Std.U32) (found : Bool) (row : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result Bool
+  := do
+  loop
+    (fun (found1, i1) => formalism.instances.hcol.Graph.has_edge_loop.body v
+      row found1 i1)
+    (found, i)
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]:
+    Source: 'formalism/src/instances/hcol.rs', lines 47:4-47:50
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::Graph}::has_edge"]
+def formalism.instances.hcol.Graph.has_edge
+  (self : formalism.instances.hcol.Graph) (u : Std.U32) (v : Std.U32) :
+  Result Bool
+  := do
+  let i ← lift (UScalar.cast .Usize u)
+  let i1 := alloc.vec.Vec.len self.adj
+  if i < i1
+  then
+    let i2 ← lift (UScalar.cast .Usize u)
+    let row ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.U32)) self.adj i2
+    formalism.instances.hcol.Graph.has_edge_loop v false row 0#usize
+  else ok false
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::Graph}::n]:
+    Source: 'formalism/src/instances/hcol.rs', lines 59:4-59:28
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::Graph}::n]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::Graph}::n"]
+def formalism.instances.hcol.Graph.n
+  (self : formalism.instances.hcol.Graph) : Result Std.Usize := do
+  ok (alloc.vec.Vec.len self.adj)
+
+/-- [formalism::instances::hcol::HColoring]
+    Source: 'formalism/src/instances/hcol.rs', lines 62:0-62:20
+    Name pattern: [formalism::instances::hcol::HColoring]
+    Visibility: public -/
+@[rust_type "formalism::instances::hcol::HColoring"]
+structure formalism.instances.hcol.HColoring where
+  g : formalism.instances.hcol.Graph
+  h : formalism.instances.hcol.Graph
+
+/-- [formalism::instances::hcol::Tau]
+    Source: 'formalism/src/instances/hcol.rs', lines 70:0-70:14
+    Name pattern: [formalism::instances::hcol::Tau]
+    Visibility: public -/
+@[reducible, rust_type "formalism::instances::hcol::Tau"]
+def formalism.instances.hcol.Tau := alloc.vec.Vec (Std.U32 × Std.U32)
+
+/-- [formalism::instances::hcol::{impl core::clone::Clone for formalism::instances::hcol::Tau}::clone]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 76:8-76:63
+    Name pattern: [formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone]
+    Visibility: public -/
+@[rust_loop_body, rust_fun
+  "formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone"]
+def formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop.body
+  (self : formalism.instances.hcol.Tau)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result (ControlFlow (formalism.instances.hcol.Tau × (alloc.vec.Vec (Std.U32
+    × Std.U32)) × Std.Usize) (alloc.vec.Vec (Std.U32 × Std.U32)))
+  := do
+  let i1 := alloc.vec.Vec.len self
+  if i < i1
+  then
+    let p ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.U32 ×
+        Std.U32)) self i
+    let out1 ← alloc.vec.Vec.push out p
+    let i2 ← i + 1#usize
+    ok (cont (self, out1, i2))
+  else ok (done out)
+
+/-- [formalism::instances::hcol::{impl core::clone::Clone for formalism::instances::hcol::Tau}::clone]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 76:8-76:63
+    Name pattern: [formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone]
+    Visibility: public -/
+@[rust_loop, rust_fun
+  "formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone"]
+def formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop
+  (self : formalism.instances.hcol.Tau)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result (alloc.vec.Vec (Std.U32 × Std.U32))
+  := do
+  loop
+    (fun (self1, out1, i1) =>
+      formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop.body self1
+      out1 i1)
+    (self, out, i)
+
+/-- [formalism::instances::hcol::{impl core::clone::Clone for formalism::instances::hcol::Tau}::clone]:
+    Source: 'formalism/src/instances/hcol.rs', lines 73:4-73:26
+    Name pattern: [formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{core::clone::Clone<formalism::instances::hcol::Tau>}::clone"]
+def formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone
+  (self : formalism.instances.hcol.Tau) :
+  Result formalism.instances.hcol.Tau
+  := do
+  let out ←
+    formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone_loop self
+      (alloc.vec.Vec.new (Std.U32 × Std.U32)) 0#usize
+  ok out
+
+/-- Trait implementation: [formalism::instances::hcol::{impl core::clone::Clone for formalism::instances::hcol::Tau}]
+    Source: 'formalism/src/instances/hcol.rs', lines 72:0-72:18
+    Name pattern: [core::clone::Clone<formalism::instances::hcol::Tau>] -/
+@[reducible, rust_trait_impl
+  "core::clone::Clone<formalism::instances::hcol::Tau>"]
+def formalism.instances.hcol.Tau.Insts.CoreCloneClone : core.clone.Clone
+  formalism.instances.hcol.Tau := {
+  clone := formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone
+}
+
+/-- [formalism::instances::hcol::same]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 84:4-87:5
+    Name pattern: [formalism::instances::hcol::same] -/
+@[rust_loop_body, rust_fun "formalism::instances::hcol::same"]
+def formalism.instances.hcol.same_loop.body
+  (a : Slice (Std.U32 × Std.U32)) (b : Slice (Std.U32 × Std.U32)) (eq : Bool)
+  (i : Std.Usize) :
+  Result (ControlFlow (Bool × Std.Usize) Bool)
+  := do
+  let i1 := Slice.len a
+  if i < i1
+  then
+    let i2 := Slice.len b
+    if i < i2
+    then
+      let (i3, i4) ← Slice.index_usize a i
+      let (i5, i6) ← Slice.index_usize b i
+      let eq1 : Bool ←
+        if i3 != i5
+        then ok false
+        else if i4 != i6
+             then ok false
+             else ok eq
+      let i7 ← i + 1#usize
+      ok (cont (eq1, i7))
+    else ok (done eq)
+  else ok (done eq)
+
+/-- [formalism::instances::hcol::same]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 84:4-87:5
+    Name pattern: [formalism::instances::hcol::same] -/
+@[rust_loop, rust_fun "formalism::instances::hcol::same"]
+def formalism.instances.hcol.same_loop
+  (a : Slice (Std.U32 × Std.U32)) (b : Slice (Std.U32 × Std.U32)) (eq : Bool)
+  (i : Std.Usize) :
+  Result Bool
+  := do
+  loop
+    (fun (eq1, i1) => formalism.instances.hcol.same_loop.body a b eq1 i1)
+    (eq, i)
+
+/-- [formalism::instances::hcol::same]:
+    Source: 'formalism/src/instances/hcol.rs', lines 81:0-81:51
+    Name pattern: [formalism::instances::hcol::same] -/
+@[rust_fun "formalism::instances::hcol::same"]
+def formalism.instances.hcol.same
+  (a : Slice (Std.U32 × Std.U32)) (b : Slice (Std.U32 × Std.U32)) :
+  Result Bool
+  := do
+  let i := Slice.len a
+  let i1 := Slice.len b
+  formalism.instances.hcol.same_loop a b (i = i1) 0#usize
+
+/-- [formalism::instances::hcol::{impl core::cmp::PartialEq<formalism::instances::hcol::Tau> for formalism::instances::hcol::Tau}::eq]:
+    Source: 'formalism/src/instances/hcol.rs', lines 92:4-92:37
+    Name pattern: [formalism::instances::hcol::{core::cmp::PartialEq<formalism::instances::hcol::Tau, formalism::instances::hcol::Tau>}::eq]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{core::cmp::PartialEq<formalism::instances::hcol::Tau, formalism::instances::hcol::Tau>}::eq"]
+def formalism.instances.hcol.Tau.Insts.CoreCmpPartialEqTau.eq
+  (self : formalism.instances.hcol.Tau) (other : formalism.instances.hcol.Tau)
+  :
+  Result Bool
+  := do
+  let s := alloc.vec.Vec.deref self
+  let s1 := alloc.vec.Vec.deref other
+  formalism.instances.hcol.same s s1
+
+/-- Trait implementation: [formalism::instances::hcol::{impl core::cmp::PartialEq<formalism::instances::hcol::Tau> for formalism::instances::hcol::Tau}]
+    Source: 'formalism/src/instances/hcol.rs', lines 91:0-91:22
+    Name pattern: [core::cmp::PartialE
+[A    Name pattern: [core::cmp::PartialEq<formalism::instances::hcol::Tau, formalism::instances::hcol::Tau>] -/
+@[reducible, rust_trait_impl
+  "core::cmp::PartialEq<formalism::instances::hcol::Tau, formalism::instances::hcol::Tau>"]
+impl_def formalism.instances.hcol.Tau.Insts.CoreCmpPartialEqTau :
+  core.cmp.PartialEq formalism.instances.hcol.Tau formalism.instances.hcol.Tau
+  := {
+  eq := formalism.instances.hcol.Tau.Insts.CoreCmpPartialEqTau.eq
+  ne := core.cmp.PartialEq.ne.trait_default
+    formalism.instances.hcol.Tau.Insts.CoreCmpPartialEqTau
+}
+
+/-- [formalism::instances::hcol::insert_sorted]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 105:4-108:5
+    Name pattern: [formalism::instances::hcol::insert_sorted] -/
+@[rust_loop_body, rust_fun "formalism::instances::hcol::insert_sorted"]
+def formalism.instances.hcol.insert_sorted_loop0.body
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result (ControlFlow ((alloc.vec.Vec (Std.U32 × Std.U32)) × Std.Usize)
+    ((alloc.vec.Vec (Std.U32 × Std.U32)) × Std.Usize))
+  := do
+  let i1 := Slice.len f
+  if i < i1
+  then
+    let (i2, i3) ← Slice.index_usize f i
+    if i2 <= v
+    then
+      let p := (i2, i3)
+      let out1 ← alloc.vec.Vec.push out p
+      let i4 ← i + 1#usize
+      ok (cont (out1, i4))
+    else ok (done (out, i))
+  else ok (done (out, i))
+
+/-- [formalism::instances::hcol::insert_sorted]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 105:4-108:5
+    Name pattern: [formalism::instances::hcol::insert_sorted] -/
+@[rust_loop, rust_fun "formalism::instances::hcol::insert_sorted"]
+def formalism.instances.hcol.insert_sorted_loop0
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result ((alloc.vec.Vec (Std.U32 × Std.U32)) × Std.Usize)
+  := do
+  loop
+    (fun (out1, i1) => formalism.instances.hcol.insert_sorted_loop0.body f v
+      out1 i1)
+    (out, i)
+
+/-- [formalism::instances::hcol::insert_sorted]: loop body 1:
+    Source: 'formalism/src/instances/hcol.rs', lines 110:4-113:5
+    Name pattern: [formalism::instances::hcol::insert_sorted] -/
+@[rust_loop_body, rust_fun "formalism::instances::hcol::insert_sorted"]
+def formalism.instances.hcol.insert_sorted_loop1.body
+  (f : Slice (Std.U32 × Std.U32)) (out : alloc.vec.Vec (Std.U32 × Std.U32))
+  (i : Std.Usize) :
+  Result (ControlFlow ((alloc.vec.Vec (Std.U32 × Std.U32)) × Std.Usize)
+    (alloc.vec.Vec (Std.U32 × Std.U32)))
+  := do
+  let i1 := Slice.len f
+  if i < i1
+  then
+    let p ← Slice.index_usize f i
+    let out1 ← alloc.vec.Vec.push out p
+    let i2 ← i + 1#usize
+    ok (cont (out1, i2))
+  else ok (done out)
+
+/-- [formalism::instances::hcol::insert_sorted]: loop 1:
+    Source: 'formalism/src/instances/hcol.rs', lines 110:4-113:5
+    Name pattern: [formalism::instances::hcol::insert_sorted] -/
+@[rust_loop, rust_fun "formalism::instances::hcol::insert_sorted"]
+def formalism.instances.hcol.insert_sorted_loop1
+  (f : Slice (Std.U32 × Std.U32)) (out : alloc.vec.Vec (Std.U32 × Std.U32))
+  (i : Std.Usize) :
+  Result (alloc.vec.Vec (Std.U32 × Std.U32))
+  := do
+  loop
+    (fun (out1, i1) => formalism.instances.hcol.insert_sorted_loop1.body f out1
+      i1)
+    (out, i)
+
+/-- [formalism::instances::hcol::insert_sorted]:
+    Source: 'formalism/src/instances/hcol.rs', lines 102:0-102:69
+    Name pattern: [formalism::instances::hcol::insert_sorted] -/
+@[rust_fun "formalism::instances::hcol::insert_sorted"]
+def formalism.instances.hcol.insert_sorted
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32) (d : Std.U32) :
+  Result (alloc.vec.Vec (Std.U32 × Std.U32))
+  := do
+  let (out, i) ←
+    formalism.instances.hcol.insert_sorted_loop0 f v (alloc.vec.Vec.new
+      (Std.U32 × Std.U32)) 0#usize
+  let out1 ← alloc.vec.Vec.push out (v, d)
+  formalism.instances.hcol.insert_sorted_loop1 f out1 i
+
+/-- [formalism::instances::hcol::remove]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 120:4-124:5
+    Name pattern: [formalism::instances::hcol::remove] -/
+@[rust_loop_body, rust_fun "formalism::instances::hcol::remove"]
+def formalism.instances.hcol.remove_loop.body
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result (ControlFlow ((alloc.vec.Vec (Std.U32 × Std.U32)) × Std.Usize)
+    (alloc.vec.Vec (Std.U32 × Std.U32)))
+  := do
+  let i1 := Slice.len f
+  if i < i1
+  then
+    let (i2, i3) ← Slice.index_usize f i
+    let out1 ← if i2 != v
+                 then alloc.vec.Vec.push out (i2, i3)
+                 else ok out
+    let i4 ← i + 1#usize
+    ok (cont (out1, i4))
+  else ok (done out)
+
+/-- [formalism::instances::hcol::remove]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 120:4-124:5
+    Name pattern: [formalism::instances::hcol::remove] -/
+@[rust_loop, rust_fun "formalism::instances::hcol::remove"]
+def formalism.instances.hcol.remove_loop
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32)
+  (out : alloc.vec.Vec (Std.U32 × Std.U32)) (i : Std.Usize) :
+  Result (alloc.vec.Vec (Std.U32 × Std.U32))
+  := do
+  loop
+    (fun (out1, i1) => formalism.instances.hcol.remove_loop.body f v out1 i1)
+    (out, i)
+
+/-- [formalism::instances::hcol::remove]:
+    Source: 'formalism/src/instances/hcol.rs', lines 117:0-117:54
+    Name pattern: [formalism::instances::hcol::remove] -/
+@[reducible, rust_fun "formalism::instances::hcol::remove"]
+def formalism.instances.hcol.remove
+  (f : Slice (Std.U32 × Std.U32)) (v : Std.U32) :
+  Result (alloc.vec.Vec (Std.U32 × Std.U32))
+  := do
+  formalism.instances.hcol.remove_loop f v (alloc.vec.Vec.new (Std.U32 ×
+    Std.U32)) 0#usize
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 137:8-145:9
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent] -/
+@[rust_loop_body, rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent"]
+def formalism.instances.hcol.HColoring.consistent_loop.body
+  (self : formalism.instances.hcol.HColoring) (f : Slice (Std.U32 × Std.U32))
+  (v : Std.U32) (d : Std.U32) (ok1 : Bool) (i : Std.Usize) :
+  Result (ControlFlow (Bool × Std.Usize) (formalism.instances.hcol.HColoring
+    × Bool))
+  := do
+  let i1 := Slice.len f
+  if i < i1
+  then
+    let (i2, i3) ← Slice.index_usize f i
+    let e : Bool ← formalism.instances.hcol.Graph.has_edge self.g i2 v
+    let h : Bool ← formalism.instances.hcol.Graph.has_edge self.h i3 d
+    let ok2 : Bool ← if e
+                       then if h
+                            then ok ok1
+                            else ok false
+                       else ok ok1
+    let i4 ← i + 1#usize
+    ok (cont (ok2, i4))
+  else ok (done (self, ok1))
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 137:8-145:9
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent] -/
+@[rust_loop, rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent"]
+def formalism.instances.hcol.HColoring.consistent_loop
+  (self : formalism.instances.hcol.HColoring) (f : Slice (Std.U32 × Std.U32))
+  (v : Std.U32) (d : Std.U32) (ok1 : Bool) (i : Std.Usize) :
+  Result (formalism.instances.hcol.HColoring × Bool)
+  := do
+  loop
+    (fun (ok2, i1) => formalism.instances.hcol.HColoring.consistent_loop.body
+      self f v d ok2 i1)
+    (ok1, i)
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent]:
+    Source: 'formalism/src/instances/hcol.rs', lines 134:4-134:66
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent] -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::HColoring}::consistent"]
+def formalism.instances.hcol.HColoring.consistent
+  (self : formalism.instances.hcol.HColoring) (f : Slice (Std.U32 × Std.U32))
+  (v : Std.U32) (d : Std.U32) :
+  Result Bool
+  := do
+  let (self1, ok1) ←
+    formalism.instances.hcol.HColoring.consistent_loop self f v d true 0#usize
+  let e : Bool ← formalism.instances.hcol.Graph.has_edge self1.g v v
+  let h : Bool ← formalism.instances.hcol.Graph.has_edge self1.h d d
+  if e
+  then if h
+       then ok ok1
+       else ok false
+  else ok ok1
+
+/-- [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::emit]:
+    Source: 'formalism/src/instances/hcol.rs', lines 155:4-155:97
+    Name pattern: [formalism::instances::hcol::{formalism::instances::hcol::HColoring}::emit] -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::instances::hcol::HColoring}::emit"]
+def formalism.instances.hcol.HColoring.emit
+  (out : alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec (Std.U32
+  × Std.U32)))) (f : Slice (Std.U32 × Std.U32)) (v : Std.U32) (d : Std.U32)
+  (owner : Bool) :
+  Result (alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec
+    (Std.U32 × Std.U32))))
+  := do
+  let leaves ←
+    if owner
+    then alloc.vec.Vec.push (alloc.vec.Vec.new (Std.U32 × Std.U32)) (v, d)
+    else ok (alloc.vec.Vec.new (Std.U32 × Std.U32))
+  let v1 ← formalism.instances.hcol.insert_sorted f v d
+  alloc.vec.Vec.push out (v1, leaves)
+
+/-- [formalism::instances::hcol::{impl formalism::scheme::Traced<formalism::instances::hcol::Op, formalism::instances::hcol::Tau> for formalism::instances::hcol::HColoring}::accept]:
+    Source: 'formalism/src/instances/hcol.rs', lines 189:4-189:39
+    Name pattern: [formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::accept]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::accept"]
+def formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.accept
+  (self : formalism.instances.hcol.HColoring)
+  (tau : formalism.instances.hcol.Tau) :
+  Result Bool
+  := do
+  alloc.vec.Vec.is_empty tau
+
+/-- [formalism::instances::hcol::{impl formalism::scheme::Traced<formalism::instances::hcol::Op, formalism::instances::hcol::Tau> for formalism::instances::hcol::HColoring}::step]: loop body 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 173:16-177:17
+    Name pattern: [formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step]
+    Visibility: public -/
+@[rust_loop_body, rust_fun
+  "formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step"]
+def
+  formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop.body
+  (self : formalism.instances.hcol.HColoring) (v : Std.U32) (owner : Bool)
+  (f : alloc.vec.Vec (Std.U32 × Std.U32))
+  (out : alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec (Std.U32
+  × Std.U32)))) (d : Std.U32) :
+  Result (ControlFlow ((alloc.vec.Vec (formalism.instances.hcol.Tau ×
+    (alloc.vec.Vec (Std.U32 × Std.U32)))) × Std.U32) (alloc.vec.Vec
+    (formalism.instances.hcol.Tau × (alloc.vec.Vec (Std.U32 × Std.U32)))))
+  := do
+  let i ← formalism.instances.hcol.Graph.n self.h
+  let i1 ← lift (UScalar.cast .U32 i)
+  if d < i1
+  then
+    let s := alloc.vec.Vec.deref f
+    let c : Bool ← formalism.instances.hcol.HColoring.consistent self s v d
+    let out1 ←
+      if c
+      then
+        let s1 := alloc.vec.Vec.deref f
+        formalism.instances.hcol.HColoring.emit out s1 v d owner
+      else ok out
+    let d1 ← d + 1#u32
+    ok (cont (out1, d1))
+  else ok (done out)
+
+/-- [formalism::instances::hcol::{impl formalism::scheme::Traced<formalism::instances::hcol::Op, formalism::instances::hcol::Tau> for formalism::instances::hcol::HColoring}::step]: loop 0:
+    Source: 'formalism/src/instances/hcol.rs', lines 173:16-177:17
+    Name pattern: [formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step]
+    Visibility: public -/
+@[rust_loop, rust_fun
+  "formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step"]
+def
+  formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop
+  (self : formalism.instances.hcol.HColoring) (v : Std.U32) (owner : Bool)
+  (out : alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec (Std.U32
+  × Std.U32)))) (f : alloc.vec.Vec (Std.U32 × Std.U32)) (d : Std.U32) :
+  Result (alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec
+    (Std.U32 × Std.U32))))
+  := do
+  loop
+    (fun (out1, d1) =>
+      formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop.body
+      self v owner f out1 d1)
+    (out, d)
+
+/-- [formalism::instances::hcol::{impl formalism::scheme::Traced<formalism::instances::hcol::Op, formalism::instances::hcol::Tau> for formalism::instances::hcol::HColoring}::step]:
+    Source: 'formalism/src/instances/hcol.rs', lines 166:4-166:55
+    Name pattern: [formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step]
+    Visibility: public -/
+@[rust_fun
+  "formalism::instances::hcol::{formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>}::step"]
+def formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step
+  (self : formalism.instances.hcol.HColoring)
+  (op : formalism.instances.hcol.Op)
+  (child : Slice formalism.instances.hcol.Tau) :
+  Result (alloc.vec.Vec (formalism.instances.hcol.Tau × (alloc.vec.Vec
+    (Std.U32 × Std.U32))))
+  := do
+  match op with
+  | formalism.instances.hcol.Op.Leaf =>
+    alloc.vec.Vec.push (alloc.vec.Vec.new (formalism.instances.hcol.Tau ×
+      (alloc.vec.Vec (Std.U32 × Std.U32)))) (alloc.vec.Vec.new (Std.U32 ×
+      Std.U32), alloc.vec.Vec.new (Std.U32 × Std.U32))
+  | formalism.instances.hcol.Op.Introduce v owner =>
+    let t ← Slice.index_usize child 0#usize
+    formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step_loop
+      self v owner (alloc.vec.Vec.new (formalism.instances.hcol.Tau ×
+      (alloc.vec.Vec (Std.U32 × Std.U32)))) t 0#u32
+  | formalism.instances.hcol.Op.Forget v =>
+    let t ← Slice.index_usize child 0#usize
+    let s := alloc.vec.Vec.deref t
+    let v1 ← formalism.instances.hcol.remove s v
+    alloc.vec.Vec.push (alloc.vec.Vec.new (formalism.instances.hcol.Tau ×
+      (alloc.vec.Vec (Std.U32 × Std.U32)))) (v1, alloc.vec.Vec.new (Std.U32 ×
+      Std.U32))
+  | formalism.instances.hcol.Op.Join =>
+    let t ← Slice.index_usize child 0#usize
+    let s := alloc.vec.Vec.deref t
+    let t1 ← Slice.index_usize child 1#usize
+    let s1 := alloc.vec.Vec.deref t1
+    let b : Bool ← formalism.instances.hcol.same s s1
+    if b
+    then
+      let t2 ← formalism.instances.hcol.Tau.Insts.CoreCloneClone.clone t
+      alloc.vec.Vec.push (alloc.vec.Vec.new (formalism.instances.hcol.Tau ×
+        (alloc.vec.Vec (Std.U32 × Std.U32)))) (t2, alloc.vec.Vec.new (Std.U32
+        × Std.U32))
+    else
+      ok (alloc.vec.Vec.new (formalism.instances.hcol.Tau × (alloc.vec.Vec
+        (Std.U32 × Std.U32))))
+
+/-- Trait implementation: [formalism::instances::hcol::{impl formalism::scheme::Traced<formalism::instances::hcol::Op, formalism::instances::hcol::Tau> for formalism::instances::hcol::HColoring}]
+    Source: 'formalism/src/instances/hcol.rs', lines 162:0-162:25
+    Name pattern: [formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>] -/
+@[reducible, rust_trait_impl
+  "formalism::scheme::Traced<formalism::instances::hcol::HColoring, formalism::instances::hcol::Op, formalism::instances::hcol::Tau>"]
+def formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau :
+  formalism.scheme.Traced formalism.instances.hcol.HColoring
+  formalism.instances.hcol.Op formalism.instances.hcol.Tau := {
+  corecloneCloneInst := formalism.instances.hcol.Tau.Insts.CoreCloneClone
+  corecmpPartialEqInst :=
+    formalism.instances.hcol.Tau.Insts.CoreCmpPartialEqTau
+  step :=
+    formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.step
+  accept :=
+    formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau.accept
+}
+
 /-- [formalism::scheme::Node]
     Source: 'formalism/src/scheme.rs', lines 7:0-7:19
     Name pattern: [formalism::scheme::Node]
@@ -758,8 +1345,7 @@ def formalism.scheme.step_node_loop1_loop1
 
 /-- [formalism::scheme::step_node]: loop body 4:
     Source: 'formalism/src/scheme.rs', lines 95:8-99:9
-   
-[A    Name pattern: [formalism::scheme::step_node]
+    Name pattern: [formalism::scheme::step_node]
     Visibility: public -/
 @[rust_loop_body, rust_fun "formalism::scheme::step_node"]
 def formalism.scheme.step_node_loop1_loop2.body
@@ -896,7 +1482,8 @@ def formalism.scheme.run_loop
   (node : formalism.scheme.Node Clause0_Op)
   (child_tables : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row
   Clause0_Tau))) (c : Std.Usize) :
-  Result (Clause0_Op × (alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row
+  Result (Clause0_Op × (alloc.vec.Vec (alloc
+[A  Result (Clause0_Op × (alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row
     Clause0_Tau))))
   := do
   loop
@@ -1460,8 +2047,7 @@ def formalism.semiring.Tropical.Insts.FormalismSemiringSemiring.mul
   else
     if o = core.num.U64.MAX
     then ok formalism.semiring.Tropical.INF
-    else let
-[A    else let s ← self + o
+    else let s ← self + o
          massert (¬ (s = core.num.U64.MAX))
          ok s
 
@@ -1576,7 +2162,8 @@ def formalism.semiring.Delta.new
        ok { d, a := t }
 
 /-- [formalism::semiring::{formalism::semiring::Delta<D, A>}::cost]:
-    Source: 'formalism/src/semiring.rs', lines 101:4-101:26
+    Source: 'formalism/src/semiring.rs'
+[A    Source: 'formalism/src/semiring.rs', lines 101:4-101:26
     Name pattern: [formalism:xxxxx@D, @A>}::cost]
     Visibility: public -/
 @[rust_fun "formalism:xxxxx@D, @A>}::cost"]
@@ -2209,8 +2796,7 @@ def dp.Project.Insts.HyloShapeRosePlanOpNode.unfold
 /-- Trait implementation: [hylo::dp::{impl hylo::shape::RosePlan<Op, formalism::scheme::Node<Op>> for hylo::dp::Project}]
     Source: 'hylo/src/dp.rs', lines 13:0-16:1 -/
 @[reducible]
-d
-[Adef dp.Project.Insts.HyloShapeRosePlanOpNode (Op : Type) : shape.RosePlan
+def dp.Project.Insts.HyloShapeRosePlanOpNode (Op : Type) : shape.RosePlan
   dp.Project Op (formalism.scheme.Node Op) := {
   unfold := dp.Project.Insts.HyloShapeRosePlanOpNode.unfold
 }
@@ -2353,7 +2939,8 @@ def dp.trace_dp_loop
   Result formalism.expr.Expr
   := do
   loop
-    (fun (table1, e1) => dp.trace_dp_loop.body formalismschemeTracedInst p
+    (fun (table1, e1) => dp.trace_dp_l
+[A    (fun (table1, e1) => dp.trace_dp_loop.body formalismschemeTracedInst p
       table1 e1)
     (table, e)
 
@@ -2397,8 +2984,19 @@ def dp.solve_bits
   formalism.scheme.solve
     formalism.instances.bits.Bits.Insts.FormalismSchemeTracedOpU64 p root
 
+/-- [hylo::dp::solve_hcol]:
+    Source: 'hylo/src/dp.rs', lines 45:0-47:1
+    Visibility: public -/
+def dp.solve_hcol
+  (p : formalism.instances.hcol.HColoring)
+  (root : formalism.scheme.Node formalism.instances.hcol.Op) :
+  Result formalism.expr.Expr
+  := do
+  formalism.scheme.solve
+    formalism.instances.hcol.HColoring.Insts.FormalismSchemeTracedOpTau p root
+
 /-- [hylo::dp::eval_ones]:
-    Source: 'hylo/src/dp.rs', lines 44:0-44:97
+    Source: 'hylo/src/dp.rs', lines 48:0-48:97
     Visibility: public -/
 def dp.eval_ones
   {A : Type} (formalismsemiringSemiringInst : formalism.semiring.Semiring A)
@@ -2410,7 +3008,7 @@ def dp.eval_ones
     formalismsemiringSemiringInst) e ()
 
 /-- [hylo::dp::delta_one]:
-    Source: 'hylo/src/dp.rs', lines 45:0-45:58
+    Source: 'hylo/src/dp.rs', lines 49:0-49:58
     Visibility: public -/
 def dp.delta_one
   :
@@ -2422,7 +3020,7 @@ def dp.delta_one
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring
 
 /-- [hylo::dp::delta_mul]:
-    Source: 'hylo/src/dp.rs', lines 46:0-46:100
+    Source: 'hylo/src/dp.rs', lines 50:0-50:100
     Visibility: public -/
 def dp.delta_mul
   (x : formalism.semiring.Delta formalism.semiring.MaxPlus
@@ -2437,7 +3035,7 @@ def dp.delta_mul
     formalism.semiring.Nat.Insts.FormalismSemiringSemiring x y
 
 /-- [hylo::dp::delta_le]:
-    Source: 'hylo/src/dp.rs', lines 47:0-47:93
+    Source: 'hylo/src/dp.rs', lines 51:0-51:93
     Visibility: public -/
 def dp.delta_le
   (x : formalism.semiring.Delta formalism.semiring.Tropical
@@ -2451,7 +3049,7 @@ def dp.delta_le
     formalism.semiring.Boolean.Insts.FormalismSemiringDioid x y
 
 /-- [hylo::dp::delta_regular]:
-    Source: 'hylo/src/dp.rs', lines 48:0-48:73
+    Source: 'hylo/src/dp.rs', lines 52:0-52:73
     Visibility: public -/
 def dp.delta_regular
   (x : formalism.semiring.Delta formalism.semiring.Tropical
@@ -3062,8 +3660,7 @@ def path.run_relax
   let r ←
     alloc.vec.from_elem
       formalismsemiringSemiringInst.coremarkerCopyInst.cloneInst t n
-  let t1 �
-[A  let t1 ← formalismsemiringSemiringInst.one
+  let t1 ← formalismsemiringSemiringInst.one
   let (_, index_mut_back) ←
     alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice S) d s
   let (_, index_mut_back1) ←
@@ -3189,7 +3786,8 @@ def path.Lehmann.Insts.HyloShapeIterPlanVecVecVecVec.unfold_loop1_loop0.body
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice S) v k
     let t2 ← algebraStarInst.formalismsemiringSemiringInst.mul t1 kk
     let v1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+      alloc.vec.Vec.index (core.s
+[A      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
         S)) m k
     let t3 ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice S) v1 j
@@ -3815,8 +4413,7 @@ def
     Source: 'hylo/src/search/mod.rs', lines 162:0-171:1 -/
 @[reducible]
 def
-  search.BestCount.Insts.HyloShape
-[A  search.BestCount.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolDeltaMaxPlusNat
+  search.BestCount.Insts.HyloShapeRoseAlgebraPairClause0_Clause0_SpaceBoolDeltaMaxPlusNat
   {P : Type} {Clause0_Clause0_Input : Type} {Clause0_Clause0_Space : Type}
   (BoundedInst : search.Bounded P Clause0_Clause0_Input Clause0_Clause0_Space)
   : shape.RoseAlgebra (search.BestCount P Clause0_Clause0_Input
@@ -3949,7 +4546,8 @@ def seq.Scan (M : Type) := core.marker.PhantomData M
     Visibility: public -/
 @[rust_loop_body]
 def seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec.fold_loop.body
-  {M : Type} (algebraMonoidInst : algebra.Monoid M) (tl : M)
+  {M : Type} (algebraMonoidIn
+[A  {M : Type} (algebraMonoidInst : algebra.Monoid M) (tl : M)
   (pr : alloc.vec.Vec M) (pl : alloc.vec.Vec M) (i : Std.Usize) :
   Result (ControlFlow ((alloc.vec.Vec M) × Std.Usize) (alloc.vec.Vec M))
   := do
@@ -4166,545 +4764,1298 @@ def seq.scan
   Result (alloc.vec.Vec M)
   := do
   let ((_, v1), _, _) ←
-    shape.hylo_leaf_tree (sort.Halve.Insts.HyloShapeLeafTreePlanTVec M)
-      (seq.Scan.Insts.HyloShapeLeafTreeAlgebraMPairMVec algebraMonoidInst) ()
-      () v
-  ok v1
+    shap
+[output clipped, log limit 200KiB/s reached]
+[35m             +verify[0m | [----2     ]  42% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[----9     ]  49% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[-----6    ]  56% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[------3   ]  63% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[-------   ]  70% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[-------8  ]  78% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [--------6 ]  86% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[---------3]  93% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[----------] 100% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [          ]   0% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [A[----------] 100% RUN echo 'import Aeneas' > FormalismVerify.lean && lake build[K
+[35m             +verify[0m | [34;2mAENEAS_REPO=gilescope/aeneas AENEAS_REV=4797bb96a172415117fbad18804a7d3bbccc18c9 AENEAS_TARBALL_URL=https://github.com/gilescope/aeneas/releases/download/build-4797bb9/aeneas-linux-x86_64.tar.gz[0m
+[35m             +verify[0m | --> COPY explore/formalism/verify/FormalismVerify.lean ./
+[35m             +verify[0m | [34;2mAENEAS_REPO=gilescope/aeneas AENEAS_REV=4797bb96a172415117fbad18804a7d3bbccc18c9 AENEAS_TARBALL_URL=https://github.com/gilescope/aeneas/releases/download/build-4797bb9/aeneas-linux-x86_64.tar.gz[0m
+[35m             +verify[0m | --> COPY --dir explore/formalism/verify/FormalismVerify ./
+[35m             +verify[0m | [34;2mAENEAS_REPO=gilescope/aeneas AENEAS_REV=4797bb96a172415117fbad18804a7d3bbccc18c9 AENEAS_TARBALL_URL=https://github.com/gilescope/aeneas/releases/download/build-4797bb9/aeneas-linux-x86_64.tar.gz[0m
+[35m             +verify[0m | --> COPY +extract/Extracted FormalismVerify/Extracted
+[35m             +verify[0m | [34;2mAENEAS_REPO=gilescope/aeneas AENEAS_REV=4797bb96a172415117fbad18804a7d3bbccc18c9 AENEAS_TARBALL_URL=https://github.com/gilescope/aeneas/releases/download/build-4797bb9/aeneas-linux-x86_64.tar.gz[0m
+[35m             +verify[0m | --> RUN ls -la . FormalismVerify FormalismVerify/Extracted
+[35m             +verify[0m | .:
+[35m             +verify[0m | total 36
+[35m             +verify[0m | drwxr-xr-x 1 root root 4096 Nov 22 13:54 .
+[35m             +verify[0m | drwxr-xr-x 1 root root 4096 Nov 22 13:54 ..
+[35m             +verify[0m | drwxr-xr-x 1 root root 4096 Nov 22 11:09 .lake
+[35m             +verify[0m | drwxr-xr-x 1 root root 4096 Nov 22 13:54 FormalismVerify
+[35m             +verify[0m | -rw-r--r-- 1 root root  628 Apr 16  2020 FormalismVerify.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 3478 Nov 22 11:02 lake-manifest.json
+[35m             +verify[0m | -rw-r--r-- 1 root root  248 Nov 22 11:01 lakefile.toml
+[35m             +verify[0m | -rw-r--r-- 1 root root   25 Nov 22 11:01 lean-toolchain
 
-/-- Trait declaration: [hylo::shape::NodeTreePlan]
-    Source: 'hylo/src/shape/mod.rs', lines 76:0-76:119
-    Visibility: public -/
-structure shape.NodeTreePlan (Self : Type) (T : Type) (Self_Seed : Type) where
-  unfold : Self → Self_Seed → Result ((Option (T × Self_Seed ×
-    Self_Seed)) × Self)
+[35m             +verify[0m | FormalismVerify:
+[35m             +verify[0m | total 468
+[35m             +verify[0m | drwxr-xr-x 1 root root  4096 Nov 22 13:54 .
+[35m             +verify[0m | drwxr-xr-x 1 root root  4096 Nov 22 13:54 ..
+[35m             +verify[0m | -rw-r--r-- 1 root root 17165 Apr 16  2020 Bits.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 10891 Apr 16  2020 BitsRust.lean
+[35m             +verify[0m | drwxr-xr-x 2 root root  4096 Apr 16  2020 Extracted
+[35m             +verify[0m | -rw-r--r-- 1 root root 50344 Apr 16  2020 HCol.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 17856 Apr 16  2020 HColList.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 51650 Apr 16  2020 HColRust.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root  5964 Apr 16  2020 Hylo.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root  8675 Apr 16  2020 Odometer.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root  9595 Apr 16  2020 Quicksort.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 19489 Apr 16  2020 Refine.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 16330 Apr 16  2020 RefineHylo.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 15450 Apr 16  2020 RefineRun.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 14318 Apr 16  2020 RefineSemiring.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 19197 Apr 16  2020 RefineSort.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 40480 Apr 16  2020 RefineStep.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 79470 Apr 16  2020 Spec.lean
+[35m             +verify[0m | -rw-r--r-- 1 root root 55442 Apr 16  2020 SpecOwned.lean
 
-/-- Trait declaration: [hylo::shape::NodeTreeAlgebra]
-    Source: 'hylo/src/shape/mod.rs', lines 77:0-77:117
-    Visibility: public -/
-structure shape.NodeTreeAlgebra (Self : Type) (T : Type) (Self_Out : Type)
-  where
-  fold : Self → Option (T × Self_Out × Self_Out) → Result (Self_Out ×
-    Self)
+[35m             +verify[0m | FormalismVerify/Extracted:
+[35m             +verify[0m | total 232
+[35m             +verify[0m | drwxr-xr-x 2 root root   4096 Apr 16  2020 .
+[35m             +verify[0m | drwxr-xr-x 1 root root   4096 Nov 22 13:54 ..
+[35m             +verify[0m | -rw-r--r-- 1 root root 225464 Apr 16  2020 Hylo.lean
+[35m             +verify[0m | [34;2mAENEAS_REPO=gilescope/aeneas AENEAS_REV=4797bb96a172415117fbad18804a7d3bbccc18c9 AENEAS_TARBALL_URL=https://github.com/gilescope/aeneas/releases/download/build-4797bb9/aeneas-linux-x86_64.tar.gz[0m
+[35m             +verify[0m | --> RUN lake build
+[35m             +verify[0m | ⚠ [8949/9031] Replayed AeneasMeta.Async.Test
+[35m             +verify[0m | warning: AeneasMeta/Async/Test.lean:15:0: Definition `test1` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::shape::hylo_node_tree]:
-    Source: 'hylo/src/shape/mod.rs', lines 78:0-83:1
-    Visibility: public -/
-def shape.hylo_node_tree
-  {T : Type} {P : Type} {A : Type} {Clause0_Seed : Type} {Clause1_Out : Type}
-  (NodeTreePlanInst : shape.NodeTreePlan P T Clause0_Seed) (NodeTreeAlgebraInst
-  : shape.NodeTreeAlgebra A T Clause1_Out) (plan : P) (alg : A)
-  (seed : Clause0_Seed) :
-  Result (Clause1_Out × P × A)
-  := do
-  let (o, plan1) ← NodeTreePlanInst.unfold plan seed
-  match o with
-  | none =>
-    let (t, alg1) ← NodeTreeAlgebraInst.fold alg none
-    ok (t, plan1, alg1)
-  | some t =>
-    let (p, l, r) := t
-    let (l1, plan2, alg1) ←
-      shape.hylo_node_tree NodeTreePlanInst NodeTreeAlgebraInst plan1 alg l
-    let (r1, plan3, alg2) ←
-      shape.hylo_node_tree NodeTreePlanInst NodeTreeAlgebraInst plan2 alg1 r
-    let (t1, alg3) ← NodeTreeAlgebraInst.fold alg2 (some (p, l1, r1))
-    ok (t1, plan3, alg3)
-partial_fixpoint
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: AeneasMeta/Async/Test.lean:32:0: Definition `test2` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::Insert]
-    Source: 'hylo/src/sort/mod.rs', lines 13:0-13:18
-    Visibility: public -/
-@[reducible]
-def sort.Insert := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [8979/9031] Replayed Aeneas.Data.Coinductive.ITree
+[35m             +verify[0m | warning: Aeneas/Data/Coinductive/ITree.lean:266:52: this parameter is redundant, environment already contains `Lean.Order.PartialOrder.rel_refl` annotated with `@[grind .]`
+[35m             +verify[0m | warning: Aeneas/Data/Coinductive/ITree.lean:266:52: this parameter is redundant, environment already contains `Lean.Order.PartialOrder.rel_refl` annotated with `@[grind .]`
+[35m             +verify[0m | warning: Aeneas/Data/Coinductive/ITree.lean:266:52: this parameter is redundant, environment already contains `Lean.Order.PartialOrder.rel_refl` annotated with `@[grind .]`
+[35m             +verify[0m | warning: Aeneas/Data/Coinductive/ITree.lean:271:23: this parameter is redundant, environment already contains `Lean.Order.PartialOrder.rel_refl` annotated with `@[grind .]`
+[35m             +verify[0m | warning: Aeneas/Data/Coinductive/ITree.lean:272:23: this parameter is redundant, environment already contains `Lean.Order.PartialOrder.rel_refl` annotated with `@[grind .]`
+[35m             +verify[0m | ⚠ [8983/9031] Replayed Aeneas.Tactic.Solver.Grind.Init
+[35m             +verify[0m | warning: Aeneas/Tactic/Solver/Grind/Init.lean:19:5: Ambiguous namespace `Lean`: it is interpreted as `_root_.Aeneas.Grind.Lean` because this `open` occurs inside `namespace Aeneas.Grind`, while `_root_.Lean` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Grind.Lean`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 22:16-22:57
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop.body
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (h : T) (t : alloc.vec.Vec T)
-  (i : Std.Usize) :
-  Result (ControlFlow Std.Usize Std.Usize)
-  := do
-  let i1 := alloc.vec.Vec.len t
-  if i < i1
-  then
-    let t1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice T) t i
-    let b : Bool ← corecmpOrdInst.partialOrdInst.lt t1 h
-    if b
-    then let i2 ← i + 1#usize
-         ok (cont i2)
-    else ok (done i)
-  else ok (done i)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [8994/9031] Replayed Aeneas.Std.WP
+[35m             +verify[0m | warning: Aeneas/Std/WP.lean:20:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.Std.WP`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 22:16-22:57
-    Visibility: public -/
-@[rust_loop]
-def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (h : T) (t : alloc.vec.Vec T)
-  (i : Std.Usize) :
-  Result Std.Usize
-  := do
-  loop
-    (fun i1 => sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop.body
-      corecmpOrdInst h t i1)
-    i
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Std/WP.lean:24:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/WP.lean:25:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/WP.lean:186:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 16:4-27:5
-    Visibility: public -/
-def sort.Insert.Insts.HyloShapeListAlgebraTVec.fold
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.Insert)
-  (l : Option (T × (alloc.vec.Vec T))) :
-  Result ((alloc.vec.Vec T) × sort.Insert)
-  := do
-  match l with
-  | none => ok (alloc.vec.Vec.new T, self)
-  | some p =>
-    let (h, t) := p
-    let i ←
-      sort.Insert.Insts.HyloShapeListAlgebraTVec.fold_loop corecmpOrdInst h t
-        0#usize
-    let t1 ← alloc.vec.Vec.insert t i h
-    ok (t1, self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Std/WP.lean:682:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.Std.WP`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Insert}]
-    Source: 'hylo/src/sort/mod.rs', lines 14:0-28:1 -/
-@[reducible]
-def sort.Insert.Insts.HyloShapeListAlgebraTVec {T : Type} (corecmpOrdInst :
-  core.cmp.Ord T) : shape.ListAlgebra sort.Insert T (alloc.vec.Vec T) := {
-  fold := sort.Insert.Insts.HyloShapeListAlgebraTVec.fold corecmpOrdInst
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [8995/9031] Replayed Aeneas.Command.Decompose
+[35m             +verify[0m | warning: Aeneas/Command/Decompose.lean:187:21: The namespaces `Aeneas` and `Decompose` are duplicated in the declaration `Aeneas.Command.Decompose.Aeneas.Decompose.checkDuplicate`.
 
-/-- [hylo::sort::SelectMin]
-    Source: 'hylo/src/sort/mod.rs', lines 31:0-31:21
-    Visibility: public -/
-@[reducible]
-def sort.SelectMin := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Command/Decompose.lean:195:21: The namespaces `Aeneas` and `Decompose` are duplicated in the declaration `Aeneas.Command.Decompose.Aeneas.Decompose.useExisting`.
 
-/-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 38:8-38:63
-    Visibility: public -/
-@[rust_loop_body]
-def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop.body
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T)
-  (i : Std.Usize) (j : Std.Usize) :
-  Result (ControlFlow (Std.Usize × Std.Usize) Std.Usize)
-  := do
-  let i1 := alloc.vec.Vec.len v
-  if j < i1
-  then
-    let t ← alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice T) v j
-    let t1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice T) v i
-    let b : Bool ← corecmpOrdInst.partialOrdInst.lt t t1
-    let i2 ← if b
-               then ok j
-               else ok i
-    let j1 ← j + 1#usize
-    ok (cont (i2, j1))
-  else ok (done i)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9000/9031] Replayed Aeneas.Tactic.Step.Init
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Init.lean:384:7: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Step.Test`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 38:8-38:63
-    Visibility: public -/
-@[rust_loop]
-def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T)
-  (i : Std.Usize) (j : Std.Usize) :
-  Result Std.Usize
-  := do
-  loop
-    (fun (i1, j1) =>
-      sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop.body
-      corecmpOrdInst v i1 j1)
-    (i, j)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Init.lean:658:2: Definition `pos_triple_is_pos'` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}::unfold]:
-    Source: 'hylo/src/sort/mod.rs', lines 34:4-41:5
-    Visibility: public -/
-def sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.SelectMin)
-  (v : alloc.vec.Vec T) :
-  Result ((Option (T × (alloc.vec.Vec T))) × sort.SelectMin)
-  := do
-  let b : Bool ← alloc.vec.Vec.is_empty v
-  if b
-  then ok (none, self)
-  else
-    let i ←
-      sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold_loop corecmpOrdInst v
-        0#usize 1#usize
-    let (m, v1) ← alloc.vec.Vec.swap_remove v i
-    ok (some (m, v1), self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9002/9031] Replayed Aeneas.Std.Core.Core
+[35m             +verify[0m | warning: Aeneas/Std/Core/Core.lean:29:2: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.Clone.clone`.
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::ListPlan<T, alloc::vec::Vec<T>> for hylo::sort::SelectMin}]
-    Source: 'hylo/src/sort/mod.rs', lines 32:0-42:1 -/
-@[reducible]
-def sort.SelectMin.Insts.HyloShapeListPlanTVec {T : Type} (corecmpOrdInst :
-  core.cmp.Ord T) : shape.ListPlan sort.SelectMin T (alloc.vec.Vec T) := {
-  unfold := sort.SelectMin.Insts.HyloShapeListPlanTVec.unfold corecmpOrdInst
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Core.lean:44:4: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneBool.clone`.
 
-/-- [hylo::sort::Cons]
-    Source: 'hylo/src/sort/mod.rs', lines 43:0-43:16
-    Visibility: public -/
-@[reducible]
-def sort.Cons := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Core.lean:110:0: Definition `core.option.Option.unwrap_or_some` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Cons}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 46:4-48:5
-    Visibility: public -/
-def sort.Cons.Insts.HyloShapeListAlgebraTVec.fold
-  {T : Type} (self : sort.Cons) (l : Option (T × (alloc.vec.Vec T))) :
-  Result ((alloc.vec.Vec T) × sort.Cons)
-  := do
-  match l with
-  | none => ok (alloc.vec.Vec.new T, self)
-  | some p =>
-    let (h, t) := p
-    let t1 ← alloc.vec.Vec.insert t 0#usize h
-    ok (t1, self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Core.lean:113:0: Definition `core.option.Option.unwrap_or_none` is a proposition; use `theorem` instead of `def`
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::ListAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Cons}]
-    Source: 'hylo/src/sort/mod.rs', lines 44:0-49:1 -/
-@[reducible]
-def sort.Cons.Insts.HyloShapeListAlgebraTVec (T : Type) : shape.ListAlgebra
-  sort.Cons T (alloc.vec.Vec T) := {
-  fold := sort.Cons.Insts.HyloShapeListAlgebraTVec.fold
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Core.lean:137:4: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneShared.clone`.
 
-/-- [hylo::sort::Pivot]
-    Source: 'hylo/src/sort/mod.rs', lines 52:0-52:17
-    Visibility: public -/
-@[reducible]
-def sort.Pivot := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9013/9031] Replayed Aeneas.Std.Scalar.Core
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:396:0: Definition `UScalar.hSize` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 60:8-60:81
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (p : T) (v : alloc.vec.Vec T)
-  (l : alloc.vec.Vec T) (r : alloc.vec.Vec T) :
-  Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T) × (alloc.vec.Vec
-    T)) ((alloc.vec.Vec T) × (alloc.vec.Vec T)))
-  := do
-  let (o, v1) ← alloc.vec.Vec.pop v
-  match o with
-  | none => ok (done (l, r))
-  | some x =>
-    let b : Bool ← corecmpOrdInst.partialOrdInst.lt x p
-    if b
-    then let l1 ← alloc.vec.Vec.push l x
-         ok (cont (v1, l1, r))
-    else let r1 ← alloc.vec.Vec.push r x
-         ok (cont (v1, l, r1))
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:400:0: Definition `UScalar.rMax_eq_pow_numBits` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 60:8-60:81
-    Visibility: public -/
-@[rust_loop]
-def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) 
-  (p : T) (l : alloc.vec.Vec T) (r : alloc.vec.Vec T) :
-  Result ((alloc.vec.Vec T) × (alloc.vec.Vec T))
-  := do
-  loop
-    (fun (v1, l1, r1) =>
-      sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop.body
-      corecmpOrdInst p v1 l1 r1)
-    (v, l, r)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:403:0: Definition `UScalar.cMax_eq_pow_cNumBits` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}::unfold]:
-    Source: 'hylo/src/sort/mod.rs', lines 57:4-62:5
-    Visibility: public -/
-def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.Pivot)
-  (v : alloc.vec.Vec T) :
-  Result ((Option (T × (alloc.vec.Vec T) × (alloc.vec.Vec T))) × sort.Pivot)
-  := do
-  let (o, v1) ← alloc.vec.Vec.pop v
-  match o with
-  | none => ok (none, self)
-  | some p =>
-    let (l, r) ←
-      sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold_loop corecmpOrdInst v1
-        p (alloc.vec.Vec.new T) (alloc.vec.Vec.new T)
-    ok (some (p, l, r), self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:406:0: Definition `UScalar.cMax_le_rMax` is a proposition; use `theorem` instead of `def`
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::NodeTreePlan<T, alloc::vec::Vec<T>> for hylo::sort::Pivot}]
-    Source: 'hylo/src/sort/mod.rs', lines 53:0-63:1 -/
-@[reducible]
-def sort.Pivot.Insts.HyloShapeNodeTreePlanTVec {T : Type} (corecmpOrdInst :
-  core.cmp.Ord T) : shape.NodeTreePlan sort.Pivot T (alloc.vec.Vec T) := {
-  unfold := sort.Pivot.Insts.HyloShapeNodeTreePlanTVec.unfold corecmpOrdInst
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:413:0: Definition `UScalar.hrBounds` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::Concat]
-    Source: 'hylo/src/sort/mod.rs', lines 64:0-64:18
-    Visibility: public -/
-@[reducible]
-def sort.Concat := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:418:0: Definition `UScalar.hmax` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 73:16-73:58
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body
-  {T : Type} (b : alloc.vec.Vec T) (a : alloc.vec.Vec T) :
-  Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
-    T))
-  := do
-  let (o, b1) ← alloc.vec.Vec.pop b
-  match o with
-  | none => ok (done a)
-  | some x => let a1 ← alloc.vec.Vec.push a x
-              ok (cont (b1, a1))
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:432:0: Definition `IScalar.rMin_eq_pow_numBits` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 73:16-73:58
-    Visibility: public -/
-@[rust_loop]
-def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop
-  {T : Type} (b : alloc.vec.Vec T) (a : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  loop
-    (fun (b1, a1) =>
-      sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop.body b1 a1)
-    (b, a)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:435:0: Definition `IScalar.rMax_eq_pow_numBits` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 67:4-77:5
-    Visibility: public -/
-def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold
-  {T : Type} (self : sort.Concat)
-  (l : Option (T × (alloc.vec.Vec T) × (alloc.vec.Vec T))) :
-  Result ((alloc.vec.Vec T) × sort.Concat)
-  := do
-  match l with
-  | none => ok (alloc.vec.Vec.new T, self)
-  | some t =>
-    let (p, a, b) := t
-    let a1 ← alloc.vec.Vec.push a p
-    let (s, deref_mut_back) ← lift (alloc.vec.Vec.deref_mut b)
-    let s1 ← lift (core.slice.Slice.reverse s)
-    let b1 := deref_mut_back s1
-    let a2 ← sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold_loop b1 a1
-    ok (a2, self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:438:0: Definition `IScalar.cMin_eq_pow_cNumBits` is a proposition; use `theorem` instead of `def`
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::NodeTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Concat}]
-    Source: 'hylo/src/sort/mod.rs', lines 65:0-78:1 -/
-@[reducible]
-def sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec (T : Type) :
-  shape.NodeTreeAlgebra sort.Concat T (alloc.vec.Vec T) := {
-  fold := sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec.fold
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:441:0: Definition `IScalar.cMax_eq_pow_cNumBits` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::Merge]
-    Source: 'hylo/src/sort/mod.rs', lines 88:0-88:17
-    Visibility: public -/
-@[reducible]
-def sort.Merge := Unit
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:444:0: Definition `IScalar.rMin_le_cMin` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 0:
-    Source: 'hylo/src/sort/mod.rs', lines 100:16-103:17
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (a : alloc.vec.Vec T)
-  (b : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T) × (alloc.vec.Vec
-    T)) ((alloc.vec.Vec T) × (alloc.vec.Vec T) × (alloc.vec.Vec T)))
-  := do
-  let b1 : Bool ← alloc.vec.Vec.is_empty a
-  if b1
-  then ok (done (a, b, out))
-  else
-    let b2 : Bool ← alloc.vec.Vec.is_empty b
-    if b2
-    then ok (done (a, b, out))
-    else
-      let i := alloc.vec.Vec.len a
-      let i1 ← i - 1#usize
-      let t ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice T) a i1
-      let i2 := alloc.vec.Vec.len b
-      let i3 ← i2 - 1#usize
-      let t1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice T) b i3
-      let take_a : Bool ← corecmpOrdInst.partialOrdInst.le t t1
-      if take_a
-      then
-        let (o, a1) ← alloc.vec.Vec.pop a
-        let t2 ← core.option.Option.unwrap o
-        let out1 ← alloc.vec.Vec.push out t2
-        ok (cont (a1, b, out1))
-      else
-        let (o, b3) ← alloc.vec.Vec.pop b
-        let t2 ← core.option.Option.unwrap o
-        let out1 ← alloc.vec.Vec.push out t2
-        ok (cont (a, b3, out1))
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:453:0: Definition `IScalar.cMax_le_rMax` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 0:
-    Source: 'hylo/src/sort/mod.rs', lines 100:16-103:17
-    Visibility: public -/
-@[rust_loop]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (a : alloc.vec.Vec T)
-  (b : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result ((alloc.vec.Vec T) × (alloc.vec.Vec T) × (alloc.vec.Vec T))
-  := do
-  loop
-    (fun (a1, b1, out1) =>
-      sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0.body
-      corecmpOrdInst a1 b1 out1)
-    (a, b, out)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:469:0: Definition `IScalar.hmin` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 1:
-    Source: 'hylo/src/sort/mod.rs', lines 104:16-104:59
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body
-  {T : Type} (a : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
-    T))
-  := do
-  let (o, a1) ← alloc.vec.Vec.pop a
-  match o with
-  | none => ok (done out)
-  | some x => let out1 ← alloc.vec.Vec.push out x
-              ok (cont (a1, out1))
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Core.lean:470:0: Definition `IScalar.hmax` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 1:
-    Source: 'hylo/src/sort/mod.rs', lines 104:16-104:59
-    Visibility: public -/
-@[rust_loop]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1
-  {T : Type} (a : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  loop
-    (fun (a1, out1) =>
-      sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1.body a1 out1)
-    (a, out)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9017/9031] Replayed Aeneas.Tactic.Solver.ScalarTac.Lemmas
+[35m             +verify[0m | warning: Aeneas/Tactic/Solver/ScalarTac/Lemmas.lean:241:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.ScalarTac`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop body 2:
-    Source: 'hylo/src/sort/mod.rs', lines 105:16-105:59
-    Visibility: public -/
-@[rust_loop_body]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body
-  {T : Type} (b : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result (ControlFlow ((alloc.vec.Vec T) × (alloc.vec.Vec T)) (alloc.vec.Vec
-    T))
-  := do
-  let (o, b1) ← alloc.vec.Vec.pop b
-  match o with
-  | none => ok (done out)
-  | some y => let out1 ← alloc.vec.Vec.push out y
-              ok (cont (b1, out1))
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9023/9031] Replayed Aeneas.Std.Scalar.Casts
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Casts.lean:118:0: Definition `UScalar.hcast_inBounds_spec` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]: loop 2:
-    Source: 'hylo/src/sort/mod.rs', lines 105:16-105:59
-    Visibility: public -/
-@[rust_loop]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2
-  {T : Type} (b : alloc.vec.Vec T) (out : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  loop
-    (fun (b1, out1) =>
-      sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2.body b1 out1)
-    (b, out)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Casts.lean:132:0: Definition `IScalar.cast_inBounds_spec` is a proposition; use `theorem` instead of `def`
 
-/-- [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}::fold]:
-    Source: 'hylo/src/sort/mod.rs', lines 91:4-109:5
-    Visibility: public -/
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (self : sort.Merge)
-  (l : shape.LeafTree T (alloc.vec.Vec T)) :
-  Result ((alloc.vec.Vec T) × sort.Merge)
-  := do
-  match l with
-  | shape.LeafTree.Leaf t =>
-    match t with
-    | none => ok (alloc.vec.Vec.new T, self)
-    | some x =>
-      let v ← alloc.vec.Vec.push (alloc.vec.Vec.new T) x
-      ok (v, self)
-  | shape.LeafTree.Node a b =>
-    let (s, deref_mut_back) ← lift (alloc.vec.Vec.deref_mut a)
-    let s1 ← lift (core.slice.Slice.reverse s)
-    let (s2, deref_mut_back1) ← lift (alloc.vec.Vec.deref_mut b)
-    let s3 ← lift (core.slice.Slice.reverse s2)
-    let b1 := deref_mut_back1 s3
-    let a1 := deref_mut_back s1
-    let (a2, b2, out) ←
-      sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop0 corecmpOrdInst
-        a1 b1 (alloc.vec.Vec.new T)
-    let out1 ←
-      sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop1 a2 out
-    let v ← sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold_loop2 b2 out1
-    ok (v, self)
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Casts.lean:145:0: Definition `IScalar.hcast_inBounds_spec` is a proposition; use `theorem` instead of `def`
 
-/-- Trait implementation: [hylo::sort::{impl hylo::shape::LeafTreeAlgebra<T, alloc::vec::Vec<T>> for hylo::sort::Merge}]
-    Source: 'hylo/src/sort/mod.rs', lines 89:0-110:1 -/
-@[reducible]
-def sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec {T : Type} (corecmpOrdInst :
-  core.cmp.Ord T) : shape.LeafTreeAlgebra sort.Merge T (alloc.vec.Vec T) := {
-  fold := sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec.fold corecmpOrdInst
-}
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9036/9216] Replayed Aeneas.Std.Scalar.CloneCopy
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneU8.clone`.
 
-/-- [hylo::sort::insertion_sort]:
-    Source: 'hylo/src/sort/mod.rs', lines 113:0-113:93
-    Visibility: public -/
-def sort.insertion_sort
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  let (v1, _, _) ←
-    shape.hylo_list (sort.Uncons.Insts.HyloShapeListPlanTVec T)
-      (sort.Insert.Insts.HyloShapeListAlgebraTVec corecmpOrdInst) () () v
-  ok v1
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneU16.clone`.
 
-/-- [hylo::sort::selection_sort]:
-    Source: 'hylo/src/sort/mod.rs', lines 114:0-114:94
-    Visibility: public -/
-def sort.selection_sort
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  let (v1, _, _) ←
-    shape.hylo_list (sort.SelectMin.Insts.HyloShapeListPlanTVec corecmpOrdInst)
-      (sort.Cons.Insts.HyloShapeListAlgebraTVec T) () () v
-  ok v1
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneU64.clone`.
 
-/-- [hylo::sort::quicksort]:
-    Source: 'hylo/src/sort/mod.rs', lines 115:0-115:92
-    Visibility: public -/
-def sort.quicksort
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  let (v1, _, _) ←
-    shape.hylo_node_tree (sort.Pivot.Insts.HyloShapeNodeTreePlanTVec
-      corecmpOrdInst) (sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec T) () ()
-      v
-  ok v1
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneU128.clone`.
 
-/-- [hylo::sort::mergesort]:
-    Source: 'hylo/src/sort/mod.rs', lines 116:0-116:91
-    Visibility: public -/
-def sort.mergesort
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (v : alloc.vec.Vec T) :
-  Result (alloc.vec.Vec T)
-  := do
-  let (v1, _, _) ←
-    shape.hylo_leaf_tree (sort.Halve.Insts.HyloShapeLeafTreePlanTVec T)
-      (sort.Merge.Insts.HyloShapeLeafTreeAlgebraTVec corecmpOrdInst) () () v
-  ok v1
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneU32.clone`.
 
-end hylo
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:15:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneUsize.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneI8.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneI64.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneI32.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneIsize.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneI16.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/CloneCopy.lean:17:39: The namespace `clone` is duplicated in the declaration `Aeneas.Std.core.clone.impls.CloneI128.clone`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9042/9216] Replayed Aeneas.Data.List.List
+[35m             +verify[0m | warning: Aeneas/Data/List/List.lean:752:0: Definition `Inhabited_getElem_eq_getElem!` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9047/9216] Replayed Aeneas.Std.Array.Array
+[35m             +verify[0m | warning: Aeneas/Std/Array/Array.lean:452:4: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultArray.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Array/Array.lean:468:4: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultArrayEmpty.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9050/9216] Replayed Aeneas.Tactic.Conv.Natify.Natify
+[35m             +verify[0m | warning: Aeneas/Tactic/Conv/Natify/Natify.lean:26:11: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Natify`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9052/9216] Replayed Aeneas.Tactic.Conv.ZModify.ZModify
+[35m             +verify[0m | warning: Aeneas/Tactic/Conv/ZModify/ZModify.lean:26:11: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.ZModify`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9059/9216] Replayed Aeneas.Std.Scalar.Default
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultU64.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultU16.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultU128.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultU32.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultU8.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:15:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultUsize.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultIsize.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultI16.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultI64.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultI8.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultI32.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Default.lean:16:46: The namespace `default` is duplicated in the declaration `Aeneas.Std.core.default.DefaultI128.default`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9062/9216] Replayed Aeneas.Std.Core.Fmt
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:19:2: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.Debug.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:72:2: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.Display.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:76:2: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.LowerHex.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:99:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.DebugShared.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:105:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.DebugBool.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Fmt.lean:111:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.DebugUnit.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9063/9216] Replayed Aeneas.Std.Scalar.Display
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:9:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayU8.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:14:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayU16.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:19:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayU32.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:24:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayU64.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:29:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayU128.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:34:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayUsize.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:39:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayI8.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:44:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayI16.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:49:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayI32.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:54:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayI64.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:59:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayI128.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Display.lean:64:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.imp.DisplayIsize.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9064/9216] Replayed Aeneas.Std.Core.Cmp
+[35m             +verify[0m | warning: Aeneas/Std/Core/Cmp.lean:168:2: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.Ord.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Cmp.lean:233:4: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdUnit.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9065/9216] Replayed Aeneas.Std.Scalar.EqOrd
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdI32.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdU16.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdI64.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdU128.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdU8.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdI8.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdU64.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdUsize.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdU32.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdI16.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdIsize.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/EqOrd.lean:38:22: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdI128.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9066/9216] Replayed Aeneas.Std.Scalar.Fmt
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:9:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.LowerHexU16.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:15:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugU8.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:21:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugU16.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:27:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugU32.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:33:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugU64.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:39:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugU128.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:45:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugUsize.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:81:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugI8.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:87:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugI16.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:93:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugI32.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:99:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugI64.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:105:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugI128.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Scalar/Fmt.lean:111:4: The namespace `fmt` is duplicated in the declaration `Aeneas.Std.core.fmt.num.DebugIsize.fmt`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9090/9216] Replayed Aeneas.Std.Slice
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:344:2: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndex.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:348:4: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.Slice.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:406:4: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeUsizeSlice.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:477:4: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeToUsizeSlice.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:536:4: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeFullSlice.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:595:7: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.Usize.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:660:4: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeFromUsizeSlice.index`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:921:2: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeUsizeSlice.index.step_spec.mvcgen_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:922:8: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeUsizeSlice.index.step_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:960:2: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeToUsizeSlice.index.step_spec.mvcgen_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:961:8: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeToUsizeSlice.index.step_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:999:8: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeFromUsizeSlice.index.step_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Slice.lean:998:2: The namespace `index` is duplicated in the declaration `Aeneas.Std.core.slice.index.SliceIndexRangeFromUsizeSlice.index.step_spec.mvcgen_spec`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9096/9216] Replayed Aeneas.Std.Core.Iter
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:39:2: The namespace `step_by` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.step_by.StepBy.step_by`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:37:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.step_by.StepBy.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:43:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.enumerate.Enumerate.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:48:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.take.Take.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:53:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.rev.Rev.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:57:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.take_while.TakeWhile.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/Iter.lean:1079:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.iter.adapters.map.Map.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9103/9216] Replayed Aeneas.Std.Core.Hash
+[35m             +verify[0m | warning: Aeneas/Std/Core/Hash.lean:15:2: The namespace `hash` is duplicated in the declaration `Aeneas.Std.core.hash.Hash.hash`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9110/9216] Replayed Aeneas.Std.Core.Ptr
+[35m             +verify[0m | warning: Aeneas/Std/Core/Ptr.lean:87:2: The namespace `alloc` is duplicated in the declaration `Aeneas.Std.core.alloc.global.GlobalAlloc.alloc`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9112/9216] Replayed Aeneas.Std.CoreMisc
+[35m             +verify[0m | warning: Aeneas/Std/CoreMisc.lean:16:4: The namespace `borrow` is duplicated in the declaration `Aeneas.Std.core.borrow.Borrow.Blanket.borrow`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/CoreMisc.lean:20:4: The namespace `cmp` is duplicated in the declaration `Aeneas.Std.core.cmp.impls.OrdShared.cmp`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/CoreMisc.lean:143:35: This simp argument is unused:
+[35m             +verify[0m |   Vec.length
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp_all
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | ⚠ [9113/9216] Replayed Aeneas.Std.SliceIter
+[35m             +verify[0m | warning: Aeneas/Std/SliceIter.lean:24:2: The namespace `slice` is duplicated in the declaration `Aeneas.Std.core.slice.iter.Iter.slice`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/SliceIter.lean:31:2: The namespace `slice` is duplicated in the declaration `Aeneas.Std.core.slice.iter.IterMut.slice`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Std/SliceIter.lean:207:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | ⚠ [9114/9216] Replayed Aeneas.Std.Core.IterAdapters
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:26:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:54:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:143:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:168:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:192:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:356:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:400:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:479:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:542:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:570:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterAdapters.lean:637:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | ⚠ [9117/9216] Replayed Aeneas.Std.Core.IterOverrides
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:149:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:259:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:265:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:272:90: Unused tactic linter: `omega` does nothing
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedTactic false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:272:90: this tactic is never executed
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:273:86: Used `tac1 <;> tac2` where `(tac1; tac2)` would suffice
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unnecessarySeqFocus false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:284:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:390:20: Variable name `I` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _I
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: Aeneas/Std/Core/IterOverrides.lean:390:22: Variable name `IntoIter` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _IntoIter
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | ⚠ [9118/9216] Replayed Aeneas.Std.BTree
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:33:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:43:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:59:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:99:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:111:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:138:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:148:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:161:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:169:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:191:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:198:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:223:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:288:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:301:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:310:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:321:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:363:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/BTree.lean:374:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | ⚠ [9124/9216] Replayed Aeneas.Std.StringIter
+[35m             +verify[0m | warning: Aeneas/Std/StringIter.lean:11:2: The namespace `iter` is duplicated in the declaration `Aeneas.Std.core.str.iter.Chars.iter`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9127/9216] Replayed Aeneas.Std.MiscExtra
+[35m             +verify[0m | warning: Aeneas/Std/MiscExtra.lean:40:30: This simp argument is unused:
+[35m             +verify[0m |   U8.size
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [UScalarTy.U8_numBits_eq] at *
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | ⚠ [9128/9216] Replayed Aeneas.Std.IterExtra
+[35m             +verify[0m | warning: Aeneas/Std/IterExtra.lean:33:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | warning: Aeneas/Std/IterExtra.lean:51:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | ⚠ [9131/9216] Replayed Aeneas.Std.IterSpecs
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:453:18: This simp argument is unused:
+[35m             +verify[0m |   core.iter.traits.iterator.IteratorSliceIter
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [Yields, core.slice.iter.IteratorSliceIter.next, h]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:525:33: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hnext]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:541:26: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [hnext, hcall, spec_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:593:33: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hnext]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:605:26: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [hnext, hcall, spec_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:688:25: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.map.Map.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [Yields, core.iter.adapters.map.Map.Insts.CoreIterTraitsIteratorIterator.next]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:760:4: This simp argument is unused:
+[35m             +verify[0m |   core.iter.traits.collect.FromIteratorVec
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.traits.iterator.Iterator.collect.default, CollectShape.collect,
+[35m             +verify[0m |     alloc.vec.FromIteratorVec.from_iter, core.iter.traits.collect.IntoIterator.Blanket,
+[35m             +verify[0m |     core.iter.traits.collect.IntoIterator.Blanket.into_iter, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:761:4: This simp argument is unused:
+[35m             +verify[0m |   core.iter.traits.collect.IntoIterator.Blanket
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.traits.iterator.Iterator.collect.default, CollectShape.collect,
+[35m             +verify[0m |     core.iter.traits.collect.FromIteratorVec, alloc.vec.FromIteratorVec.from_iter,
+[35m             +verify[0m |     core.iter.traits.collect.IntoIterator.Blanket.into_iter, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be
+[35m             +verify[0m | [ANote: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:869:18: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.map.Map.Insts.CoreIterTraitsIteratorIterator,
+[35m             +verify[0m |     core.iter.adapters.map.Map.Insts.CoreIterTraitsIteratorIterator.next, hnext, hcall, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:899:13: This simp argument is unused:
+[35m             +verify[0m |   List.reverse_nil
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [List.nil_append] at hR ⊢
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:899:31: This simp argument is unused:
+[35m             +verify[0m |   List.nil_append
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [List.reverse_nil] at hR ⊢
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:924:38: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hnext, hp, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:945:18: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [Yields, core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next, hnext]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:970:10: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next, hnext]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1001:15: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.flatten.FlatMap.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.flatten.FlatMap.Insts.CoreIterTraitsIteratorIterator.next]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1052:17: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.flatten.FlatMap.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.flatten.FlatMap.Insts.CoreIterTraitsIteratorIterator.next]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1083:15: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next] at hn
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1089:15: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next] at hn
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1108:17: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next] at hn
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/IterSpecs.lean:1114:15: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [core.iter.adapters.chain.Chain.Insts.CoreIterTraitsIteratorIterator.next] at hn
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | ⚠ [9132/9216] Replayed Aeneas.Std.CollectionsSpecs
+[35m             +verify[0m | warning: Aeneas/Std/CollectionsSpecs.lean:26:41: This simp argument is unused:
+[35m             +verify[0m |   List.find?_cons
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [lookupL, h]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/CollectionsSpecs.lean:73:24: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | ⚠ [9133/9216] Replayed Aeneas.Std.SetSpecs
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:82:58: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [positionLoopBody, hnext, hp xv, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:84:17: This simp argument is unused:
+[35m             +verify[0m |   hPx
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [Bool.false_eq_true, ↓reduceIte, Std.bind_ok, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:84:67: This simp argument is unused:
+[35m             +verify[0m |   bind_tc_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hPx, Bool.false_eq_true, ↓reduceIte, Std.bind_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:90:17: This simp argument is unused:
+[35m             +verify[0m |   hPx
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [↓reduceIte]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:142:62: This simp argument is unused:
+[35m             +verify[0m |   Std.bind_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [findLoopBody, hn, hp x, bind_tc_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:146:25: This simp argument is unused:
+[35m             +verify[0m |   List.find?_cons
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [hP, spec_ok]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:151:5: Variable name `hi` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _hi
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:187:8: This simp argument is unused:
+[35m             +verify[0m |   core.clone.CloneUsize
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [liftFun1, core.clone.impls.CloneUsize.clone]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:655:42: This simp argument is unused:
+[35m             +verify[0m |   spec_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [List.lexCmpM]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:658:33: This simp argument is unused:
+[35m             +verify[0m |   spec_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [List.lexCmpM]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:664:14: This simp argument is unused:
+[35m             +verify[0m |   spec_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:666:14: This simp argument is unused:
+[35m             +verify[0m |   spec_ok
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:840:23: This simp argument is unused:
+[35m             +verify[0m |   core.iter.traits.iterator.IteratorChunksExact
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [Yields, core.slice.iter.IteratorChunksExact.next, spec_ok, uncurry'_pair]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:877:55: `if_true` has been deprecated: Use `ite_true` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:883:15: This simp argument is unused:
+[35m             +verify[0m |   not_false_eq_true
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [toSliceChunks, Yields, core.slice.iter.Chunks.Insts.CoreIterTraitsIteratorIteratorSharedASlice,
+[35m             +verify[0m |     core.slice.iter.Chunks.Insts.CoreIterTraitsIteratorIteratorSharedASlice.next, Slice.from_val,
+[35m             +verify[0m |     show x :: xs_tail ≠ [] from List.cons_ne_nil x xs_tail, ↓reduceIte, spec_ok, uncurry'_pair]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:964:10: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.zip.Zip.Insts.CoreIterTraitsIteratorIteratorPair
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [core.iter.adapters.zip.Zip.nextPlain, hnext_a, bind_tc_ok, spec_ok, uncurry'_pair]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:972:10: This simp argument is unused:
+[35m             +verify[0m |   core.iter.adapters.zip.Zip.Insts.CoreIterTraitsIteratorIteratorPair
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [core.iter.adapters.zip.Zip.nextPlain, hnext_a, hnext_b, bind_tc_ok, spec_ok, uncurry'_pair]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1030:41: This simp argument is unused:
+[35m             +verify[0m |   ih
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [usizeEnumFrom]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1046:10: This simp argument is unused:
+[35m             +verify[0m |   core.iter.traits.iterator.IteratorEnumerate
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [core.iter.adapters.enumerate.IteratorEnumerate.next, hnext, bind_tc_ok, spec_ok, uncurry'_pair]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1078:30: This simp argument is unused:
+[35m             +verify[0m |   UScalar.max_USize_eq
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [UScalar.inBounds] at hadd_raw
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1097:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1120:35: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1133:35: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1130:27: This simp argument is unused:
+[35m             +verify[0m |   ite_false
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hr_false]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1166:17: This simp argument is unused:
+[35m             +verify[0m |   h
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1171:17: This simp argument is unused:
+[35m             +verify[0m |   h
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1241:37: This simp argument is unused:
+[35m             +verify[0m |   compare_eq_iff_eq
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp [List.lexCmpM]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1256:17: This simp argument is unused:
+[35m             +verify[0m |   hcmp
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1262:17: This simp argument is unused:
+[35m             +verify[0m |   hcmp
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1274:27: This simp argument is unused:
+[35m             +verify[0m |   compare_eq_iff_eq
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1280:17: This simp argument is unused:
+[35m             +verify[0m |   hcmp
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1373:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1506:67: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1516:56: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1484:8: Variable name `old` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _old
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: Aeneas/Std/SetSpecs.lean:1584:2: `@[expose]` has no effect; this declaration would be exposed by default
+[35m             +verify[0m | ⚠ [9135/9216] Replayed Aeneas.Do.Elab
+[35m             +verify[0m | warning: Aeneas/Do/Elab.lean:555:21: The namespace `Aeneas` is duplicated in the declaration `Aeneas.Do.Aeneas.customDoElab`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9144/9216] Replayed Aeneas.Data.Array
+[35m             +verify[0m | warning: Aeneas/Data/Array.lean:86:0: Definition `Inhabited_getElem_eq_getElem!` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | info: Aeneas/Data/Array.lean:168:2: Try this:
+[35m             +verify[0m |   [apply] rwa [List.set_comm']
+[35m             +verify[0m | ⚠ [9145/9216] Replayed Aeneas.Data.Discriminant
+[35m             +verify[0m | warning: Aeneas/Data/Discriminant.lean:191:7: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Discriminant.Test`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Data/Discriminant.lean:212:2: The namespaces `Aeneas`, `Discriminant`, and `Test` are duplicated in the declaration `Aeneas.Discriminant.Test.Aeneas.Discriminant.Test.Foo.read_discriminant`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Data/Discriminant.lean:213:2: The namespaces `Aeneas`, `Discriminant`, and `Test` are duplicated in the declaration `Aeneas.Discriminant.Test.Aeneas.Discriminant.Test.Foo1.read_discriminant`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Data/Discriminant.lean:214:2: The namespaces `Aeneas`, `Discriminant`, and `Test` are duplicated in the declaration `Aeneas.Discriminant.Test.Aeneas.Discriminant.Test.Foo2.read_discriminant`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | warning: Aeneas/Data/Discriminant.lean:215:2: The namespaces `Aeneas`, `Discriminant`, and `Test` are duplicated in the declaration `Aeneas.Discriminant.Test.Aeneas.Discriminant.Test.Foo3.read_discriminant`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9148/9216] Replayed Aeneas.Data.Range.DivRange.Lemmas
+[35m             +verify[0m | warning: Aeneas/Data/Range/DivRange/Lemmas.lean:158:0: Definition `foldWhile'_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/DivRange/Lemmas.lean:174:0: Definition `foldWhile'_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/DivRange/Lemmas.lean:183:0: Definition `foldWhile_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/DivRange/Lemmas.lean:190:0: Definition `foldWhile_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9154/9216] Replayed Aeneas.Data.Range.MulRange.Lemmas
+[35m             +verify[0m | warning: Aeneas/Data/Range/MulRange/Lemmas.lean:172:0: Definition `foldWhile'_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/MulRange/Lemmas.lean:184:0: Definition `foldWhile'_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/MulRange/Lemmas.lean:192:0: Definition `foldWhile_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/MulRange/Lemmas.lean:202:0: Definition `foldWhile_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9158/9216] Replayed Aeneas.Data.Range.SRRange.Lemmas
+[35m             +verify[0m | warning: Aeneas/Data/Range/SRRange/Lemmas.lean:99:0: Definition `foldWhile'_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/SRRange/Lemmas.lean:114:0: Definition `foldWhile'_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/SRRange/Lemmas.lean:123:0: Definition `foldWhile_step` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | warning: Aeneas/Data/Range/SRRange/Lemmas.lean:128:0: Definition `foldWhile_id` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9162/9216] Replayed Aeneas.Data.Vector
+[35m             +verify[0m | warning: Aeneas/Data/Vector.lean:93:0: Definition `Inhabited_getElem_eq_getElem!` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | info: Aeneas/Data/Vector.lean:210:2: Try this:
+[35m             +verify[0m |   [apply] rwa [List.set_comm']
+[35m             +verify[0m | ⚠ [9166/9216] Replayed Aeneas.Tactic.Conv.Bvify.Bvify
+[35m             +verify[0m | warning: Aeneas/Tactic/Conv/Bvify/Bvify.lean:22:11: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Bvify`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9193/9216] Replayed Aeneas.Tactic.Solver.BvTac.BvTac
+[35m             +verify[0m | warning: Aeneas/Tactic/Solver/BvTac/BvTac.lean:136:5: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.BvTac`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9210/9257] Replayed Aeneas.Tactic.Step.Step
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Step.lean:1397:7: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Step.Test`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Step.lean:1748:7: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Step.Test`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Step.lean:1767:7: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas.Step.Test`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9211/9257] Replayed Aeneas.Tactic.Step.StepArraySpec
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/StepArraySpec.lean:140:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.StepArraySpec.Tests`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9213/9257] Replayed Aeneas.Tactic.Step.StepStar
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/StepStar.lean:912:5: Ambiguous namespace `Std`: this `open` refers to all of `_root_.Aeneas.Std`, `_root_.Lean.Std`, while `_root_.Std` is silently not opened because the `open` occurs inside `namespace Aeneas`. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9214/9257] Replayed Aeneas.Tactic.Step.Deprecated
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Deprecated.lean:27:21: The namespaces `Aeneas` and `Deprecated` are duplicated in the declaration `Aeneas.Deprecated.Aeneas.Deprecated.progressWarning`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.dupNamespace false`
+[35m             +verify[0m | ⚠ [9217/9257] Replayed Aeneas.Tactic.Solver.Grind.Tests
+[35m             +verify[0m | warning: Aeneas/Tactic/Solver/Grind/Tests.lean:10:12: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.Grind.Tests`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9221/9257] Replayed Aeneas.Tactic.Step.Tests.Coin
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Tests/Coin.lean:109:0: Definition `qimp_coinSpec_iff` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9230/9257] Replayed Aeneas.Tactic.Step.Tests.TupleDestruct
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Tests/TupleDestruct.lean:19:0: Definition `threeNats_spec` is a proposition; use `theorem` instead of `def`
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.defProp false`
+[35m             +verify[0m | ⚠ [9232/9257] Replayed Aeneas.Tactic.Step.Tests.DspecInduction
+[35m             +verify[0m | warning: Aeneas/Tactic/Step/Tests/DspecInduction.lean:16:5: Ambiguous namespace `Std`: it is interpreted as `_root_.Aeneas.Std` because this `open` occurs inside `namespace Aeneas.DspecInduction.Test`, while `_root_.Std` is silently not opened. Specify the namespace unambiguously, e.g. `_root_.Aeneas.Std`. The warning can sometimes also be addressed by moving the `open` outside of the surrounding `namespace`.
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.ambiguousOpen false`
+[35m             +verify[0m | ⚠ [9239/9257] Built FormalismVerify.Quicksort (9.6s)
+[35m             +verify[0m | warning: FormalismVerify/Quicksort.lean:38:0: automatically included section variable(s) unused in theorem `Formalism.Quicksort.length_filter_reverse_le`:
+[35m             +verify[0m |   [LinearOrder α]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [LinearOrder α] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | ✔ [9240/9257] Built FormalismVerify.Hylo (9.6s)
+[35m             +verify[0m | ✔ [9241/9257] Built FormalismVerify.Extracted.Hylo (12s)
+[35m             +verify[0m | ✔ [9242/9257] Built FormalismVerify.Spec (16s)
+[35m             +verify[0m | ⚠ [9243/9257] Built FormalismVerify.RefineSort (9.5s)
+[35m             +verify[0m | warning: FormalismVerify/RefineSort.lean:30:51: `List.getLast?_eq_getLast` has been deprecated: Use `List.getLast?_eq_some_getLast` instead
+[35m             +verify[0m | ✔ [9244/9257] Built FormalismVerify.Odometer (9.7s)
+[35m             +verify[0m | ✔ [9245/9257] Built FormalismVerify.Refine (11s)
+[35m             +verify[0m | ⚠ [9246/9257] Built FormalismVerify.SpecOwned (12s)
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:278:0: automatically included section variable(s) unused in theorem `Formalism.Traced.Sem.foldl_accept'`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:415:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.children_pairwise`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:502:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.ofList_dom_owned`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:587:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.ownedParts_map_dom`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:599:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.mem_dom_cands_of_mem_dom_joinAll`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:620:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.exists_ownedPart`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:670:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.dom_sub_dom_mk`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:808:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.forall₂_eq_of_restrict`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:1070:6: `dif_pos` has been deprecated: Use `dite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/SpecOwned.lean:1067:0: automatically included section variable(s) unused in theorem `Formalism.OwnedInstance.tauAssignOf_apply`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | ✔ [9247/9257] Built FormalismVerify.Bits (9.8s)
+[35m             +verify[0m | ✔ [9248/9257] Built FormalismVerify.RefineSemiring (8.3s)
+[35m             +verify[0m | ⚠ [9249/9257] Built FormalismVerify.HCol (10s)
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:152:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:489:44: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:496:8: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:498:8: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:801:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:804:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:1093:20: Variable name `g` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _g
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:1107:31: Variable name `g` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _g
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: FormalismVerify/HCol.lean:1107:35: Variable name `g'` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _g'
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | ⚠ [9250/9257] Built FormalismVerify.RefineStep (13s)
+[35m             +verify[0m | warning: FormalismVerify/RefineStep.lean:292:0: automatically included section variable(s) unused in theorem `Formalism.Refine.step_node_loop1_loop0_spec`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | ⚠ [9251/9257] Built FormalismVerify.HColList (5.4s)
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:135:61: Variable name `p` is not explicitly referenced.
+
+[35m             +verify[0m | Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+[35m             +verify[0m |   [apply] _p
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedVariables false`
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:175:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:175:22: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:177:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:177:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:300:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:300:42: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:301:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColList.lean:301:56: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | ⚠ [9252/9257] Built FormalismVerify.RefineRun (6.8s)
+[35m             +verify[0m | warning: FormalismVerify/RefineRun.lean:33:0: automatically included section variable(s) unused in theorem `Formalism.Refine.NodeRelList.length_eq`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/RefineRun.lean:43:0: automatically included section variable(s) unused in theorem `Formalism.Refine.NodeRelList.getElem`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | ⚠ [9253/9257] Built FormalismVerify.RefineHylo (5.8s)
+[35m             +verify[0m | warning: FormalismVerify/RefineHylo.lean:20:0: automatically included section variable(s) unused in theorem `Formalism.Refine.tablesOf_append`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | warning: FormalismVerify/RefineHylo.lean:160:15: This simp argument is unused:
+[35m             +verify[0m |   hylo.dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [hylo.dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow.fold]
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: FormalismVerify/RefineHylo.lean:200:0: automatically included section variable(s) unused in theorem `Formalism.Refine.trace_dp_loop_spec`:
+[35m             +verify[0m |   [DecidableEq Tau]
+[35m             +verify[0m | consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+[35m             +verify[0m |   omit [DecidableEq Tau] in theorem ...
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+[35m             +verify[0m | ⚠ [9254/9257] Built FormalismVerify.BitsRust (6.2s)
+[35m             +verify[0m | warning: FormalismVerify/BitsRust.lean:178:4: Unused tactic linter: `all_goals try simp only [formalism.scheme.Node.mk.sizeOf_spec] at *` does nothing
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedTactic false`
+[35m             +verify[0m | warning: FormalismVerify/BitsRust.lean:187:4: Unused tactic linter: `all_goals try simp only [List.cons.sizeOf_spec] at *` does nothing
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedTactic false`
+[35m             +verify[0m | warning: FormalismVerify/BitsRust.lean:202:29: This simp argument is unused:
+[35m             +verify[0m |   formalism.scheme.Node.mk.sizeOf_spec
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only at *
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: FormalismVerify/BitsRust.lean:217:29: This simp argument is unused:
+[35m             +verify[0m |   List.cons.sizeOf_spec
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only at *
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | ⚠ [9255/9257] Built FormalismVerify.HColRust (8.3s)
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:263:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:263:20: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:264:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:264:20: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:270:23: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:278:40: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:280:41: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:458:14: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:458:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:459:14: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:459:63: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:470:24: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:480:24: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:501:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:502:8: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:504:10: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:505:8: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:819:13: This simp argument is unused:
+[35m             +verify[0m |   eq_self_iff_true
+
+[35m             +verify[0m | Hint: Omit it from the simp argument list.
+[35m             +verify[0m |   [apply] simp only [true_and] at hok1
+
+[35m             +verify[0m | Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:894:12: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:899:17: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:970:30: `if_true` has been deprecated: Use `ite_true` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:981:20: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:1110:19: `if_pos` has been deprecated: Use `ite_eq_left` instead
+[35m             +verify[0m | warning: FormalismVerify/HColRust.lean:1116:10: `if_neg` has been deprecated: Use `ite_eq_right` instead
+[35m             +verify[0m | ✔ [9256/9257] Built FormalismVerify (4.4s)
+[35m             +verify[0m | Build completed successfully (9257 jobs).
+[93m              output[0m | --> exporting outputs
+[34m               cache[0m | --> exporting cache to registry
+[34m               cache[0m | [----------] 100% exporting cache to registry[K
+[34m               cache[0m | [          ]   0% exporting cache to registry[K
+[34m               cache[0m | [A[----------] 100% exporting cache to registry[K
+[34m               cache[0m | [          ]   0% exporting cache to registry[K
+[34m               cache[0m | [A[----------] 100% exporting cache to registry[K
+
+[36m Push Summary ⏫[0m
+[36m————————————————————————————————————————————————————————————————————————————————[0m
+
+
+[90m Local Output Summary 🎁 (disabled)[0m
+[90m————————————————————————————————————————————————————————————————————————————————[0m
+
+
+
+[32m=========================== 🌍 Earth Build  ✅ SUCCESS ===========================[0m
+
+Post job cleanup.
+Cache hit occurred on the primary key earthbuild-cache-Linux-X64-0.8.19, not saving cache.
+Post job cleanup.
+[command]/usr/bin/git version
+git version 2.56.1
+Temporarily overriding HOME='/home/runner/work/_temp/f2890eee-4656-4752-9bde-cd670d145a9a' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/trait_tests/trait_tests
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Cleaning up orphan processes
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
