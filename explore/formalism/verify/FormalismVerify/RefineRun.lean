@@ -163,9 +163,9 @@ theorem run_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 mutual
 /-- `scheme::run` computes the model's `run`. -/
 theorem run_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
+    {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) :
     ∀ (m : Node Op) (node : formalism.scheme.Node Op'), NodeRel R node m → Fits I m →
-      StepsOk I ok m →
+      StepsOk I okP m →
       formalism.scheme.run inst p node ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
         tableOf R t = Traced.run I m ⦄
   | .mk op ms, .mk nop ncs, hrel, hfit, hok => by
@@ -188,8 +188,8 @@ theorem run_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced
     intro t' ht'
     rw [ht', hcts, Traced.run]
 theorem run_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
-    ∀ (ms : List (Node Op)), FitsList I ms → StepsOkList I ok ms →
+    {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) :
+    ∀ (ms : List (Node Op)), FitsList I ms → StepsOkList I okP ms →
       ∀ (j : ℕ) (hj : j < ms.length) (node : formalism.scheme.Node Op'), NodeRel R node ms[j] →
         formalism.scheme.run inst p node ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
           tableOf R t = Traced.run I ms[j] ⦄
@@ -203,7 +203,7 @@ end
 
 omit [DecidableEq Tau] in
 theorem solve_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok)
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP)
     (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (e : formalism.expr.Expr) (i : Usize)
     (hi : i.val ≤ table.val.length)
     (he : ofExt e = ((tableOf R table).take i.val).foldl
@@ -289,9 +289,9 @@ theorem solve_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 
 /-- `scheme::solve` computes the model's `solve`. -/
 theorem solve_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) (m : Node Op)
+    {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) (m : Node Op)
     (root : formalism.scheme.Node Op') (hrel : NodeRel R root m) (hfit : Fits I m)
-    (hok : StepsOk I ok m) :
+    (hok : StepsOk I okP m) :
     formalism.scheme.solve inst p root ⦃ (e : formalism.expr.Expr) => ofExt e = Traced.solve I m ⦄ := by
   unfold formalism.scheme.solve
   apply WP.spec_bind (run_spec R inst p I hI m root hrel hfit hok)
@@ -307,9 +307,9 @@ theorem solve_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Trac
 /-- Claim 1 for the extracted code: on a well-formed construction that the Rust can hold,
     `scheme::solve` succeeds and its expression denotes exactly the solution set. -/
 theorem solve_sound_extracted (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Instance Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I.toTraced ok)
+    (I : Instance Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I.toTraced okP)
     (m : Node Op) (root : formalism.scheme.Node Op') (hrel : NodeRel R root m)
-    (hfit : Fits I.toTraced m) (hok : StepsOk I.toTraced ok m) (hwf : I.WF m) :
+    (hfit : Fits I.toTraced m) (hok : StepsOk I.toTraced okP m) (hwf : I.WF m) :
     formalism.scheme.solve inst p root ⦃ (e : formalism.expr.Expr) =>
       Sem (ofExt e) ((I.candidates m).filter fun f => I.accept (I.trace m f) = true) ⦄ := by
   apply WP.spec_mono (solve_spec R inst p I.toTraced hI m root hrel hfit hok)

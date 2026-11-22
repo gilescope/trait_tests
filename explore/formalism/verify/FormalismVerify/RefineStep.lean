@@ -290,7 +290,7 @@ theorem CurOf.getElem {cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row 
     exact ⟨hi, by rw [← hr, hrow]⟩
 
 theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok)
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP)
     (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau'))) (n : Usize)
     (hn : n.val = cts.val.length) (idx : alloc.vec.Vec Usize)
     (hlen : idx.val.length = cts.val.length)
@@ -378,7 +378,7 @@ theorem step_node_loop1_loop0_spec (inst : formalism.scheme.Traced P Op' Tau') (
 /-! ## Loop 1.1: every output of `step` goes into the table -/
 
 theorem step_node_loop1_loop1_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok)
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP)
     (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (joined : formalism.expr.Expr)
     (J : Expr) (hJ : ofExt joined = J)
     (outs : alloc.vec.Vec (Tau' × alloc.vec.Vec (U32 × U32))) (T0 : List (Tau × Expr))
@@ -625,11 +625,11 @@ theorem step_node_loop1_loop2_spec (cts : alloc.vec.Vec (alloc.vec.Vec (formalis
 /-! ## Loop 1: the outer loop walks `tuples` -/
 
 theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) (op : Op')
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) (op : Op')
     (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau'))) (n : Usize)
     (hn : n.val = cts.val.length)
     (hfin : (Traced.stepNode I (R.opOf op) (tablesOf R cts)).length < Usize.max)
-    (hok : ∀ cur ∈ tuples (tablesOf R cts), ok (R.opOf op) (cur.map Prod.fst))
+    (hok : ∀ cur ∈ tuples (tablesOf R cts), okP (R.opOf op) (cur.map Prod.fst))
     (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (idx : alloc.vec.Vec Usize) (done1 : Bool)
     (hinv : if done1 then tableOf R table = Traced.stepNode I (R.opOf op) (tablesOf R cts)
       else Valid (tablesOf R cts) (idxN idx) ∧ idx.val.length = cts.val.length ∧
@@ -755,10 +755,10 @@ theorem step_node_loop1_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 
 /-- `scheme::step_node` computes the model's `stepNode`, when the table it builds fits. -/
 theorem step_node_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) (op : Op')
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) (op : Op')
     (cts : alloc.vec.Vec (alloc.vec.Vec (formalism.scheme.Row Tau')))
     (hfin : (Traced.stepNode I (R.opOf op) (tablesOf R cts)).length < Usize.max)
-    (hok : ∀ cur ∈ tuples (tablesOf R cts), ok (R.opOf op) (cur.map Prod.fst)) :
+    (hok : ∀ cur ∈ tuples (tablesOf R cts), okP (R.opOf op) (cur.map Prod.fst)) :
     formalism.scheme.step_node inst p op cts
       ⦃ (t : alloc.vec.Vec (formalism.scheme.Row Tau')) =>
         tableOf R t = Traced.stepNode I (R.opOf op) (tablesOf R cts) ⦄ := by

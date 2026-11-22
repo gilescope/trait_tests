@@ -99,9 +99,9 @@ theorem hylo_rose_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 -- `hylo_rose` computes `run`; the one way it fails is a table that does not fit (`Fits`).
 mutual
 theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
+    {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) :
     ∀ (m : Node Op) (node : formalism.scheme.Node Op') (plan : Unit), NodeRel R node m →
-      Fits I m → StepsOk I ok m →
+      Fits I m → StepsOk I okP m →
       hylo.shape.hylo_rose (hylo.dp.Project.Insts.HyloShapeRosePlanOpNode Op')
         (hylo.dp.TraceDp.Insts.HyloShapeRoseAlgebraClause0_OpVecRow inst) plan p node
         ⦃ (r : alloc.vec.Vec (formalism.scheme.Row Tau') × Unit × P) =>
@@ -180,8 +180,8 @@ theorem hylo_rose_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : 
     rw [WP.spec_ok]
     exact ⟨ht1, by trivial⟩
 theorem hylo_rose_specList (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) :
-    ∀ (ms : List (Node Op)), FitsList I ms → StepsOkList I ok ms →
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) :
+    ∀ (ms : List (Node Op)), FitsList I ms → StepsOkList I okP ms →
       ∀ (j : ℕ) (hj : j < ms.length) (node : formalism.scheme.Node Op') (plan : Unit),
         NodeRel R node ms[j] →
         hylo.shape.hylo_rose (hylo.dp.Project.Insts.HyloShapeRosePlanOpNode Op')
@@ -198,7 +198,7 @@ end
 /-- The pop loop of `trace_dp`: the rows of the reversed table, popped from the back, are the
     table's rows in order. -/
 theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Traced Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok)
+    (I : Traced Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP)
     (T : List (formalism.scheme.Row Tau'))
     (table : alloc.vec.Vec (formalism.scheme.Row Tau')) (e : formalism.expr.Expr)
     (j : ℕ) (hj : j ≤ T.length) (htable : table.val = (T.drop j).reverse)
@@ -271,9 +271,9 @@ theorem trace_dp_loop_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P)
 
 /-- `trace_dp` computes the model's `solve`. -/
 theorem trace_dp_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : Traced Op Tau)
-    {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I ok) (m : Node Op)
+    {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I okP) (m : Node Op)
     (root : formalism.scheme.Node Op') (hrel : NodeRel R root m) (hfit : Fits I m)
-    (hok : StepsOk I ok m) :
+    (hok : StepsOk I okP m) :
     hylo.dp.trace_dp inst p root ⦃ (e : formalism.expr.Expr) => ofExt e = Traced.solve I m ⦄ := by
   unfold hylo.dp.trace_dp
   apply WP.spec_bind (hylo_rose_spec R inst p I hI m root () hrel hfit hok)
@@ -306,9 +306,9 @@ theorem trace_dp_spec (inst : formalism.scheme.Traced P Op' Tau') (p : P) (I : T
 /-- Claim 1 for the extracted `hylo::dp::trace_dp`, as `solve_sound_extracted` for
     `scheme::solve`. -/
 theorem trace_dp_sound_extracted (inst : formalism.scheme.Traced P Op' Tau') (p : P)
-    (I : Instance Op Tau) {ok : Op → List Tau → Prop} (hI : TracedSpec R inst p I.toTraced ok)
+    (I : Instance Op Tau) {okP : Op → List Tau → Prop} (hI : TracedSpec R inst p I.toTraced okP)
     (m : Node Op) (root : formalism.scheme.Node Op') (hrel : NodeRel R root m)
-    (hfit : Fits I.toTraced m) (hok : StepsOk I.toTraced ok m) (hwf : I.WF m) :
+    (hfit : Fits I.toTraced m) (hok : StepsOk I.toTraced okP m) (hwf : I.WF m) :
     hylo.dp.trace_dp inst p root ⦃ (e : formalism.expr.Expr) =>
       Sem (ofExt e) ((I.candidates m).filter fun f => I.accept (I.trace m f) = true) ⦄ := by
   apply WP.spec_mono (trace_dp_spec R inst p I.toTraced hI m root hrel hfit hok)

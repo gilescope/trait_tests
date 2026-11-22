@@ -34,7 +34,8 @@ theorem eq_of_keySorted_of_mem_iff :
   | [], q :: _, _, _, h => absurd ((h q).mpr (List.mem_cons_self ..)) (fun h' => nomatch h')
   | p :: _, [], _, _, h => absurd ((h p).mp (List.mem_cons_self ..)) (fun h' => nomatch h')
   | p :: l₁, q :: l₂, h₁, h₂, h => by
-    rw [List.pairwise_cons] at h₁ h₂
+    have h₁ := List.pairwise_cons.mp h₁
+    have h₂ := List.pairwise_cons.mp h₂
     have hpq : p = q := by
       have hp := (h p).mp (List.mem_cons_self ..)
       have hq := (h q).mpr (List.mem_cons_self ..)
@@ -61,66 +62,6 @@ theorem eq_of_keySorted_of_mem_iff :
       · exact absurd (h₂.1 r hr) (lt_irrefl _)
       · exact this
 
-/-- Keys as a `Bool` order, for `mergeSort`. -/
-def keyLe (p q : Var × Val) : Bool := decide (p.1 ≤ q.1)
-
-/-- The sorted list of an assignment's pairs. -/
-noncomputable def toSorted (g : Assign) : TauL := g.1.toList.mergeSort keyLe
-
-theorem toSorted_perm (g : Assign) : (toSorted g).Perm g.1.toList := List.mergeSort_perm _ _
-
-theorem mem_toSorted {g : Assign} {p : Var × Val} : p ∈ toSorted g ↔ p ∈ g.1 := by
-  rw [(toSorted_perm g).mem_iff, Finset.mem_toList]
-
-theorem toSorted_nodup (g : Assign) : (toSorted g).Nodup :=
-  (toSorted_perm g).nodup_iff.mpr (Finset.nodup_toList _)
-
-theorem toSorted_keySorted (g : Assign) : KeySorted (toSorted g) := by
-  have hle : (toSorted g).Pairwise fun p q => keyLe p q = true := by
-    apply List.sorted_mergeSort
-    · intro a b c h1 h2
-      simp only [keyLe, decide_eq_true_iff] at h1 h2 ⊢
-      exact h1.trans h2
-    · intro a b
-      simp only [keyLe, Bool.or_eq_true, decide_eq_true_iff]
-      exact le_total _ _
-  have hnd : (toSorted g).Pairwise (· ≠ ·) := toSorted_nodup g
-  refine List.Pairwise.imp_of_mem ?_ (hle.and hnd)
-  intro p q hp hq h
-  obtain ⟨h1, h2⟩ := h
-  simp only [keyLe, decide_eq_true_iff] at h1
-  rcases h1.lt_or_eq with h1 | h1
-  · exact h1
-  · exact absurd (g.2 p (mem_toSorted.mp hp) q (mem_toSorted.mp hq) h1) h2
-
-theorem toSorted_injective : Function.Injective toSorted := by
-  intro g g' h
-  apply Subtype.ext
-  ext p
-  rw [← mem_toSorted, ← mem_toSorted, h]
-
-theorem toSorted_eq_iff {g g' : Assign} : toSorted g = toSorted g' ↔ g = g' :=
-  ⟨fun h => toSorted_injective h, fun h => h ▸ rfl⟩
-
-theorem toSorted_empty : toSorted Assign.empty = [] := by
-  have h := toSorted_perm Assign.empty
-  rw [show Assign.empty.1 = (∅ : Finset (Var × Val)) from rfl, Finset.toList_empty] at h
-  exact h.eq_nil
-
-theorem toSorted_eq_nil_iff {g : Assign} : toSorted g = [] ↔ g = Assign.empty := by
-  constructor
-  · intro h
-    apply Subtype.ext
-    apply Finset.eq_empty_of_forall_notMem
-    intro p hp
-    have := mem_toSorted.mpr hp
-    rw [h] at this
-    exact absurd this (fun h' => nomatch h')
-  · rintro rfl
-    exact toSorted_empty
-
-/-! ## The list algorithms of `hcol.rs` -/
-
 /-- `insert_sorted`: `(v, d)` goes before the first pair whose variable is above `v`, else at
     the end. -/
 def insertSorted : TauL → Var → Val → TauL
@@ -143,25 +84,84 @@ theorem insertSorted_keySorted {v : Var} {d : Val} :
     ∀ {l : TauL}, KeySorted l → (∀ p ∈ l, p.1 ≠ v) → KeySorted (insertSorted l v d)
   | [], _, _ => List.pairwise_singleton _ _
   | p :: rest, h, hv => by
-    rw [List.pairwise_cons] at h
+    have h := List.pairwise_cons.mp h
     rw [insertSorted]
     split
     · rename_i hlt
-      rw [List.pairwise_cons]
-      refine ⟨?_, List.pairwise_cons.mpr h⟩
+      refine List.pairwise_cons.mpr ⟨?_, List.pairwise_cons.mpr h⟩
       intro q hq
       rw [List.mem_cons] at hq
       rcases hq with rfl | hq
       · exact hlt
       · exact hlt.trans (h.1 q hq)
     · rename_i hge
-      rw [List.pairwise_cons]
-      refine ⟨?_, insertSorted_keySorted h.2 fun q hq => hv q (List.mem_cons_of_mem _ hq)⟩
+      refine List.pairwise_cons.mpr
+        ⟨?_, insertSorted_keySorted h.2 fun q hq => hv q (List.mem_cons_of_mem _ hq)⟩
       intro q hq
       rw [mem_insertSorted] at hq
       rcases hq with rfl | hq
       · exact lt_of_le_of_ne (not_lt.mp hge) (hv p (List.mem_cons_self ..))
       · exact h.1 q hq
+
+/-- The sorted list of an assignment's pairs: its pairs inserted one by one. -/
+noncomputable def toSorted (g : Assign) : TauL :=
+  g.1.toList.foldr (fun p acc => insertSorted acc p.1 p.2) []
+
+theorem mem_foldr_insertSorted {q : Var × Val} :
+    ∀ l : List (Var × Val), q ∈ l.foldr (fun p acc => insertSorted acc p.1 p.2) [] ↔ q ∈ l
+  | [] => Iff.rfl
+  | p :: rest => by
+    rw [List.foldr_cons, mem_insertSorted, List.mem_cons, mem_foldr_insertSorted rest]
+
+theorem mem_toSorted {g : Assign} {p : Var × Val} : p ∈ toSorted g ↔ p ∈ g.1 := by
+  rw [toSorted, mem_foldr_insertSorted, Finset.mem_toList]
+
+theorem keySorted_foldr_insertSorted {g : Assign} :
+    ∀ l : List (Var × Val), l.Nodup → (∀ p ∈ l, p ∈ g.1) →
+      KeySorted (l.foldr (fun p acc => insertSorted acc p.1 p.2) [])
+  | [], _, _ => List.Pairwise.nil
+  | p :: rest, hnd, hmem => by
+    rw [List.foldr_cons]
+    have hnd' := List.nodup_cons.mp hnd
+    apply insertSorted_keySorted
+      (keySorted_foldr_insertSorted rest hnd'.2 fun q hq => hmem q (List.mem_cons_of_mem _ hq))
+    intro q hq hqp
+    rw [mem_foldr_insertSorted] at hq
+    have : q = p := g.2 q (hmem q (List.mem_cons_of_mem _ hq)) p (hmem p (List.mem_cons_self ..)) hqp
+    subst this
+    exact hnd'.1 hq
+
+theorem toSorted_keySorted (g : Assign) : KeySorted (toSorted g) :=
+  keySorted_foldr_insertSorted _ (Finset.nodup_toList _) fun p hp => Finset.mem_toList.mp hp
+
+theorem toSorted_nodup (g : Assign) : (toSorted g).Nodup := KeySorted.nodup (toSorted_keySorted g)
+
+theorem toSorted_injective : Function.Injective toSorted := by
+  intro g g' h
+  apply Subtype.ext
+  ext p
+  rw [← mem_toSorted, ← mem_toSorted, h]
+
+theorem toSorted_eq_iff {g g' : Assign} : toSorted g = toSorted g' ↔ g = g' :=
+  ⟨fun h => toSorted_injective h, fun h => h ▸ rfl⟩
+
+theorem toSorted_empty : toSorted Assign.empty = [] := by
+  rw [toSorted, show Assign.empty.1 = (∅ : Finset (Var × Val)) from rfl, Finset.toList_empty]
+  rfl
+
+theorem toSorted_eq_nil_iff {g : Assign} : toSorted g = [] ↔ g = Assign.empty := by
+  constructor
+  · intro h
+    apply Subtype.ext
+    apply Finset.eq_empty_of_forall_notMem
+    intro p hp
+    have := mem_toSorted.mpr hp
+    rw [h] at this
+    exact absurd this (fun h' => nomatch h')
+  · rintro rfl
+    exact toSorted_empty
+
+/-! ## The list algorithms of `hcol.rs` -/
 
 /-- The inserted pair's position depends on the keys only, so the colour is recoverable. -/
 theorem insertSorted_inj {v : Var} {d d' : Val} :
@@ -184,7 +184,7 @@ theorem mem_remove {f : TauL} {v : Var} {q : Var × Val} : q ∈ remove f v ↔ 
   rw [remove, List.mem_filter, decide_eq_true_iff]
 
 theorem remove_keySorted {f : TauL} (h : KeySorted f) (v : Var) : KeySorted (remove f v) :=
-  h.sublist (List.filter_sublist _)
+  List.Pairwise.sublist List.filter_sublist h
 
 /-- `consistent`, over a list. -/
 def consistentL (P : Graphs) (f : TauL) (v : Var) (d : Val) : Bool :=
@@ -281,8 +281,8 @@ theorem stepL_eq (P : Graphs) (op : HOp) (cs : List (Node HOp)) (gs : List Assig
         else none) = _
     rw [consistentL_toSorted]
     by_cases hcons : consistent P (g'.restrict (bag c)) v d = true
-    · simp only [hcons, ↓reduceIte, Option.map_some', toSorted_join_single hv']
-    · simp only [hcons, ↓reduceIte, Option.map_none']
+    · simp only [hcons, ↓reduceIte, Option.map, toSorted_join_single hv']
+    · simp only [hcons, ↓reduceIte, Option.map]
   | @forget v c _ _ _ =>
     obtain ⟨g', rfl, _⟩ := forall₂_single hgs
     show [(remove (toSorted (g'.restrict (bag c))) v, ([] : List (Var × Val)))] =
