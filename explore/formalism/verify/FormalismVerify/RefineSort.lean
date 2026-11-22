@@ -25,8 +25,8 @@ theorem eq_dropLast_append_of_getLast?_eq_some {l : List T} {x : T} (h : l.getLa
     l = l.dropLast ++ [x] := by
   have hne : l ≠ [] := by
     intro hnil
-    rw [hnil] at h
-    exact absurd h (by simp)
+    rw [hnil, List.getLast?_nil] at h
+    cases h
   have hx : l.getLast hne = x := Option.some.inj ((List.getLast?_eq_getLast hne).symm.trans h)
   rw [← hx]
   exact (List.dropLast_append_getLast hne).symm
@@ -83,6 +83,12 @@ theorem unfold_loop_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec in
       subst hb
       cases hdec : decide (R x < R p) with
       | true =>
+        have hf1 : (x :: v2.val.reverse).filter (fun y => decide (R y < R p)) =
+            x :: v2.val.reverse.filter (fun y => decide (R y < R p)) :=
+          List.filter_cons_of_pos (by simp [hdec])
+        have hf2 : (x :: v2.val.reverse).filter (fun y => !decide (R y < R p)) =
+            v2.val.reverse.filter (fun y => !decide (R y < R p)) :=
+          List.filter_cons_of_neg (by simp [hdec])
         rw [ite_eq_left rfl]
         apply WP.spec_bind (alloc.vec.Vec.push_spec l1 x (by omega))
         intro l2 hl2
@@ -94,13 +100,18 @@ theorem unfold_loop_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec in
           rw [hl2, List.length_append, List.length_singleton]
           omega
         · show l2.val ++ _ = _
-          rw [← hl1, hrev, List.filter_cons_of_pos hdec, hl2, List.append_assoc,
-            List.singleton_append]
+          rw [← hl1, hrev, hf1, hl2, List.append_assoc, List.singleton_append]
         · show r1.val ++ _ = _
-          rw [← hr1, hrev, List.filter_cons_of_neg (by rw [hdec]; rfl)]
+          rw [← hr1, hrev, hf2]
         · show v2.val.length < v1.val.length
           omega
       | false =>
+        have hf1 : (x :: v2.val.reverse).filter (fun y => decide (R y < R p)) =
+            v2.val.reverse.filter (fun y => decide (R y < R p)) :=
+          List.filter_cons_of_neg (by simp [hdec])
+        have hf2 : (x :: v2.val.reverse).filter (fun y => !decide (R y < R p)) =
+            x :: v2.val.reverse.filter (fun y => !decide (R y < R p)) :=
+          List.filter_cons_of_pos (by simp [hdec])
         rw [ite_eq_right Bool.false_ne_true]
         apply WP.spec_bind (alloc.vec.Vec.push_spec r1 x (by omega))
         intro r2 hr2
@@ -112,10 +123,9 @@ theorem unfold_loop_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec in
           rw [hr2, List.length_append, List.length_singleton]
           omega
         · show l1.val ++ _ = _
-          rw [← hl1, hrev, List.filter_cons_of_neg hdec]
+          rw [← hl1, hrev, hf1]
         · show r2.val ++ _ = _
-          rw [← hr1, hrev, List.filter_cons_of_pos (by rw [hdec]; rfl), hr2, List.append_assoc,
-            List.singleton_append]
+          rw [← hr1, hrev, hf2, hr2, List.append_assoc, List.singleton_append]
         · show v2.val.length < v1.val.length
           omega
   · exact ⟨hb, rfl, rfl⟩
@@ -265,77 +275,90 @@ theorem fold_spec_none (self : hylo.sort.Concat) :
   rw [WP.spec_ok]
   rfl
 
-/-- The hylomorphism computes `quicksortBy R` on the vector's list. -/
-theorem hylo_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R) :
-    ∀ (n : ℕ) (v : alloc.vec.Vec T) (plan : hylo.sort.Pivot) (alg : hylo.sort.Concat),
+/-- The hylomorphism on an empty vector. -/
+theorem hylo_spec_nil (inst : core.cmp.Ord T) (R : T → α) (v : alloc.vec.Vec T)
+    (plan : hylo.sort.Pivot) (alg : hylo.sort.Concat) (hv : v.val = []) :
+    hylo.shape.hylo_node_tree (hylo.sort.Pivot.Insts.HyloShapeNodeTreePlanTVec inst)
+      (hylo.sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec T) plan alg v
+      ⦃ (res : alloc.vec.Vec T × hylo.sort.Pivot × hylo.sort.Concat) =>
+        res.1.val = quicksortBy R v.val ⦄ := by
+  unfold hylo.shape.hylo_node_tree
+  try simp only [hylo.sort.Pivot.Insts.HyloShapeNodeTreePlanTVec,
+    hylo.sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec]
+  apply WP.spec_bind (unfold_spec_nil inst plan v hv)
+  rintro ⟨o, plan1⟩ ho
+  replace ho : o = none := ho
+  subst ho
+  try dsimp only
+  apply WP.spec_bind (fold_spec_none alg)
+  rintro ⟨t, alg1⟩ ht
+  replace ht : t.val = [] := ht
+  show WP.spec (ok (t, plan1, alg1)) _
+  rw [WP.spec_ok]
+  show t.val = _
+  rw [ht, hv, quicksortBy, List.reverse_nil, qsBy_nil]
+
+/-- The hylomorphism computes `quicksortBy R` on the vector's list (by induction on a bound
+    on the vector's length: each layer's partitions are shorter). -/
+theorem hylo_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R) (n : ℕ) :
+    ∀ (v : alloc.vec.Vec T) (plan : hylo.sort.Pivot) (alg : hylo.sort.Concat),
       v.val.length ≤ n →
       hylo.shape.hylo_node_tree (hylo.sort.Pivot.Insts.HyloShapeNodeTreePlanTVec inst)
         (hylo.sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec T) plan alg v
         ⦃ (res : alloc.vec.Vec T × hylo.sort.Pivot × hylo.sort.Concat) =>
-          res.1.val = quicksortBy R v.val ⦄
-  | n, v, plan, alg, hn => by
-    unfold hylo.shape.hylo_node_tree
-    simp only [hylo.sort.Pivot.Insts.HyloShapeNodeTreePlanTVec,
-      hylo.sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec]
+          res.1.val = quicksortBy R v.val ⦄ := by
+  induction n with
+  | zero =>
+    intro v plan alg hn
+    exact hylo_spec_nil inst R v plan alg (List.length_eq_zero_iff.mp (Nat.le_zero.mp hn))
+  | succ m ih =>
+    intro v plan alg hn
     rcases List.eq_nil_or_concat v.val with hv | ⟨v', p, hv⟩
-    · apply WP.spec_bind (unfold_spec_nil inst plan v hv)
-      rintro ⟨o, plan1⟩ ho
-      replace ho : o = none := ho
-      subst ho
-      try dsimp only
-      apply WP.spec_bind (fold_spec_none alg)
-      rintro ⟨t, alg1⟩ ht
-      replace ht : t.val = [] := ht
-      show WP.spec (ok (t, plan1, alg1)) _
-      rw [WP.spec_ok]
-      show t.val = _
-      rw [ht, hv, quicksortBy, List.reverse_nil, qsBy_nil]
-    · cases n with
-      | zero =>
-        exfalso
+    · exact hylo_spec_nil inst R v plan alg hv
+    · have hlen : v'.length ≤ m := by
         rw [hv, List.length_append, List.length_singleton] at hn
         omega
-      | succ m =>
-        have hlen : v'.length ≤ m := by
-          rw [hv, List.length_append, List.length_singleton] at hn
-          omega
-        apply WP.spec_bind (unfold_spec_cons inst R hO plan v v' p hv)
-        rintro ⟨o, plan1⟩ ho
-        obtain ⟨l, r, hol, hl, hr⟩ := ho
-        replace hol : o = some (p, l, r) := hol
-        subst hol
-        try dsimp only
-        have hll : l.val.length ≤ m := by
-          rw [hl]
-          exact (List.length_filter_le _ _).trans (by rw [List.length_reverse]; exact hlen)
-        have hrl : r.val.length ≤ m := by
-          rw [hr]
-          exact (List.length_filter_le _ _).trans (by rw [List.length_reverse]; exact hlen)
-        apply WP.spec_bind (hylo_spec inst R hO m l plan1 alg hll)
-        rintro ⟨l1, plan2, alg1⟩ hl1
-        replace hl1 : l1.val = quicksortBy R l.val := hl1
-        try dsimp only
-        apply WP.spec_bind (hylo_spec inst R hO m r plan2 alg1 hrl)
-        rintro ⟨r1, plan3, alg2⟩ hr1
-        replace hr1 : r1.val = quicksortBy R r.val := hr1
-        try dsimp only
-        have hsum : l1.val.length + 1 + r1.val.length ≤ Usize.max := by
-          have hvb := v.property
-          rw [hv, List.length_append, List.length_singleton] at hvb
-          rw [hl1, hr1, quicksortBy_length, quicksortBy_length, hl, hr]
-          have h := List.length_filter_le (fun x => decide (R x < R p)) v'.reverse
-          have h' := List.length_filter_le (fun x => !decide (R x < R p)) v'.reverse
-          have hperm := (List.filter_append_perm (fun x => decide (R x < R p)) v'.reverse).length_eq
-          rw [List.length_append, List.length_reverse] at hperm
-          omega
-        apply WP.spec_bind (fold_spec_some alg2 p l1 r1 hsum)
-        rintro ⟨t1, alg3⟩ ht1
-        replace ht1 : t1.val = l1.val ++ p :: r1.val := ht1
-        show WP.spec (ok (t1, plan3, alg3)) _
-        rw [WP.spec_ok]
-        show t1.val = _
-        rw [ht1, hl1, hr1, hl, hr, hv, quicksortBy, quicksortBy, quicksortBy, List.reverse_append,
-          List.reverse_singleton, List.singleton_append, qsBy_cons]
+      unfold hylo.shape.hylo_node_tree
+      try simp only [hylo.sort.Pivot.Insts.HyloShapeNodeTreePlanTVec,
+        hylo.sort.Concat.Insts.HyloShapeNodeTreeAlgebraTVec]
+      apply WP.spec_bind (unfold_spec_cons inst R hO plan v v' p hv)
+      rintro ⟨o, plan1⟩ ho
+      obtain ⟨l, r, hol, hl, hr⟩ := ho
+      replace hol : o = some (p, l, r) := hol
+      subst hol
+      try dsimp only
+      have hll : l.val.length ≤ m := by
+        rw [hl]
+        exact (List.length_filter_le _ _).trans (by rw [List.length_reverse]; exact hlen)
+      have hrl : r.val.length ≤ m := by
+        rw [hr]
+        exact (List.length_filter_le _ _).trans (by rw [List.length_reverse]; exact hlen)
+      apply WP.spec_bind (ih l plan1 alg hll)
+      rintro ⟨l1, plan2, alg1⟩ hl1
+      replace hl1 : l1.val = quicksortBy R l.val := hl1
+      try dsimp only
+      apply WP.spec_bind (ih r plan2 alg1 hrl)
+      rintro ⟨r1, plan3, alg2⟩ hr1
+      replace hr1 : r1.val = quicksortBy R r.val := hr1
+      try dsimp only
+      have hsum : l1.val.length + 1 + r1.val.length ≤ Usize.max := by
+        have hvb := v.property
+        rw [hv, List.length_append, List.length_singleton] at hvb
+        rw [hl1, hr1, quicksortBy_length, quicksortBy_length, hl, hr]
+        have h := List.length_filter_le (fun x => decide (R x < R p)) v'.reverse
+        have h' := List.length_filter_le (fun x => !decide (R x < R p)) v'.reverse
+        have hperm := (List.filter_append_perm (fun x => decide (R x < R p)) v'.reverse).length_eq
+        rw [List.length_append, List.length_reverse] at hperm
+        omega
+      apply WP.spec_bind (fold_spec_some alg2 p l1 r1 hsum)
+      rintro ⟨t1, alg3⟩ ht1
+      replace ht1 : t1.val = l1.val ++ p :: r1.val := ht1
+      show WP.spec (ok (t1, plan3, alg3)) _
+      rw [WP.spec_ok]
+      show t1.val = _
+      rw [ht1, hl1, hr1, hl, hr, hv]
+      simp only [quicksortBy]
+      rw [List.reverse_append, List.reverse_singleton, List.singleton_append, qsBy_cons]
 
 /-- `hylo::sort::quicksort` computes `quicksortBy R`. -/
 theorem quicksort_spec (inst : core.cmp.Ord T) (R : T → α) (hO : OrdSpec inst R)

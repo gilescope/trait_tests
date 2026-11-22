@@ -47,9 +47,9 @@ theorem compat_of_pairwise : ∀ {gs : List Assign}, gs.Pairwise Compat →
     rw [List.pairwise_cons] at hp
     rw [List.mem_cons] at hg hg'
     rcases hg with rfl | hg <;> rcases hg' with rfl | hg'
-    · exact compat_self g
-    · exact hp.1 g' hg'
-    · exact (hp.1 g hg).symm
+    · exact compat_self _
+    · exact hp.1 _ hg'
+    · exact (hp.1 _ hg).symm
     · exact compat_of_pairwise hp.2 g hg g' hg'
 
 theorem mem_join_val {f g : Assign} {q : Var × Val} :

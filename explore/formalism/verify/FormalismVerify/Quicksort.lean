@@ -73,10 +73,10 @@ theorem qsF_perm : ∀ (n : ℕ) (l : List α), l.length ≤ n → (qsF n l).Per
   | n + 1, p :: rest, h => by
     rw [List.length_cons] at h
     rw [qsF]
-    have h1 := (qsF_perm n _ ((length_filter_reverse_le _ rest).trans (by omega))).trans
-      (List.reverse_perm _)
-    have h2 := (qsF_perm n _ ((length_filter_reverse_le _ rest).trans (by omega))).trans
-      (List.reverse_perm _)
+    have h1 := (qsF_perm n (rest.filter fun x => decide (x < p)).reverse
+      ((length_filter_reverse_le _ rest).trans (by omega))).trans (List.reverse_perm _)
+    have h2 := (qsF_perm n (rest.filter fun x => !decide (x < p)).reverse
+      ((length_filter_reverse_le _ rest).trans (by omega))).trans (List.reverse_perm _)
     exact ((h1.append (h2.cons p)).trans List.perm_middle).trans
       ((List.filter_append_perm _ rest).cons p)
 
@@ -196,10 +196,10 @@ theorem qsByF_perm (R : β → α) : ∀ (n : ℕ) (l : List β), l.length ≤ n
   | n + 1, p :: rest, h => by
     rw [List.length_cons] at h
     rw [qsByF]
-    have h1 := (qsByF_perm R n _ ((length_filter_reverse_le' _ rest).trans (by omega))).trans
-      (List.reverse_perm _)
-    have h2 := (qsByF_perm R n _ ((length_filter_reverse_le' _ rest).trans (by omega))).trans
-      (List.reverse_perm _)
+    have h1 := (qsByF_perm R n (rest.filter fun x => decide (R x < R p)).reverse
+      ((length_filter_reverse_le' _ rest).trans (by omega))).trans (List.reverse_perm _)
+    have h2 := (qsByF_perm R n (rest.filter fun x => !decide (R x < R p)).reverse
+      ((length_filter_reverse_le' _ rest).trans (by omega))).trans (List.reverse_perm _)
     exact ((h1.append (h2.cons p)).trans List.perm_middle).trans
       ((List.filter_append_perm _ rest).cons p)
 
