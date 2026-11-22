@@ -426,17 +426,8 @@ theorem restrict_join_single {g : Assign} {v : Var} {d : Val} (hv : v ∉ g.dom)
   · rw [Assign.restrict_dom, Assign.join_dom_eq, Assign.join_dom_eq, Assign.single_dom,
       Assign.restrict_dom]
     ext x
-    rw [Finset.mem_inter, Finset.mem_union, Finset.mem_singleton, Finset.mem_insert,
-      Finset.mem_union, Finset.mem_inter]
-    constructor
-    · rintro ⟨hx | rfl, hx' | hx'⟩
-      · exact Or.inl hx'
-      · exact Or.inr ⟨hx, hx'⟩
-      · exact Or.inl rfl
-      · exact Or.inl rfl
-    · rintro (rfl | ⟨hx, hx'⟩)
-      · exact ⟨Or.inr rfl, Or.inl rfl⟩
-      · exact ⟨Or.inl hx, Or.inr hx'⟩
+    simp only [Finset.mem_inter, Finset.mem_union, Finset.mem_singleton, Finset.mem_insert]
+    tauto
   · intro p hp
     rw [Assign.mem_restrict_val, Finset.mem_insert] at hp
     obtain ⟨hp, hpv⟩ := hp
@@ -493,7 +484,7 @@ theorem step_intro_mem {P : Graphs} {v : Var} {o : Bool} {f : Assign} {rest : Li
   · rintro ⟨d, hd, h⟩
     rw [List.mem_range] at hd
     rw [Option.ite_none_right_eq_some] at h
-    exact ⟨d, hd, h.1, h.2.symm⟩
+    exact ⟨d, hd, h.1, (Option.some.inj h.2).symm⟩
   · rintro ⟨d, hd, hcons, rfl⟩
     exact ⟨d, List.mem_range.mpr hd, by rw [if_pos hcons]⟩
 
@@ -505,7 +496,7 @@ theorem step_join_mem {P : Graphs} {f1 f2 : Assign} {rest : List Assign}
   · rw [if_pos h, List.mem_singleton]
     exact ⟨fun h' => ⟨h, h'⟩, fun h' => h'.2⟩
   · rw [if_neg h]
-    exact ⟨fun h' => nomatch h', fun h' => absurd h'.1 h⟩
+    exact ⟨(fun h' => nomatch h'), fun h' => absurd h'.1 h⟩
 
 theorem step_leaves (P : Graphs) (op : HOp) (taus : List Assign) :
     ∀ out ∈ step P op taus,
@@ -562,13 +553,15 @@ theorem step_nodup (P : Graphs) (op : HOp) (taus : List Assign) :
     | cons f rest =>
       show ((List.range P.nH).filterMap _).Pairwise _
       rw [List.pairwise_filterMap]
-      refine List.Pairwise.imp ?_ (List.nodup_range P.nH)
+      refine List.Pairwise.imp ?_ List.nodup_range
       intro d d' hne b hb b' hb' hτ
       exfalso
       try dsimp only at hb hb'
       rw [Option.mem_def, Option.ite_none_right_eq_some] at hb hb'
+      have hb2 := Option.some.inj hb.2
+      have hb2' := Option.some.inj hb'.2
       have hτ' : (Assign.single v d).join f = (Assign.single v d').join f := by
-        rw [← hb.2, ← hb'.2] at hτ
+        rw [← hb2, ← hb2'] at hτ
         exact hτ
       have h1 : (v, d) ∈ ((Assign.single v d).join f).1 :=
         Assign.mem_join_val.mpr (Or.inl (mem_single.mpr rfl))
@@ -977,8 +970,9 @@ theorem step_compat (P : Graphs) (op : HOp) (cs : List (Node HOp)) (gs : List As
   | @join a b _ _ hbag hmeet _ =>
     obtain ⟨g1, g2, rfl, hg1, hg2⟩ := forall₂_pair hgs
     obtain ⟨hres, _⟩ := step_join_mem.mp hout
+    have hres' : g1.restrict (bag a) = g2.restrict (bag b) := hres
     have hcompat : Assign.Compat g1 g2 := by
-      refine compat_of_restrict_eq (B := bag a) ?_ (by rw [hres, hbag])
+      refine compat_of_restrict_eq (B := bag a) ?_ (by rw [hres', hbag])
       rw [(mem_cands.mp hg1).2.1, (mem_cands.mp hg2).2.1]
       exact hmeet
     rw [List.pairwise_cons]
