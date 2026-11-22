@@ -93,6 +93,16 @@ decreasing_by
       have h2 := List.length_filter_le (fun x => !decide (R x < R p)) rest
       omega
 
+theorem qsBy_perm {β : Type*} (R : β → α) (l : List β) : (qsBy R l).Perm l := by
+  induction l using qsBy.induct R with
+  | case1 => simp [qsBy]
+  | case2 p rest ih1 ih2 =>
+    rw [qsBy]
+    have h1 := ih1.trans (List.reverse_perm _)
+    have h2 := ih2.trans (List.reverse_perm _)
+    exact ((h1.append (h2.cons p)).trans List.perm_middle).trans
+      ((List.filter_append_perm _ rest).cons p)
+
 /-- Sorting through a reading of the elements sorts the readings. -/
 theorem qs_map {β : Type*} (R : β → α) (l : List β) : qs (l.map R) = (qsBy R l).map R := by
   induction l using qsBy.induct R with
@@ -108,6 +118,9 @@ def quicksortBy {β : Type*} (R : β → α) (v : List β) : List β := qsBy R v
 theorem quicksortBy_map {β : Type*} (R : β → α) (v : List β) :
     quicksort (v.map R) = (quicksortBy R v).map R := by
   rw [quicksort, quicksortBy, ← List.map_reverse, qs_map]
+
+theorem quicksortBy_perm {β : Type*} (R : β → α) (v : List β) : (quicksortBy R v).Perm v :=
+  (qsBy_perm R _).trans (List.reverse_perm v)
 
 theorem quicksortBy_length {β : Type*} (R : β → α) (v : List β) :
     (quicksortBy R v).length = v.length := by

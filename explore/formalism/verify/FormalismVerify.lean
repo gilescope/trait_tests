@@ -1,6 +1,7 @@
 import FormalismVerify.Spec
 import FormalismVerify.SpecOwned
 import FormalismVerify.Quicksort
+import FormalismVerify.RefineSort
 import FormalismVerify.Hylo
 import FormalismVerify.Bits
 import FormalismVerify.Odometer
