@@ -1025,7 +1025,8 @@ theorem step_spec (p : formalism.instances.hcol.HColoring) (op : formalism.insta
         hfit (R.tauOf t') (by rw [hs, List.map_cons]; exact List.mem_cons_self ..)
       rw [ofPairs_length] at h
       exact h
-    apply WP.spec_mono (step_loop_spec p v owner t' hflen (alloc.vec.Vec.new _) 0#u32 (by scalar_tac)
+    apply WP.spec_mono (step_loop_spec p v owner t' hflen (alloc.vec.Vec.new _) 0#u32
+      (by rw [u32_zero]; exact Nat.zero_le _)
       (by rw [new_val, List.length_nil]; exact Nat.zero_le _) (by rw [new_val, u32_zero]; rfl))
     intro res hres
     rw [hs, List.map_cons]
